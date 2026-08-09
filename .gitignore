@@ -54,3 +54,8 @@ Thumbs.db
 
 # ---- Superpowers SDD workspace (scratch) ----
 .superpowers/sdd/
+
+# Netflix reference captures — internal design refs only, never public
+docs/ui-references/**/*.png
+docs/ui-references/**/*.jpg
+!docs/ui-references/README.md
