@@ -1,0 +1,56 @@
+# ---- Dart / Flutter ----
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/generated_plugin_registrant.dart
+*.iml
+.idea/
+*.ipr
+*.iws
+.vscode/
+
+# ---- Flutter build outputs ----
+app/build/
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.keystore
+*.jks
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+admin/.next/
+admin/out/
+
+# ---- Env / secrets (NEVER commit) ----
+.env
+.env.*
+!.env.example
+*.env
+infra/supabase/.env
+edge/.env
+admin/.env.local
+
+# ---- Supabase CLI local ----
+infra/supabase/.branches
+infra/supabase/.temp
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+
+# ---- Superpowers SDD workspace (scratch) ----
+.superpowers/sdd/
