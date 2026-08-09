@@ -10,7 +10,7 @@ void main() {
     expect(AppColors.textPrimary, const Color(0xFFFFFFFF));
     expect(AppColors.textSecondary, const Color(0xFFB3B3B3));
     // The ONE allowed deviation: Netflix red #E50914 → our accent #E11D48.
-    expect(AppColors.accentPrimary.value, isNot(const Color(0xFFE50914).value));
+    expect(AppColors.accentPrimary.toARGB32(), isNot(const Color(0xFFE50914).toARGB32()));
     expect(AppColors.accentPrimary, const Color(0xFFE11D48));
     expect(AppColors.accentHover, const Color(0xFFF43F5E));
   });

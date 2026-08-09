@@ -12,7 +12,7 @@ class FlixiumApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.bgBase,
-        colorScheme: ColorScheme.dark(
+        colorScheme: const ColorScheme.dark(
           primary: AppColors.accentPrimary,
           surface: AppColors.bgBase,
         ),
@@ -27,7 +27,7 @@ class _PlaceholderHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       backgroundColor: AppColors.bgBase,
       body: Center(
         child: Column(
@@ -41,7 +41,7 @@ class _PlaceholderHome extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               'Phase 0 — foundation',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
