@@ -1,0 +1,25 @@
+# Wasmer Edge app config (spec §11.1). Autodeploys on git push (Wasmer for GitHub).
+kind: wasmer.io/App.v0
+owner: YOUR_WASMER_USERNAME   # ← replace in Task 8 with your real username
+name: flixium-edge
+package: '.'                    # uses wasmer.toml in this dir
+debug: false
+
+# Secrets are set via the CLI (Task 8), never committed:
+#   wasmer app secret create GITHUB_REPO=owner/repo --app-id <APP_ID>
+#   wasmer app secret create SUPABASE_URL=...         (added in P4)
+#   wasmer app secret create SUPABASE_SERVICE_ROLE_KEY=...  (added in P4)
+#   wasmer app secret create REVOLUT_API_KEY=...            (added in P4)
+#   wasmer app secret create REVOLUT_WEBHOOK_SECRET=...     (added in P4)
+#   wasmer app secret create ADMIN_SESSION_SECRET=...       (added in P4)
+env:
+  GITHUB_REPO: "${GITHUB_REPO}"
+
+capabilities:
+  instaboot:
+    requests:
+      - path: /dl/latest
+      - path: /dl/latest/arm64
+      - path: /_bootstrap
+  cdn_cache:
+    enabled: true

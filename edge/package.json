@@ -1,0 +1,12 @@
+{
+  "name": "flixium-edge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Flixium edge handlers (Wasmer Edge)",
+  "scripts": {
+    "dev": "node --watch src/dev_local.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "dependencies": {}
+}

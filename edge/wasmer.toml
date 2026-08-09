@@ -1,0 +1,10 @@
+# Wasmer package manifest. The JS service-worker bundler builds from src/.
+[package]
+name = "flixium-edge"
+version = "0.1.0"
+description = "Flixium edge app: /dl/latest redirect + (later) licensing/admin API"
+license = "Proprietary"
+
+# The runtime is a JS service worker (WinterCG fetch handler).
+[fs]
+"./src" = "./src"
