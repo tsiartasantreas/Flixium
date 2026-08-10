@@ -9,6 +9,7 @@ import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../player/player_screen.dart';
 import '../player/tv_player_screen.dart';
+import 'widgets/download_button.dart';
 
 /// Content detail screen showing title, poster, and play button.
 ///
@@ -189,48 +190,68 @@ class _DetailScreenState extends State<DetailScreen> {
                     _buildTypeBadge(),
                     const SizedBox(height: 20),
 
-                    // -- Play button -----------------------------------------
+                    // -- Play + Download buttons --------------------------------
                     if (widget.url.isNotEmpty)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: Focus(
-                          onKeyEvent: (node, event) {
-                            if (event is KeyDownEvent &&
-                                event.logicalKey ==
-                                    LogicalKeyboardKey.select) {
-                              _playContent(
-                                widget.url,
-                                widget.title,
-                                isLive: _isLive,
-                              );
-                              return KeyEventResult.handled;
-                            }
-                            return KeyEventResult.ignored;
-                          },
-                          child: ElevatedButton.icon(
-                            onPressed: () => _playContent(
-                              widget.url,
-                              widget.title,
-                              isLive: _isLive,
-                            ),
-                            icon: const Icon(Icons.play_arrow, size: 24),
-                            label: Text(
-                              _isLive ? 'Watch Live' : 'Play',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accentPrimary,
-                              foregroundColor: AppColors.textPrimary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: Focus(
+                                onKeyEvent: (node, event) {
+                                  if (event is KeyDownEvent &&
+                                      event.logicalKey ==
+                                          LogicalKeyboardKey.select) {
+                                    _playContent(
+                                      widget.url,
+                                      widget.title,
+                                      isLive: _isLive,
+                                    );
+                                    return KeyEventResult.handled;
+                                  }
+                                  return KeyEventResult.ignored;
+                                },
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _playContent(
+                                    widget.url,
+                                    widget.title,
+                                    isLive: _isLive,
+                                  ),
+                                  icon: const Icon(Icons.play_arrow, size: 24),
+                                  label: Text(
+                                    _isLive ? 'Watch Live' : 'Play',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.accentPrimary,
+                                    foregroundColor: AppColors.textPrimary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          if (!_isLive) ...[
+                            const SizedBox(width: 12),
+                            DownloadButton(
+                              contentId: '${widget.contentType}_${widget.id}',
+                              title: widget.title,
+                              url: widget.url,
+                              contentType: widget.contentType,
+                              thumbnailUrl: widget.imageUrl,
+                              onPlayOffline: () => _playContent(
+                                widget.url,
+                                widget.title,
+                                isLive: _isLive,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
 
                     // -- Series episodes -------------------------------------

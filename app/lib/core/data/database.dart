@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'models/channels.dart';
+import 'models/downloaded_items.dart';
 import 'models/epg_programmes.dart';
 import 'models/episodes.dart';
 import 'models/favorites.dart';
@@ -36,6 +37,7 @@ part 'database.g.dart';
     Favorites,
     WatchProgressEntry,
     UserProfiles,
+    DownloadedItems,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -47,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Bump this when you add / remove tables or alter columns.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,6 +57,9 @@ class AppDatabase extends _$AppDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.createTable(userProfiles);
+          }
+          if (from < 3) {
+            await m.createTable(downloadedItems);
           }
         },
       );

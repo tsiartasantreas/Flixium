@@ -3756,6 +3756,587 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   }
 }
 
+class $DownloadedItemsTable extends DownloadedItems
+    with TableInfo<$DownloadedItemsTable, DownloadedItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadedItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _contentIdMeta = const VerificationMeta(
+    'contentId',
+  );
+  @override
+  late final GeneratedColumn<String> contentId = GeneratedColumn<String>(
+    'content_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileSizeMeta = const VerificationMeta(
+    'fileSize',
+  );
+  @override
+  late final GeneratedColumn<int> fileSize = GeneratedColumn<int>(
+    'file_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _downloadedAtMeta = const VerificationMeta(
+    'downloadedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> downloadedAt = GeneratedColumn<DateTime>(
+    'downloaded_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentTypeMeta = const VerificationMeta(
+    'contentType',
+  );
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+    'content_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _thumbnailUrlMeta = const VerificationMeta(
+    'thumbnailUrl',
+  );
+  @override
+  late final GeneratedColumn<String> thumbnailUrl = GeneratedColumn<String>(
+    'thumbnail_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _streamUrlMeta = const VerificationMeta(
+    'streamUrl',
+  );
+  @override
+  late final GeneratedColumn<String> streamUrl = GeneratedColumn<String>(
+    'stream_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    contentId,
+    title,
+    filePath,
+    fileSize,
+    downloadedAt,
+    contentType,
+    thumbnailUrl,
+    streamUrl,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'downloaded_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DownloadedItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('content_id')) {
+      context.handle(
+        _contentIdMeta,
+        contentId.isAcceptableOrUnknown(data['content_id']!, _contentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('file_size')) {
+      context.handle(
+        _fileSizeMeta,
+        fileSize.isAcceptableOrUnknown(data['file_size']!, _fileSizeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileSizeMeta);
+    }
+    if (data.containsKey('downloaded_at')) {
+      context.handle(
+        _downloadedAtMeta,
+        downloadedAt.isAcceptableOrUnknown(
+          data['downloaded_at']!,
+          _downloadedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_downloadedAtMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+        _contentTypeMeta,
+        contentType.isAcceptableOrUnknown(
+          data['content_type']!,
+          _contentTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentTypeMeta);
+    }
+    if (data.containsKey('thumbnail_url')) {
+      context.handle(
+        _thumbnailUrlMeta,
+        thumbnailUrl.isAcceptableOrUnknown(
+          data['thumbnail_url']!,
+          _thumbnailUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('stream_url')) {
+      context.handle(
+        _streamUrlMeta,
+        streamUrl.isAcceptableOrUnknown(data['stream_url']!, _streamUrlMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DownloadedItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DownloadedItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      contentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      fileSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_size'],
+      )!,
+      downloadedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}downloaded_at'],
+      )!,
+      contentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_type'],
+      )!,
+      thumbnailUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thumbnail_url'],
+      ),
+      streamUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stream_url'],
+      ),
+    );
+  }
+
+  @override
+  $DownloadedItemsTable createAlias(String alias) {
+    return $DownloadedItemsTable(attachedDatabase, alias);
+  }
+}
+
+class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
+  final int id;
+
+  /// Unique content identifier (matches the contentId used throughout the app).
+  final String contentId;
+
+  /// Human-readable title (e.g. "Breaking Bad S01E01").
+  final String title;
+
+  /// Absolute path to the downloaded file on disk.
+  final String filePath;
+
+  /// File size in bytes.
+  final int fileSize;
+
+  /// When the download completed.
+  final DateTime downloadedAt;
+
+  /// Content category: `"movie"`, `"series"`, `"radio"`, or `"live"`.
+  final String contentType;
+
+  /// Optional poster / thumbnail URL for display in the downloads grid.
+  final String? thumbnailUrl;
+
+  /// Optional URL for streaming (stored so we can re-download or share).
+  final String? streamUrl;
+  const DownloadedItem({
+    required this.id,
+    required this.contentId,
+    required this.title,
+    required this.filePath,
+    required this.fileSize,
+    required this.downloadedAt,
+    required this.contentType,
+    this.thumbnailUrl,
+    this.streamUrl,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['content_id'] = Variable<String>(contentId);
+    map['title'] = Variable<String>(title);
+    map['file_path'] = Variable<String>(filePath);
+    map['file_size'] = Variable<int>(fileSize);
+    map['downloaded_at'] = Variable<DateTime>(downloadedAt);
+    map['content_type'] = Variable<String>(contentType);
+    if (!nullToAbsent || thumbnailUrl != null) {
+      map['thumbnail_url'] = Variable<String>(thumbnailUrl);
+    }
+    if (!nullToAbsent || streamUrl != null) {
+      map['stream_url'] = Variable<String>(streamUrl);
+    }
+    return map;
+  }
+
+  DownloadedItemsCompanion toCompanion(bool nullToAbsent) {
+    return DownloadedItemsCompanion(
+      id: Value(id),
+      contentId: Value(contentId),
+      title: Value(title),
+      filePath: Value(filePath),
+      fileSize: Value(fileSize),
+      downloadedAt: Value(downloadedAt),
+      contentType: Value(contentType),
+      thumbnailUrl: thumbnailUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbnailUrl),
+      streamUrl: streamUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(streamUrl),
+    );
+  }
+
+  factory DownloadedItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DownloadedItem(
+      id: serializer.fromJson<int>(json['id']),
+      contentId: serializer.fromJson<String>(json['contentId']),
+      title: serializer.fromJson<String>(json['title']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      fileSize: serializer.fromJson<int>(json['fileSize']),
+      downloadedAt: serializer.fromJson<DateTime>(json['downloadedAt']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      thumbnailUrl: serializer.fromJson<String?>(json['thumbnailUrl']),
+      streamUrl: serializer.fromJson<String?>(json['streamUrl']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'contentId': serializer.toJson<String>(contentId),
+      'title': serializer.toJson<String>(title),
+      'filePath': serializer.toJson<String>(filePath),
+      'fileSize': serializer.toJson<int>(fileSize),
+      'downloadedAt': serializer.toJson<DateTime>(downloadedAt),
+      'contentType': serializer.toJson<String>(contentType),
+      'thumbnailUrl': serializer.toJson<String?>(thumbnailUrl),
+      'streamUrl': serializer.toJson<String?>(streamUrl),
+    };
+  }
+
+  DownloadedItem copyWith({
+    int? id,
+    String? contentId,
+    String? title,
+    String? filePath,
+    int? fileSize,
+    DateTime? downloadedAt,
+    String? contentType,
+    Value<String?> thumbnailUrl = const Value.absent(),
+    Value<String?> streamUrl = const Value.absent(),
+  }) => DownloadedItem(
+    id: id ?? this.id,
+    contentId: contentId ?? this.contentId,
+    title: title ?? this.title,
+    filePath: filePath ?? this.filePath,
+    fileSize: fileSize ?? this.fileSize,
+    downloadedAt: downloadedAt ?? this.downloadedAt,
+    contentType: contentType ?? this.contentType,
+    thumbnailUrl: thumbnailUrl.present ? thumbnailUrl.value : this.thumbnailUrl,
+    streamUrl: streamUrl.present ? streamUrl.value : this.streamUrl,
+  );
+  DownloadedItem copyWithCompanion(DownloadedItemsCompanion data) {
+    return DownloadedItem(
+      id: data.id.present ? data.id.value : this.id,
+      contentId: data.contentId.present ? data.contentId.value : this.contentId,
+      title: data.title.present ? data.title.value : this.title,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      fileSize: data.fileSize.present ? data.fileSize.value : this.fileSize,
+      downloadedAt: data.downloadedAt.present
+          ? data.downloadedAt.value
+          : this.downloadedAt,
+      contentType: data.contentType.present
+          ? data.contentType.value
+          : this.contentType,
+      thumbnailUrl: data.thumbnailUrl.present
+          ? data.thumbnailUrl.value
+          : this.thumbnailUrl,
+      streamUrl: data.streamUrl.present ? data.streamUrl.value : this.streamUrl,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadedItem(')
+          ..write('id: $id, ')
+          ..write('contentId: $contentId, ')
+          ..write('title: $title, ')
+          ..write('filePath: $filePath, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('downloadedAt: $downloadedAt, ')
+          ..write('contentType: $contentType, ')
+          ..write('thumbnailUrl: $thumbnailUrl, ')
+          ..write('streamUrl: $streamUrl')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    contentId,
+    title,
+    filePath,
+    fileSize,
+    downloadedAt,
+    contentType,
+    thumbnailUrl,
+    streamUrl,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DownloadedItem &&
+          other.id == this.id &&
+          other.contentId == this.contentId &&
+          other.title == this.title &&
+          other.filePath == this.filePath &&
+          other.fileSize == this.fileSize &&
+          other.downloadedAt == this.downloadedAt &&
+          other.contentType == this.contentType &&
+          other.thumbnailUrl == this.thumbnailUrl &&
+          other.streamUrl == this.streamUrl);
+}
+
+class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
+  final Value<int> id;
+  final Value<String> contentId;
+  final Value<String> title;
+  final Value<String> filePath;
+  final Value<int> fileSize;
+  final Value<DateTime> downloadedAt;
+  final Value<String> contentType;
+  final Value<String?> thumbnailUrl;
+  final Value<String?> streamUrl;
+  const DownloadedItemsCompanion({
+    this.id = const Value.absent(),
+    this.contentId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.fileSize = const Value.absent(),
+    this.downloadedAt = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.thumbnailUrl = const Value.absent(),
+    this.streamUrl = const Value.absent(),
+  });
+  DownloadedItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required String contentId,
+    required String title,
+    required String filePath,
+    required int fileSize,
+    required DateTime downloadedAt,
+    required String contentType,
+    this.thumbnailUrl = const Value.absent(),
+    this.streamUrl = const Value.absent(),
+  }) : contentId = Value(contentId),
+       title = Value(title),
+       filePath = Value(filePath),
+       fileSize = Value(fileSize),
+       downloadedAt = Value(downloadedAt),
+       contentType = Value(contentType);
+  static Insertable<DownloadedItem> custom({
+    Expression<int>? id,
+    Expression<String>? contentId,
+    Expression<String>? title,
+    Expression<String>? filePath,
+    Expression<int>? fileSize,
+    Expression<DateTime>? downloadedAt,
+    Expression<String>? contentType,
+    Expression<String>? thumbnailUrl,
+    Expression<String>? streamUrl,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (contentId != null) 'content_id': contentId,
+      if (title != null) 'title': title,
+      if (filePath != null) 'file_path': filePath,
+      if (fileSize != null) 'file_size': fileSize,
+      if (downloadedAt != null) 'downloaded_at': downloadedAt,
+      if (contentType != null) 'content_type': contentType,
+      if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
+      if (streamUrl != null) 'stream_url': streamUrl,
+    });
+  }
+
+  DownloadedItemsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? contentId,
+    Value<String>? title,
+    Value<String>? filePath,
+    Value<int>? fileSize,
+    Value<DateTime>? downloadedAt,
+    Value<String>? contentType,
+    Value<String?>? thumbnailUrl,
+    Value<String?>? streamUrl,
+  }) {
+    return DownloadedItemsCompanion(
+      id: id ?? this.id,
+      contentId: contentId ?? this.contentId,
+      title: title ?? this.title,
+      filePath: filePath ?? this.filePath,
+      fileSize: fileSize ?? this.fileSize,
+      downloadedAt: downloadedAt ?? this.downloadedAt,
+      contentType: contentType ?? this.contentType,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      streamUrl: streamUrl ?? this.streamUrl,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (contentId.present) {
+      map['content_id'] = Variable<String>(contentId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (fileSize.present) {
+      map['file_size'] = Variable<int>(fileSize.value);
+    }
+    if (downloadedAt.present) {
+      map['downloaded_at'] = Variable<DateTime>(downloadedAt.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (thumbnailUrl.present) {
+      map['thumbnail_url'] = Variable<String>(thumbnailUrl.value);
+    }
+    if (streamUrl.present) {
+      map['stream_url'] = Variable<String>(streamUrl.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadedItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('contentId: $contentId, ')
+          ..write('title: $title, ')
+          ..write('filePath: $filePath, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('downloadedAt: $downloadedAt, ')
+          ..write('contentType: $contentType, ')
+          ..write('thumbnailUrl: $thumbnailUrl, ')
+          ..write('streamUrl: $streamUrl')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3770,6 +4351,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $WatchProgressEntryTable watchProgressEntry =
       $WatchProgressEntryTable(this);
   late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
+  late final $DownloadedItemsTable downloadedItems = $DownloadedItemsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3785,6 +4369,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     favorites,
     watchProgressEntry,
     userProfiles,
+    downloadedItems,
   ];
 }
 
@@ -6875,6 +7460,288 @@ typedef $$UserProfilesTableProcessedTableManager =
       UserProfile,
       PrefetchHooks Function()
     >;
+typedef $$DownloadedItemsTableCreateCompanionBuilder =
+    DownloadedItemsCompanion Function({
+      Value<int> id,
+      required String contentId,
+      required String title,
+      required String filePath,
+      required int fileSize,
+      required DateTime downloadedAt,
+      required String contentType,
+      Value<String?> thumbnailUrl,
+      Value<String?> streamUrl,
+    });
+typedef $$DownloadedItemsTableUpdateCompanionBuilder =
+    DownloadedItemsCompanion Function({
+      Value<int> id,
+      Value<String> contentId,
+      Value<String> title,
+      Value<String> filePath,
+      Value<int> fileSize,
+      Value<DateTime> downloadedAt,
+      Value<String> contentType,
+      Value<String?> thumbnailUrl,
+      Value<String?> streamUrl,
+    });
+
+class $$DownloadedItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $DownloadedItemsTable> {
+  $$DownloadedItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentId => $composableBuilder(
+    column: $table.contentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get downloadedAt => $composableBuilder(
+    column: $table.downloadedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thumbnailUrl => $composableBuilder(
+    column: $table.thumbnailUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get streamUrl => $composableBuilder(
+    column: $table.streamUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadedItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DownloadedItemsTable> {
+  $$DownloadedItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentId => $composableBuilder(
+    column: $table.contentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get downloadedAt => $composableBuilder(
+    column: $table.downloadedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get thumbnailUrl => $composableBuilder(
+    column: $table.thumbnailUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get streamUrl => $composableBuilder(
+    column: $table.streamUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadedItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DownloadedItemsTable> {
+  $$DownloadedItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get contentId =>
+      $composableBuilder(column: $table.contentId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<int> get fileSize =>
+      $composableBuilder(column: $table.fileSize, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get downloadedAt => $composableBuilder(
+    column: $table.downloadedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get thumbnailUrl => $composableBuilder(
+    column: $table.thumbnailUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get streamUrl =>
+      $composableBuilder(column: $table.streamUrl, builder: (column) => column);
+}
+
+class $$DownloadedItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DownloadedItemsTable,
+          DownloadedItem,
+          $$DownloadedItemsTableFilterComposer,
+          $$DownloadedItemsTableOrderingComposer,
+          $$DownloadedItemsTableAnnotationComposer,
+          $$DownloadedItemsTableCreateCompanionBuilder,
+          $$DownloadedItemsTableUpdateCompanionBuilder,
+          (
+            DownloadedItem,
+            BaseReferences<
+              _$AppDatabase,
+              $DownloadedItemsTable,
+              DownloadedItem
+            >,
+          ),
+          DownloadedItem,
+          PrefetchHooks Function()
+        > {
+  $$DownloadedItemsTableTableManager(
+    _$AppDatabase db,
+    $DownloadedItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadedItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DownloadedItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DownloadedItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> contentId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<int> fileSize = const Value.absent(),
+                Value<DateTime> downloadedAt = const Value.absent(),
+                Value<String> contentType = const Value.absent(),
+                Value<String?> thumbnailUrl = const Value.absent(),
+                Value<String?> streamUrl = const Value.absent(),
+              }) => DownloadedItemsCompanion(
+                id: id,
+                contentId: contentId,
+                title: title,
+                filePath: filePath,
+                fileSize: fileSize,
+                downloadedAt: downloadedAt,
+                contentType: contentType,
+                thumbnailUrl: thumbnailUrl,
+                streamUrl: streamUrl,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String contentId,
+                required String title,
+                required String filePath,
+                required int fileSize,
+                required DateTime downloadedAt,
+                required String contentType,
+                Value<String?> thumbnailUrl = const Value.absent(),
+                Value<String?> streamUrl = const Value.absent(),
+              }) => DownloadedItemsCompanion.insert(
+                id: id,
+                contentId: contentId,
+                title: title,
+                filePath: filePath,
+                fileSize: fileSize,
+                downloadedAt: downloadedAt,
+                contentType: contentType,
+                thumbnailUrl: thumbnailUrl,
+                streamUrl: streamUrl,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadedItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DownloadedItemsTable,
+      DownloadedItem,
+      $$DownloadedItemsTableFilterComposer,
+      $$DownloadedItemsTableOrderingComposer,
+      $$DownloadedItemsTableAnnotationComposer,
+      $$DownloadedItemsTableCreateCompanionBuilder,
+      $$DownloadedItemsTableUpdateCompanionBuilder,
+      (
+        DownloadedItem,
+        BaseReferences<_$AppDatabase, $DownloadedItemsTable, DownloadedItem>,
+      ),
+      DownloadedItem,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6899,4 +7766,6 @@ class $AppDatabaseManager {
       $$WatchProgressEntryTableTableManager(_db, _db.watchProgressEntry);
   $$UserProfilesTableTableManager get userProfiles =>
       $$UserProfilesTableTableManager(_db, _db.userProfiles);
+  $$DownloadedItemsTableTableManager get downloadedItems =>
+      $$DownloadedItemsTableTableManager(_db, _db.downloadedItems);
 }

@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 
 import '../../core/data/database.dart';
 import '../../core/data/m3u_parser.dart';
+import '../../core/data/m3u_url_parser.dart';
+import '../../core/data/xtream_importer.dart';
 import '../../core/theme/app_colors.dart';
 
 /// Playlist import screen.
@@ -20,21 +22,51 @@ class ImportScreen extends StatefulWidget {
 @visibleForTesting
 class ImportScreenState extends State<ImportScreen> {
   final TextEditingController _urlController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final _db = AppDatabase();
   List<Playlist> _playlists = [];
   bool _isLoading = false;
   String? _errorMessage;
 
+  /// Detected URL type (null until the user enters a URL).
+  M3uUrlType? _detectedType;
+  String _importProgressMessage = '';
+
   @override
   void initState() {
     super.initState();
     _loadPlaylists();
+    _urlController.addListener(_onUrlChanged);
   }
 
   @override
   void dispose() {
+    _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Auto-detect URL type and pre-fill username / password fields.
+  void _onUrlChanged() {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      if (mounted) setState(() => _detectedType = null);
+      return;
+    }
+
+    final info = M3uUrlParser.parse(url);
+    if (mounted) {
+      setState(() {
+        _detectedType = info.type;
+        if (info.isXtream) {
+          _usernameController.text = info.username ?? '';
+          _passwordController.text = info.password ?? '';
+        }
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -55,122 +87,185 @@ class ImportScreenState extends State<ImportScreen> {
       return;
     }
 
+    final urlInfo = M3uUrlParser.parse(url);
+
+    // Validate Xtream credentials.
+    if (urlInfo.isXtream) {
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text.trim();
+      if (username.isEmpty || password.isEmpty) {
+        setState(() => _errorMessage = 'Username and password are required');
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _importProgressMessage = 'Starting import...';
     });
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(
-            const Duration(seconds: 30),
-          );
-      if (response.statusCode != 200) {
-        throw Exception('HTTP ${response.statusCode}');
-      }
-
-      final result = M3uParser.parse(response.body);
-
-      if (result.totalItems == 0) {
-        throw Exception('No items found in playlist');
-      }
-
-      // Create playlist record.
-      final playlistId = await _db.into(_db.playlists).insert(
-            PlaylistsCompanion.insert(
-              name: 'Playlist ${_playlists.length + 1}',
-              url: url,
-              type: 'remote',
-              lastSyncedAt: drift.Value(DateTime.now()),
-            ),
-          );
-
-      // Batch insert channels.
-      for (final ch in result.channels) {
-        await _db.into(_db.channels).insert(
-              ChannelsCompanion.insert(
-                playlistId: playlistId,
-                name: ch.name,
-                logo: drift.Value(ch.logo),
-                url: ch.url,
-                groupTitle: drift.Value(ch.groupTitle),
-                tvgName: drift.Value(ch.tvgName),
-              ),
-            );
-      }
-
-      // Batch insert VOD items.
-      for (final vod in result.vodItems) {
-        await _db.into(_db.vodItems).insert(
-              VodItemsCompanion.insert(
-                playlistId: playlistId,
-                title: vod.title,
-                poster: drift.Value(vod.poster),
-                url: vod.url,
-                groupTitle: drift.Value(vod.groupTitle),
-              ),
-            );
-      }
-
-      // Batch insert series + episodes.
-      for (final s in result.series) {
-        final seriesId = await _db.into(_db.tvSeries).insert(
-              TvSeriesCompanion.insert(
-                playlistId: playlistId,
-                title: s.title,
-                poster: drift.Value(s.poster),
-              ),
-            );
-        for (final ep in s.episodes) {
-          await _db.into(_db.episodes).insert(
-                EpisodesCompanion.insert(
-                  seriesId: seriesId,
-                  season: ep.season,
-                  episode: ep.episode,
-                  title: ep.title,
-                  url: ep.url,
-                  thumbnail: drift.Value(ep.thumbnail),
-                ),
-              );
-        }
-      }
-
-      // Batch insert radio stations.
-      for (final radio in result.radioStations) {
-        await _db.into(_db.radioStations).insert(
-              RadioStationsCompanion.insert(
-                playlistId: playlistId,
-                name: radio.name,
-                logo: drift.Value(radio.logo),
-                url: radio.url,
-              ),
-            );
+      if (urlInfo.isXtream) {
+        await _importXtream(urlInfo);
+      } else {
+        await _importM3u(url);
       }
 
       _urlController.clear();
-      await _loadPlaylists();
-
+      _usernameController.clear();
+      _passwordController.clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Imported ${result.totalItems} items '
-              '(${result.channels.length} channels, '
-              '${result.vodItems.length} movies, '
-              '${result.series.length} series, '
-              '${result.radioStations.length} radio)',
-            ),
-            backgroundColor: AppColors.bgSurface,
-          ),
-        );
+        setState(() => _detectedType = null);
       }
+      await _loadPlaylists();
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = 'Import failed: $e');
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _importProgressMessage = '';
+        });
       }
+    }
+  }
+
+  /// Import from an Xtream Codes provider.
+  Future<void> _importXtream(M3uUrlInfo urlInfo) async {
+    final importer = XtreamImporter(db: _db);
+    try {
+      final result = await importer.import(
+        baseUrl: urlInfo.baseUrl!,
+        username: urlInfo.username!,
+        password: urlInfo.password!,
+        onProgress: (message, progress) {
+          if (mounted) {
+            setState(() => _importProgressMessage = message);
+          }
+        },
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Imported ${result.totalItems} items '
+              '(${result.channels} channels, '
+              '${result.vodItems} movies, '
+              '${result.series} series)',
+            ),
+            backgroundColor: AppColors.bgSurface,
+          ),
+        );
+      }
+    } finally {
+      importer.close();
+    }
+  }
+
+  /// Import from a standard M3U URL.
+  Future<void> _importM3u(String url) async {
+    final response = await http.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 30),
+        );
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+
+    final result = M3uParser.parse(response.body);
+
+    if (result.totalItems == 0) {
+      throw Exception('No items found in playlist');
+    }
+
+    // Create playlist record.
+    final playlistId = await _db.into(_db.playlists).insert(
+          PlaylistsCompanion.insert(
+            name: 'Playlist ${_playlists.length + 1}',
+            url: url,
+            type: 'remote',
+            lastSyncedAt: drift.Value(DateTime.now()),
+          ),
+        );
+
+    // Batch insert channels.
+    for (final ch in result.channels) {
+      await _db.into(_db.channels).insert(
+            ChannelsCompanion.insert(
+              playlistId: playlistId,
+              name: ch.name,
+              logo: drift.Value(ch.logo),
+              url: ch.url,
+              groupTitle: drift.Value(ch.groupTitle),
+              tvgName: drift.Value(ch.tvgName),
+            ),
+          );
+    }
+
+    // Batch insert VOD items.
+    for (final vod in result.vodItems) {
+      await _db.into(_db.vodItems).insert(
+            VodItemsCompanion.insert(
+              playlistId: playlistId,
+              title: vod.title,
+              poster: drift.Value(vod.poster),
+              url: vod.url,
+              groupTitle: drift.Value(vod.groupTitle),
+            ),
+          );
+    }
+
+    // Batch insert series + episodes.
+    for (final s in result.series) {
+      final seriesId = await _db.into(_db.tvSeries).insert(
+            TvSeriesCompanion.insert(
+              playlistId: playlistId,
+              title: s.title,
+              poster: drift.Value(s.poster),
+            ),
+          );
+      for (final ep in s.episodes) {
+        await _db.into(_db.episodes).insert(
+              EpisodesCompanion.insert(
+                seriesId: seriesId,
+                season: ep.season,
+                episode: ep.episode,
+                title: ep.title,
+                url: ep.url,
+                thumbnail: drift.Value(ep.thumbnail),
+              ),
+            );
+      }
+    }
+
+    // Batch insert radio stations.
+    for (final radio in result.radioStations) {
+      await _db.into(_db.radioStations).insert(
+            RadioStationsCompanion.insert(
+              playlistId: playlistId,
+              name: radio.name,
+              logo: drift.Value(radio.logo),
+              url: radio.url,
+            ),
+          );
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Imported ${result.totalItems} items '
+            '(${result.channels.length} channels, '
+            '${result.vodItems.length} movies, '
+            '${result.series.length} series, '
+            '${result.radioStations.length} radio)',
+          ),
+          backgroundColor: AppColors.bgSurface,
+        ),
+      );
     }
   }
 
@@ -242,6 +337,15 @@ class ImportScreenState extends State<ImportScreen> {
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
                   ),
+                  prefixIcon: _detectedType != null
+                      ? Icon(
+                          _detectedType == M3uUrlType.xtream
+                              ? Icons.dns
+                              : Icons.link,
+                          color: AppColors.accentPrimary,
+                          size: 20,
+                        )
+                      : null,
                   suffixIcon: _isLoading
                       ? const Padding(
                           padding: EdgeInsets.all(12),
@@ -258,7 +362,87 @@ class ImportScreenState extends State<ImportScreen> {
                 ),
                 onSubmitted: (_) => _addPlaylist(),
               ),
+
+              // -- URL type badge -------------------------------------------
+              if (_detectedType != null) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentPrimary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _detectedType == M3uUrlType.xtream
+                          ? 'Xtream Codes detected'
+                          : 'Standard M3U playlist',
+                      style: const TextStyle(
+                        color: AppColors.accentPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              // -- Xtream username / password fields -------------------------
+              if (_detectedType == M3uUrlType.xtream) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _usernameController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    hintText: 'Enter Xtream username',
+                    hintStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.bgSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    hintText: 'Enter Xtream password',
+                    hintStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.bgSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 12),
+
+              // -- Import progress ------------------------------------------
+              if (_isLoading && _importProgressMessage.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _importProgressMessage,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
 
               // -- Add button -----------------------------------------------
               SizedBox(
