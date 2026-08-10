@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/data/database.dart';
+import '../../core/data/watch_progress_service.dart';
+import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
 import '../detail/detail_screen.dart';
 import '../import/import_screen.dart';
 import 'widgets/content_row.dart';
+import 'widgets/continue_watching_row.dart';
 
 /// Main home screen displaying content organized by type.
 ///
@@ -24,7 +27,10 @@ class HomeScreen extends StatefulWidget {
 @visibleForTesting
 class HomeScreenState extends State<HomeScreen> {
   final _db = AppDatabase();
+  final _watchProgressService = WatchProgressService();
+  final _entitlementService = EntitlementService();
   List<ContentRow> _rows = [];
+  List<ContinueWatchingItem> _continueWatchingItems = [];
   bool _isEmpty = true;
   bool _isLoading = true;
 
@@ -70,6 +76,17 @@ class HomeScreenState extends State<HomeScreen> {
     final vodItems = await _db.select(_db.vodItems).get();
     final series = await _db.select(_db.tvSeries).get();
     final radioStations = await _db.select(_db.radioStations).get();
+
+    // Load Continue Watching items (Pro only).
+    final continueWatchingItems = <ContinueWatchingItem>[];
+    if (_entitlementService.isPro) {
+      final progressEntries =
+          await _watchProgressService.getContinueWatching(limit: 10);
+      for (final entry in progressEntries) {
+        final item = await _resolveContentItem(entry.contentId);
+        if (item != null) continueWatchingItems.add(item);
+      }
+    }
 
     if (mounted) {
       final rows = <ContentRow>[];
@@ -162,9 +179,98 @@ class HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _rows = rows;
+        _continueWatchingItems = continueWatchingItems;
         _isEmpty = rows.isEmpty;
         _isLoading = false;
       });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Content resolution for Continue Watching
+  // ---------------------------------------------------------------------------
+
+  /// Resolves a polymorphic [contentId] (e.g. `"vod:5"`, `"episode:12"`)
+  /// into a [ContinueWatchingItem] by looking up the corresponding database
+  /// table.
+  Future<ContinueWatchingItem?> _resolveContentItem(String contentId) async {
+    final parts = contentId.split(':');
+    if (parts.length != 2) return null;
+
+    final type = parts[0];
+    final id = int.tryParse(parts[1]);
+    if (id == null) return null;
+
+    final progress = await _watchProgressService.getProgress(contentId);
+    if (progress == null) return null;
+    final progressFraction =
+        progress.durationMs > 0 ? progress.positionMs / progress.durationMs : 0.0;
+
+    switch (type) {
+      case 'live':
+        final q = _db.select(_db.channels)..where((c) => c.id.equals(id));
+        final ch = await q.getSingleOrNull();
+        if (ch == null) return null;
+        return ContinueWatchingItem(
+          title: ch.name,
+          imageUrl: ch.logo,
+          progress: progressFraction,
+          onTap: () => _navigateToDetail(
+            id: ch.id,
+            title: ch.name,
+            imageUrl: ch.logo,
+            url: ch.url,
+            groupTitle: ch.groupTitle,
+            contentType: 'live',
+          ),
+        );
+
+      case 'vod':
+        final q = _db.select(_db.vodItems)..where((v) => v.id.equals(id));
+        final vod = await q.getSingleOrNull();
+        if (vod == null) return null;
+        return ContinueWatchingItem(
+          title: vod.title,
+          imageUrl: vod.poster,
+          progress: progressFraction,
+          onTap: () => _navigateToDetail(
+            id: vod.id,
+            title: vod.title,
+            imageUrl: vod.poster,
+            url: vod.url,
+            groupTitle: vod.groupTitle,
+            contentType: 'vod',
+          ),
+        );
+
+      case 'episode':
+        final q = _db.select(_db.episodes)..where((e) => e.id.equals(id));
+        final ep = await q.getSingleOrNull();
+        if (ep == null) return null;
+
+        // Resolve the series title for the subtitle.
+        final sq = _db.select(_db.tvSeries)
+          ..where((s) => s.id.equals(ep.seriesId));
+        final s = await sq.getSingleOrNull();
+        final seriesTitle = s?.title ?? 'Series';
+
+        return ContinueWatchingItem(
+          title: seriesTitle,
+          subtitle:
+              'S${ep.season}:E${ep.episode} - ${ep.title}',
+          imageUrl: ep.thumbnail,
+          progress: progressFraction,
+          onTap: () => _navigateToDetail(
+            id: ep.id,
+            title: ep.title,
+            imageUrl: ep.thumbnail,
+            url: ep.url,
+            contentType: 'episode',
+          ),
+        );
+
+      default:
+        return null;
     }
   }
 
@@ -325,14 +431,28 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildContentRows() {
+    // Total items: 1 optional Continue Watching row + content rows.
+    final hasContinueWatching = _continueWatchingItems.isNotEmpty;
+    final totalItems = _rows.length + (hasContinueWatching ? 1 : 0);
+
     return FocusTraversalGroup(
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: _rows.length,
+        itemCount: totalItems,
         itemBuilder: (context, index) {
+          // First slot: Continue Watching (if present).
+          if (hasContinueWatching && index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: ContinueWatchingRow(items: _continueWatchingItems),
+            );
+          }
+
+          // Remaining slots: standard content rows.
+          final rowIndex = hasContinueWatching ? index - 1 : index;
           return Padding(
             padding: const EdgeInsets.only(bottom: 24),
-            child: _rows[index],
+            child: _rows[rowIndex],
           );
         },
       ),
