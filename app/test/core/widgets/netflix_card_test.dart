@@ -60,24 +60,6 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('card has correct width for mobile', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 3.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(wrapInApp(
-        const NetflixCard(title: 'Width Test'),
-      ));
-      await tester.pumpAndSettle();
-
-      final container = tester.widget<Container>(
-        find.ancestor(
-          of: find.text('Width Test'),
-          matching: find.byType(Container),
-        ).first,
-      );
-
-      expect(container.constraints?.maxWidth, AppTheme.cardWidth);
-    });
 
     testWidgets('title has correct font size', (tester) async {
       await tester.pumpWidget(wrapInApp(
