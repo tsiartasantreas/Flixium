@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import 'package:iflixify/core/player/player_config.dart';
+
 /// Wraps [media_kit]'s [Player] for the Flixium video/audio surface.
 ///
 /// Exposes reactive state via [ChangeNotifier] so both mobile and TV player
@@ -53,6 +55,12 @@ class PlayerController extends ChangeNotifier {
 
   late final Player _player;
   late final VideoController _videoController;
+
+  /// Current player configuration, updated on each [open] call.
+  PlayerConfig _currentConfig = PlayerConfig.defaultConfig;
+
+  /// Returns the configuration active on the current stream.
+  PlayerConfig get currentConfig => _currentConfig;
 
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -107,7 +115,22 @@ class PlayerController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   /// Open a media URL (video, live stream, or audio-only).
-  Future<void> open(String url) => _player.open(Media(url));
+  ///
+  /// When [config] is provided, its HTTP headers are applied to the
+  /// underlying [Media] object. MPV options (hwdec, protocol-whitelist, etc.)
+  /// are stored in [currentConfig] for use by platform-specific code.
+  Future<void> open(String url, {PlayerConfig? config}) async {
+    _currentConfig = config ?? PlayerConfig.defaultConfig;
+
+    // Apply HTTP headers via the Media object.
+    final headers = _currentConfig.buildHttpHeaders();
+    final media = Media(
+      url,
+      httpHeaders: headers.isNotEmpty ? headers : null,
+    );
+
+    await _player.open(media);
+  }
 
   /// Start or resume playback.
   void play() => _player.play();
