@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../core/auth/profile_manager.dart';
 import '../../core/data/database.dart';
+import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../profiles/profile_switcher_screen.dart';
 
 /// Netflix-style settings screen.
 ///
@@ -20,14 +23,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   AppDatabase? _db;
+  late final ProfileManager _profileManager;
+  late final EntitlementService _entitlementService;
 
   // Playback settings.
   bool _autoPlay = true;
   String _videoQuality = 'Auto';
 
   // Profile.
-  final _displayNameController = TextEditingController(text: 'User');
-  final String _tier = 'Free';
+  String _profileName = 'User';
+  String _tier = 'Free';
 
   static const _qualityOptions = ['Auto', '1080p', '720p', '480p', '360p'];
 
@@ -35,12 +40,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _db = widget.database;
+    _profileManager = ProfileManager(database: _db);
+    _entitlementService = EntitlementService();
     _loadSettings();
   }
 
   @override
   void dispose() {
-    _displayNameController.dispose();
     super.dispose();
   }
 
@@ -49,8 +55,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadSettings() async {
-    // In a real app, these would come from SharedPreferences or a settings
-    // table. For now, we use sensible defaults.
+    // Load active profile.
+    final activeProfile = await _profileManager.getActiveProfile();
+    if (activeProfile != null && mounted) {
+      setState(() {
+        _profileName = activeProfile.displayName;
+      });
+    }
+
+    // Load tier.
+    final tier = await _entitlementService.getTier();
+    if (mounted) {
+      setState(() {
+        _tier = tier == 'pro' ? 'Pro' : 'Free';
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -341,71 +360,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: AppColors.bgElevated,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Avatar.
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.accentPrimary.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person,
-              color: AppColors.accentPrimary,
-              size: 32,
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // Name and tier.
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _displayNameController.text,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+          Row(
+            children: [
+              // Avatar.
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.accentPrimary.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _tier == 'Premium'
-                        ? AppColors.accentPrimary.withValues(alpha: 0.2)
-                        : AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    _tier,
-                    style: TextStyle(
-                      color: _tier == 'Premium'
-                          ? AppColors.accentPrimary
-                          : AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                child: const Icon(
+                  Icons.person,
+                  color: AppColors.accentPrimary,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+
+              // Name and tier.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _profileName,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _tier == 'Pro'
+                            ? AppColors.accentPrimary.withValues(alpha: 0.2)
+                            : AppColors.bgSurface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _tier,
+                        style: TextStyle(
+                          color: _tier == 'Pro'
+                              ? AppColors.accentPrimary
+                              : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          // Edit icon.
-          IconButton(
-            onPressed: _showEditProfileDialog,
-            icon: const Icon(
-              Icons.edit,
-              color: AppColors.textSecondary,
-              size: 20,
+          const SizedBox(height: 12),
+          // Switch Profile button.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ProfileSwitcherScreen(),
+                  ),
+                );
+                // Reload profile data when returning.
+                _loadSettings();
+              },
+              icon: const Icon(Icons.swap_horiz, size: 18),
+              label: const Text('Switch Profile'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                side: const BorderSide(color: AppColors.bgSurface),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
           ),
         ],
@@ -520,55 +558,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Dialogs
   // ---------------------------------------------------------------------------
 
-  void _showEditProfileDialog() {
-    final controller = TextEditingController(text: _displayNameController.text);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.bgElevated,
-        title: const Text(
-          'Edit Display Name',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: TextField(
-          controller: controller,
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(
-            hintText: 'Enter display name',
-            hintStyle: TextStyle(color: AppColors.textSecondary),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.bgSurface),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.accentPrimary),
-            ),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _displayNameController.text = controller.text;
-              });
-              Navigator.of(context).pop();
-            },
-            child: const Text(
-              'Save',
-              style: TextStyle(color: AppColors.accentPrimary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showSignOutDialog() {
     showDialog(

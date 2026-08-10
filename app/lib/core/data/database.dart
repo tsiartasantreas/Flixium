@@ -12,6 +12,7 @@ import 'models/favorites.dart';
 import 'models/playlists.dart';
 import 'models/radio_stations.dart';
 import 'models/series.dart';
+import 'models/user_profiles.dart';
 import 'models/vod_items.dart';
 import 'models/watch_progress.dart';
 
@@ -34,6 +35,7 @@ part 'database.g.dart';
     EpgProgrammes,
     Favorites,
     WatchProgressEntry,
+    UserProfiles,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -45,7 +47,17 @@ class AppDatabase extends _$AppDatabase {
 
   // Bump this when you add / remove tables or alter columns.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(userProfiles);
+          }
+        },
+      );
 
   /// Opens the SQLite database file stored in the app's documents directory.
   static LazyDatabase _openConnection() {
