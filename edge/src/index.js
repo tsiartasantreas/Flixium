@@ -1,8 +1,6 @@
-// Minimal test handler — just return a JSON response
+// Wasmer Edge entry point — delegates to the router.
+import router from "./handlers/index.js";
+
 addEventListener("fetch", (fetchEvent) => {
-  fetchEvent.respondWith(
-    new Response(JSON.stringify({ status: "ok", env: process.env }), {
-      headers: { "Content-Type": "application/json" },
-    })
-  );
+  fetchEvent.respondWith(router.fetch(fetchEvent.request, process.env));
 });
