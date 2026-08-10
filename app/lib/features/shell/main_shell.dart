@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
+import '../favorites/favorites_screen.dart';
 import '../home/home_screen.dart';
+import '../settings/settings_screen.dart';
 import 'mobile_nav.dart';
 import 'tv_left_rail.dart';
 
@@ -59,7 +61,7 @@ class _MainShellState extends State<MainShell> {
       case 3: // Radio
         return const BrowseScreen(contentType: 'radio', title: 'Radio');
       case 4: // My List
-        return const _MyListPlaceholder();
+        return const FavoritesScreen();
       default:
         return const HomeScreen();
     }
@@ -78,7 +80,7 @@ class _MainShellState extends State<MainShell> {
       case 4: // Radio
         return const BrowseScreen(contentType: 'radio', title: 'Radio');
       case 5: // My List
-        return const _MyListPlaceholder();
+        return const FavoritesScreen();
       case 6: // Search
         return const _SearchPlaceholder();
       default:
@@ -101,14 +103,53 @@ class _MainShellState extends State<MainShell> {
   Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: AppColors.bgBase,
-      body: IndexedStack(
-        index: _mobileIndex,
+      body: Column(
         children: [
-          _buildMobileTab(0),
-          _buildMobileTab(1),
-          _buildMobileTab(2),
-          _buildMobileTab(3),
-          _buildMobileTab(4),
+          // Top bar with settings access.
+          Container(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              MediaQuery.of(context).padding.top + 8,
+              16,
+              8,
+            ),
+            decoration: const BoxDecoration(
+              color: AppColors.bgBase,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.person_outline,
+                    color: AppColors.textSecondary,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Tab content.
+          Expanded(
+            child: IndexedStack(
+              index: _mobileIndex,
+              children: [
+                _buildMobileTab(0),
+                _buildMobileTab(1),
+                _buildMobileTab(2),
+                _buildMobileTab(3),
+                _buildMobileTab(4),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: MobileNav(
@@ -132,6 +173,20 @@ class _MainShellState extends State<MainShell> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const SettingsScreen(),
+            ),
+          );
+        },
+        backgroundColor: AppColors.bgSurface,
+        child: const Icon(
+          Icons.person_outline,
+          color: AppColors.textSecondary,
+        ),
+      ),
     );
   }
 }
@@ -139,41 +194,6 @@ class _MainShellState extends State<MainShell> {
 // -----------------------------------------------------------------------------
 // Placeholder widgets for tabs not yet implemented
 // -----------------------------------------------------------------------------
-
-/// Placeholder for "My List" — will show favourited / watchlisted items.
-class _MyListPlaceholder extends StatelessWidget {
-  const _MyListPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.playlist_play,
-            size: 64,
-            color: AppColors.textSecondary.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'My List',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Favourite content will appear here.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Placeholder for "Search" (TV only).
 class _SearchPlaceholder extends StatelessWidget {
