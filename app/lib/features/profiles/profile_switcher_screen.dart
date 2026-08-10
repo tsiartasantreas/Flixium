@@ -224,7 +224,9 @@ class _ProfileSwitcherScreenState extends State<ProfileSwitcherScreen> {
                 );
                 await _loadProfiles();
               }
-              if (mounted) Navigator.of(context).pop();
+              if (!mounted) return;
+              // ignore: use_build_context_synchronously
+              Navigator.of(context).pop();
             },
             child: const Text(
               'Save',
