@@ -50,17 +50,17 @@ jobs:
 
       - name: Rename split APK
         run: |
-          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk flixium-arm64.apk || true
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk iflixify-arm64.apk || true
 
       - name: Build universal (fat) APK
         run: |
           flutter build apk --release
-          mv build/app/outputs/flutter-apk/app-release.apk flixium-universal.apk
+          mv build/app/outputs/flutter-apk/app-release.apk iflixify-universal.apk
 
       - name: Copy APKs to repo root for release action
         run: |
-          cp flixium-arm64.apk ../flixium-arm64.apk
-          cp flixium-universal.apk ../flixium-universal.apk
+          cp iflixify-arm64.apk ../iflixify-arm64.apk
+          cp iflixify-universal.apk ../iflixify-universal.apk
 
       - name: Warn if unsigned
         if: ${{ secrets.RELEASE_KEYSTORE_BASE64 == '' }}
@@ -70,5 +70,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            flixium-arm64.apk
-            flixium-universal.apk
+            iflixify-arm64.apk
+            iflixify-universal.apk

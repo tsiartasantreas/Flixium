@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flixium/core/theme/app_colors.dart';
+import 'package:iflixify/core/theme/app_colors.dart';
 
 void main() {
   test('AppColors exposes the Netflix-base palette with the accent deviation', () {

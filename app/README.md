@@ -1,4 +1,4 @@
-# flixium
+# iflixify
 
 Netflix-style IPTV player for Android phone, Android TV, and Fire TV
 

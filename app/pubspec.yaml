@@ -1,4 +1,4 @@
-name: flixium
+name: iflixify
 description: "Netflix-style IPTV player for Android phone, Android TV, and Fire TV"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.

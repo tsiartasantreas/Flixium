@@ -1,6 +1,6 @@
-# Flixium — Wasmer Edge Deployment Guide
+# iFlixify IPTV — Wasmer Edge Deployment Guide
 
-This guide covers deploying the Flixium edge functions (licensing API + `/dl/latest` APK redirect) to Wasmer Edge, and connecting them to the Supabase backend and Revolut payment gateway.
+This guide covers deploying the iFlixify IPTV edge functions (licensing API + `/dl/latest` APK redirect) to Wasmer Edge, and connecting them to the Supabase backend and Revolut payment gateway.
 
 ---
 
@@ -8,9 +8,9 @@ This guide covers deploying the Flixium edge functions (licensing API + `/dl/lat
 
 - **Wasmer CLI** installed: `curl https://get.wasmer.io -sSfL | sh`
 - **Wasmer account** at https://wasmer.io (username: `tsiartasantreas`)
-- **Supabase project** "Flixium" active (project ref: `zosckkklctvrsjqjmyiv`)
+- **Supabase project** "iFlixify IPTV" active (project ref: `zosckkklctvrsjqjmyiv`)
 - **Revolut Business** account with Merchant API enabled
-- **GitHub repo** `tsiartasantreas/Flixium` with the APK releases
+- **GitHub repo** `tsiartasantreas/iFlixify-IPTV` with the APK releases
 
 ---
 
@@ -33,8 +33,8 @@ wasmer whoami
 
 ### Option A: From the js-worker template (recommended for first deploy)
 ```bash
-mkdir /tmp/flixium-edge-init && cd /tmp/flixium-edge-init
-wasmer app create --template=js-worker --owner tsiartasantreas --name flixium-edge
+mkdir /tmp/iflixify-edge-init && cd /tmp/iflixify-edge-init
+wasmer app create --template=js-worker --owner tsiartasantreas --name iflixify-edge
 ```
 This creates the correct `app.yaml` and `src/index.js` structure for the Wasmer Edge JS runtime.
 
@@ -53,18 +53,18 @@ Set the required environment variables as Wasmer secrets:
 
 ```bash
 # GitHub repo for the /dl/latest redirect handler
-wasmer app secret create GITHUB_REPO tsiartasantreas/Flixium --app flixium-edge
+wasmer app secret create GITHUB_REPO tsiartasantreas/iFlixify-IPTV --app iflixify-edge
 
 # Supabase (Phase 4 — licensing backend)
-wasmer app secret create SUPABASE_URL https://zosckkklctvrsjqjmyiv.supabase.co --app flixium-edge
-wasmer app secret create SUPABASE_SERVICE_ROLE_KEY <SERVICE_ROLE_KEY> --app flixium-edge
+wasmer app secret create SUPABASE_URL https://zosckkklctvrsjqjmyiv.supabase.co --app iflixify-edge
+wasmer app secret create SUPABASE_SERVICE_ROLE_KEY <SERVICE_ROLE_KEY> --app iflixify-edge
 
 # Revolut (Phase 4 — payment gateway)
-wasmer app secret create REVOLUT_API_KEY <REVOLUT_API_KEY> --app flixium-edge
-wasmer app secret create REVOLUT_WEBHOOK_SECRET <WEBHOOK_SECRET> --app flixium-edge
+wasmer app secret create REVOLUT_API_KEY <REVOLUT_API_KEY> --app iflixify-edge
+wasmer app secret create REVOLUT_WEBHOOK_SECRET <WEBHOOK_SECRET> --app iflixify-edge
 
 # Admin panel session
-wasmer app secret create ADMIN_SESSION_SECRET <SESSION_SECRET> --app flixium-edge
+wasmer app secret create ADMIN_SESSION_SECRET <SESSION_SECRET> --app iflixify-edge
 ```
 
 > **Note:** Secrets are not committed to the repo. They are set via the CLI and stored in the Wasmer secrets vault. Reference them in `app.yaml` as `${SECRET_NAME}`.
@@ -80,8 +80,8 @@ wasmer deploy --build-remote
 
 Expected output:
 ```
-✔ App flixium-edge (tsiartasantreas) deployed successfully.
-Live:    https://flixium-edge.wasmer.app
+✔ App iflixify-edge (tsiartasantreas) deployed successfully.
+Live:    https://iflixify-edge.wasmer.app
 ```
 
 ---
@@ -90,13 +90,13 @@ Live:    https://flixium-edge.wasmer.app
 
 ### Test the `/dl/latest` redirect
 ```bash
-curl -I https://flixium-edge.wasmer.app/dl/latest
+curl -I https://iflixify-edge.wasmer.app/dl/latest
 # Expect: HTTP/2 302 → redirects to the latest APK asset on GitHub Releases
 ```
 
 ### Test the edge app info
 ```bash
-wasmer app get flixium-edge
+wasmer app get iflixify-edge
 ```
 
 ---
@@ -105,8 +105,8 @@ wasmer app get flixium-edge
 
 To enable automatic deploys on every push to `main`:
 
-1. Go to https://wasmer.io/apps/tsiartasantreas/flixium-edge
-2. Connect the GitHub repo `tsiartasantreas/Flixium`
+1. Go to https://wasmer.io/apps/tsiartasantreas/iflixify-edge
+2. Connect the GitHub repo `tsiartasantreas/iFlixify-IPTV`
 3. Set the deploy branch to `main`
 4. On every push to `main`, Wasmer will automatically rebuild and deploy
 
@@ -118,7 +118,7 @@ To enable automatic deploys on every push to `main`:
 
 The Wasmer Edge JS runtime (`edgejs-quickjs`) may have issues with certain JavaScript patterns. If you see 500:
 
-1. **Check logs:** `wasmer app logs flixium-edge`
+1. **Check logs:** `wasmer app logs iflixify-edge`
 2. **Minimal test:** Replace `src/index.js` with:
    ```javascript
    addEventListener("fetch", (fetchEvent) => {
@@ -146,7 +146,7 @@ Press `Ctrl+C` to stop waiting. The deployment is likely already live at the URL
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  WASMER EDGE APP (flixium-edge)                       │
+│  WASMER EDGE APP (iflixify-edge)                       │
 │  ├── /dl/latest → 302 → GitHub Release APK           │
 │  ├── /api/checkout → Revolut payment (Phase 4)       │
 │  ├── /api/webhook → Revolut webhook (Phase 4)        │
@@ -169,8 +169,8 @@ Press `Ctrl+C` to stop waiting. The deployment is likely already live at the URL
 | Component | Status | Notes |
 |---|---|---|
 | `/dl/latest` redirect | ⚠️ WIP | EdgeJS QuickJS runtime 500s; `addEventListener("fetch", ...)` pattern may need investigation. Template's own `process.env` handler also 500s. |
-| Supabase schema | ✅ Done | 5 migrations applied to `zosckkklctvrsjqjmyiv` (Flixium). |
-| GitHub Release | ✅ Done | `v0.1.0-alpha` with APK: https://github.com/tsiartasantreas/Flixium/releases |
+| Supabase schema | ✅ Done | 5 migrations applied to `zosckkklctvrsjqjmyiv` (iFlixify IPTV). |
+| GitHub Release | ✅ Done | `v0.1.0-alpha` with APK: https://github.com/tsiartasantreas/iFlixify-IPTV/releases |
 | CI/CD | ✅ Done | `ci.yml` green; `release.yml` has YAML trigger issue (triggers on push to main, not tags). |
 | Licensing API | 🔲 Phase 4 | Checkout, webhook, verify-device endpoints. |
 | Admin Panel | 🔜 Phase 4 | Next.js SPA with user/subscription management. |

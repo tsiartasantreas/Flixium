@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stand up the full project foundation for Flixium — repo scaffold, Supabase Cloud project wiring with schema + RLS, Wasmer Edge app config with the `/dl/latest` redirect, CI that builds a debug APK, Netflix reference capture, and install docs — so Phase 1 (player core) can start on a clean, tested base.
+**Goal:** Stand up the full project foundation for iFlixify IPTV — repo scaffold, Supabase Cloud project wiring with schema + RLS, Wasmer Edge app config with the `/dl/latest` redirect, CI that builds a debug APK, Netflix reference capture, and install docs — so Phase 1 (player core) can start on a clean, tested base.
 
-**Architecture:** A monorepo with four top-level workspaces: `/app` (Flutter), `/admin` (Next.js, scaffolded only in P0 — built in P4), `/edge` (Wasmer Edge functions + static redirect), `/infra/supabase` (versioned SQL migrations + seed). Supabase Cloud project "Flixium" is the single source of truth; migrations apply via the Supabase CLI. A GitHub Actions workflow lints + builds the Flutter APK on every push and on tag. The `/dl/latest` edge handler resolves the newest GitHub Release APK so the Downloader app can sideload it.
+**Architecture:** A monorepo with four top-level workspaces: `/app` (Flutter), `/admin` (Next.js, scaffolded only in P0 — built in P4), `/edge` (Wasmer Edge functions + static redirect), `/infra/supabase` (versioned SQL migrations + seed). Supabase Cloud project "iFlixify IPTV" is the single source of truth; migrations apply via the Supabase CLI. A GitHub Actions workflow lints + builds the Flutter APK on every push and on tag. The `/dl/latest` edge handler resolves the newest GitHub Release APK so the Downloader app can sideload it.
 
 **Tech Stack:** Flutter 3.44.8 (stable) · Drift (SQLite, added in P1) · Supabase Cloud (Postgres + Auth + RLS) + Supabase CLI · Wasmer Edge 7.2.1 (`wasmer.io/App.v0`) · Next.js 14 (static export, scaffold only) · GitHub Actions · Node 26.
 
@@ -12,26 +12,26 @@
 
 ## Global Constraints
 
-(Copied verbatim from `docs/superpowers/specs/2026-08-09-flixium-design.md`. Every task's requirements implicitly include these.)
+(Copied verbatim from `docs/superpowers/specs/2026-08-09-iflixify-design.md`. Every task's requirements implicitly include these.)
 
 - **Netflix fidelity is the #1 hard requirement.** Layout/feel must mirror Netflix; the ONLY permitted visual deviation is a slight accent color shift (`#E50914` → `#E11D48` proposed, locked in P2). Background `#141414` stays identical.
-- **Clone UX/layout only — never Netflix trademarks** (wordmark, "N" logo) or copyrighted art. Provisional brand name "Flixium"; final locked before P0 *implementation* begins (see Open Question, Task 1).
-- **Supabase Cloud only — no local Docker.** One project named "Flixium" serves dev + prod.
+- **Clone UX/layout only — never Netflix trademarks** (wordmark, "N" logo) or copyrighted art. Provisional brand name "iFlixify IPTV"; final locked before P0 *implementation* begins (see Open Question, Task 1).
+- **Supabase Cloud only — no local Docker.** One project named "iFlixify IPTV" serves dev + prod.
 - **App holds only the Supabase anon key + user JWT.** The service-role key is server-side only (Wasmer functions), never shipped to the app. RLS on every client-facing table.
 - **Secrets never committed.** Wasmer secrets set via `wasmer app secret create`; CI secrets via GitHub repo settings. Reference them via `${...}` in `app.yaml`, never inline.
 - **4 user classes:** `anonymous` | `free` | `pro` + `is_admin` flag. The admin flag is set manually in Supabase Studio for your email only.
 - **Sideload distribution:** signed APKs to GitHub Releases; resolvable via the `/dl/latest` Wasmer redirect; Downloader-app code claimed separately via the AFTVnews directory.
 - **Commit convention:** Conventional Commits (`feat:`, `chore:`, `docs:`, `ci:`, `infra:`). Commit frequently — every task ends with a commit.
-- **Org/package namespace:** `com.flixium` (reverse-DNS) for the Flutter Android package; revisit if brand name changes.
+- **Org/package namespace:** `com.iflixify` (reverse-DNS) for the Flutter Android package; revisit if brand name changes.
 
 ---
 
 ## File Structure (created by this plan)
 
-> **OS-level folder:** the working directory is `/Users/andreastsiartas/Documents/IPTVication` (harness-pinned). The repo's internal name, app, package (`com.flixium`), APKs, and edge app are all `flixium`. Renaming the OS folder is an optional final step once execution is stable — do NOT rename it mid-execution (it would break tool paths).
+> **OS-level folder:** the working directory is `/Users/andreastsiartas/Documents/IPTVication` (harness-pinned). The repo's internal name, app, package (`com.iflixify`), APKs, and edge app are all `iflixify`. Renaming the OS folder is an optional final step once execution is stable — do NOT rename it mid-execution (it would break tool paths).
 
 ```
-Flixium/
+iFlixify IPTV/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                      # lint + test + build debug APK
@@ -81,7 +81,7 @@ Flixium/
     ├── ui-references/
     │   └── README.md                   # how to capture Netflix references (§6.5)
     ├── superpowers/
-    │   ├── specs/2026-08-09-flixium-design.md  (exists)
+    │   ├── specs/2026-08-09-iflixify-design.md  (exists)
     │   └── plans/2026-08-09-phase0-foundations.md  (this file)
     └── architecture/
         └── element-connection-diagram.svg  # export of §4.1 diagram
@@ -104,13 +104,13 @@ Flixium/
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: an initialized git repo at `/Users/andreastsiartas/Documents/Flixium` with a sensible ignore file and a landing README. All later tasks commit into this repo.
+- Produces: an initialized git repo at `/Users/andreastsiartas/Documents/iFlixify IPTV` with a sensible ignore file and a landing README. All later tasks commit into this repo.
 
 - [ ] **Step 1: Initialize git in the project directory**
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git init
 git branch -M main
 ```
@@ -179,7 +179,7 @@ Thumbs.db
 
 Create `README.md`:
 ```markdown
-# Flixium
+# iFlixify IPTV
 
 A Netflix-style IPTV player for Android phone, Android TV, and Fire TV. Supports M3U playlists (VOD movies & series, Live TV + EPG, Catch-up TV, Radio, favorites). Four user classes (anonymous / free / pro / admin). Self-serve Pro activation ($8.99 once-off lifetime, 5 devices). Developer Admin Panel.
 
@@ -197,7 +197,7 @@ Phase 0 — Foundations (in progress). See `docs/superpowers/plans/2026-08-09-ph
 | `infra/supabase/` | Versioned Postgres migrations + seed |
 
 ## Docs
-- Design spec: `docs/superpowers/specs/2026-08-09-flixium-design.md`
+- Design spec: `docs/superpowers/specs/2026-08-09-iflixify-design.md`
 - Phase 0 plan: `docs/superpowers/plans/2026-08-09-phase0-foundations.md`
 - Install guide: `docs/INSTALL.md`
 - Architecture diagram: `docs/architecture/element-connection-diagram.svg`
@@ -243,14 +243,14 @@ Expected: commit created on `main`.
   - `Env` class with `static String get supabaseUrl` and `static String get supabaseAnonKey` (read from `--dart-define`); throws a clear error if unset.
   - A runnable `flutter run` app showing a placeholder screen with `bgBase` background (the Netflix near-black) — first visual acceptance check that the color foundation is right.
 
-- [ ] **Step 1: Create the Flutter project (android only, org com.flixium)**
+- [ ] **Step 1: Create the Flutter project (android only, org com.iflixify)**
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 flutter create \
-  --org com.flixium \
-  --project-name flixium \
+  --org com.iflixify \
+  --project-name iflixify \
   --platforms android \
   --description "Netflix-style IPTV player for Android phone, Android TV, and Fire TV" \
   app
@@ -294,7 +294,7 @@ Create `app/test/core/theme/app_colors_test.dart`:
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flixium/core/theme/app_colors.dart';
+import 'package:iflixify/core/theme/app_colors.dart';
 
 void main() {
   test('AppColors exposes the Netflix-base palette with the accent deviation', () {
@@ -410,13 +410,13 @@ Create `app/lib/app.dart`:
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
 
-class FlixiumApp extends StatelessWidget {
-  const FlixiumApp({super.key});
+class iFlixify IPTVApp extends StatelessWidget {
+  const iFlixify IPTVApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flixium',
+      title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -443,7 +443,7 @@ class _PlaceholderHome extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Flixium',
+              'iFlixify IPTV',
               style: TextStyle(
                 color: AppColors.accentPrimary,
                 fontSize: 40,
@@ -470,7 +470,7 @@ Overwrite `app/lib/main.dart`:
 import 'package:flutter/material.dart';
 import 'app.dart';
 
-void main() => runApp(const FlixiumApp());
+void main() => runApp(const iFlixify IPTVApp());
 ```
 
 - [ ] **Step 11: Verify the full app builds + analyzes**
@@ -488,7 +488,7 @@ Expected: analyze clean; all tests pass; a debug APK produced at `app/build/app/
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add app
 git commit -m "feat(app): scaffold Flutter app with Netflix color tokens and env config"
 ```
@@ -513,7 +513,7 @@ git commit -m "feat(app): scaffold Flutter app with Netflix color tokens and env
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 npx --yes create-next-app@latest admin \
   --typescript \
   --no-tailwind \
@@ -547,8 +547,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Flixium Admin",
-  description: "Admin panel for Flixium",
+  title: "iFlixify IPTV Admin",
+  description: "Admin panel for iFlixify IPTV",
 };
 
 export default function RootLayout({
@@ -572,7 +572,7 @@ export default function Home() {
   return (
     <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
-        <h1 style={{ color: "#E11D48", fontSize: 40, marginBottom: 12 }}>Flixium Admin</h1>
+        <h1 style={{ color: "#E11D48", fontSize: 40, marginBottom: 12 }}>iFlixify IPTV Admin</h1>
         <p style={{ color: "#B3B3B3", fontSize: 14 }}>Phase 0 scaffold — built in Phase 4.</p>
       </div>
     </main>
@@ -593,7 +593,7 @@ Expected: build succeeds; `admin/out/index.html` exists.
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add admin
 git commit -m "feat(admin): scaffold Next.js static-export placeholder"
 ```
@@ -613,7 +613,7 @@ git commit -m "feat(admin): scaffold Next.js static-export placeholder"
 
 **Interfaces:**
 - Consumes: nothing (DDL only)
-- Produces: a set of idempotent SQL migrations that create all Postgres tables from spec §5.2 with RLS policies. Applied to the Supabase Cloud project "Flixium" in Task 6. The seed inserts your admin profile + a test Pro license for dev.
+- Produces: a set of idempotent SQL migrations that create all Postgres tables from spec §5.2 with RLS policies. Applied to the Supabase Cloud project "iFlixify IPTV" in Task 6. The seed inserts your admin profile + a test Pro license for dev.
 
 > **Auth note:** `profiles` is 1:1 with `auth.users` and is auto-populated by a trigger on user signup (so a profile row exists for every auth user with the default `anonymous`/`free` tier). The trigger lives in migration 00001.
 
@@ -630,7 +630,7 @@ Expected: version printed (e.g. `1.x.x`). If `brew` is unavailable, follow https
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 mkdir -p infra/supabase
 cd infra/supabase
 supabase init
@@ -863,7 +863,7 @@ on conflict (key) do nothing;
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add infra/supabase
 git commit -m "infra(supabase): add profiles, licenses, devices, activation_codes, supporting tables + RLS + seed"
 ```
@@ -892,7 +892,7 @@ Create `edge/app.yaml`:
 # Wasmer Edge app config (spec §11.1). Autodeploys on git push (Wasmer for GitHub).
 kind: wasmer.io/App.v0
 owner: YOUR_WASMER_USERNAME   # ← replace in Task 8 with your real username
-name: flixium-edge
+name: iflixify-edge
 package: '.'                    # uses wasmer.toml in this dir
 debug: false
 
@@ -922,9 +922,9 @@ Create `edge/wasmer.toml`:
 ```toml
 # Wasmer package manifest. The JS service-worker bundler builds from src/.
 [package]
-name = "flixium-edge"
+name = "iflixify-edge"
 version = "0.1.0"
-description = "Flixium edge app: /dl/latest redirect + (later) licensing/admin API"
+description = "iFlixify IPTV edge app: /dl/latest redirect + (later) licensing/admin API"
 license = "Proprietary"
 
 # The runtime is a JS service worker (WinterCG fetch handler).
@@ -939,11 +939,11 @@ license = "Proprietary"
 Create `edge/package.json`:
 ```json
 {
-  "name": "flixium-edge",
+  "name": "iflixify-edge",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Flixium edge handlers (Wasmer Edge)",
+  "description": "iFlixify IPTV edge handlers (Wasmer Edge)",
   "scripts": {
     "dev": "node --watch src/dev_local.js",
     "test": "node --test test/"
@@ -964,7 +964,7 @@ Create `edge/src/handlers/dl_latest.js`:
 // to the matching browser_download_url. Edge-cached briefly so a cold GitHub
 // API doesn't slow the Downloader install.
 
-const DEFAULT_REPO = "andreastsiartas/Flixium"; // overridden by GITHUB_REPO env
+const DEFAULT_REPO = "andreastsiartas/iFlixify IPTV"; // overridden by GITHUB_REPO env
 
 function repoFromEnv(env) {
   const r = env.GITHUB_REPO?.trim();
@@ -989,7 +989,7 @@ async function latestRelease(repo, { allowBeta = true } = {}) {
   const res = await fetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
-      "User-Agent": "flixium-edge",
+      "User-Agent": "iflixify-edge",
     },
   });
   if (!res.ok) {
@@ -1046,7 +1046,7 @@ Create `edge/src/dev_local.js`:
 // without a Wasmer deploy. Not used in production.
 import handler from "./handlers/dl_latest.js";
 
-const fakeEnv = { GITHUB_REPO: process.env.GITHUB_REPO || "andreastsiartas/Flixium" };
+const fakeEnv = { GITHUB_REPO: process.env.GITHUB_REPO || "andreastsiartas/iFlixify IPTV" };
 const port = process.env.PORT || 8787;
 
 const server = Bun
@@ -1115,7 +1115,7 @@ node_modules/
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add edge
 git commit -m "feat(edge): add Wasmer app.yaml + wasmer.toml + /dl/latest redirect handler"
 ```
@@ -1132,7 +1132,7 @@ git commit -m "feat(edge): add Wasmer app.yaml + wasmer.toml + /dl/latest redire
 - Consumes: the Flutter app at `app/`.
 - Produces:
   - `ci.yml` runs on every push/PR: `flutter analyze`, `flutter test`, `flutter build apk --debug`. Fails the build on any error.
-  - `release.yml` runs on tag push `v*`: builds split ABIs, signs with a release keystore (from a base64 secret), creates a GitHub Release, uploads `flixium-universal.apk` and `flixium-arm64.apk`. These are the artifacts the `/dl/latest` handler resolves.
+  - `release.yml` runs on tag push `v*`: builds split ABIs, signs with a release keystore (from a base64 secret), creates a GitHub Release, uploads `iflixify-universal.apk` and `iflixify-arm64.apk`. These are the artifacts the `/dl/latest` handler resolves.
 
 > **Signing:** the release keystore is stored as the GitHub Actions secret `RELEASE_KEYSTORE_BASE64` (base64 of the `.jks`), with `RELEASE_KEY_PASSWORD`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` alongside. If those secrets aren't set, the release job uploads *unsigned* APKs and posts a warning in the workflow summary — so the pipeline never hard-fails during early P0 before you've generated a keystore. Generating the keystore is documented in Task 8 (INSTALL.md).
 
@@ -1240,10 +1240,10 @@ jobs:
 
       - name: Rename APKs to stable names
         run: |
-          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk flixium-arm64.apk || true
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk iflixify-arm64.apk || true
           # Use the arm64 + armeabi build combined as "universal" fallback if no fat APK:
           flutter build apk --release
-          mv build/app/outputs/flutter-apk/app-release.apk flixium-universal.apk
+          mv build/app/outputs/flutter-apk/app-release.apk iflixify-universal.apk
 
       - name: Warn if unsigned
         if: ${{ secrets.RELEASE_KEYSTORE_BASE64 == '' }}
@@ -1253,15 +1253,15 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            flixium-arm64.apk
-            flixium-universal.apk
+            iflixify-arm64.apk
+            iflixify-universal.apk
 ```
 
 - [ ] **Step 3: Commit**
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add .github/workflows
 git commit -m "ci: add Flutter CI workflow + tag-triggered release workflow"
 ```
@@ -1345,7 +1345,7 @@ Create `docs/architecture/element-connection-diagram.svg` (a hand-written SVG re
   <!-- Supabase -->
   <rect x="320" y="20" width="260" height="110" rx="8" fill="#181818" stroke="#E11D48" stroke-width="1.5"/>
   <text x="450" y="45" text-anchor="middle" fill="#FFFFFF" font-weight="bold">SUPABASE CLOUD</text>
-  <text x="450" y="65" text-anchor="middle" fill="#B3B3B3">project "Flixium"</text>
+  <text x="450" y="65" text-anchor="middle" fill="#B3B3B3">project "iFlixify IPTV"</text>
   <text x="450" y="85" text-anchor="middle" fill="#B3B3B3">Postgres · Auth · Storage</text>
   <text x="450" y="103" text-anchor="middle" fill="#B3B3B3">Supabase Studio (schema web UI)</text>
   <text x="450" y="120" text-anchor="middle" fill="#B3B3B3">Row-Level Security</text>
@@ -1396,7 +1396,7 @@ Create `docs/architecture/element-connection-diagram.svg` (a hand-written SVG re
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add docs/ui-references/README.md docs/architecture/element-connection-diagram.svg .gitignore
 git commit -m "docs: add Netflix reference-capture guide and architecture SVG"
 ```
@@ -1416,7 +1416,7 @@ git commit -m "docs: add Netflix reference-capture guide and architecture SVG"
 
 Create `docs/INSTALL.md`:
 ```markdown
-# Flixium — Install & Setup
+# iFlixify IPTV — Install & Setup
 
 This is the single doc for bringing the Phase 0 foundation online. Follow top to bottom.
 
@@ -1429,7 +1429,7 @@ This is the single doc for bringing the Phase 0 foundation online. Follow top to
 
 ## 1. Supabase Cloud project (manual, ~5 min)
 1. Go to https://supabase.com → **New Project**.
-2. Name: **`Flixium`**. Set a strong DB password (save it). Pick your region. **Create**.
+2. Name: **`iFlixify IPTV`**. Set a strong DB password (save it). Pick your region. **Create**.
 3. Once provisioned, open **Project Settings → API** and collect:
    - **Project URL** (e.g. `https://abcd1234.supabase.co`)
    - **anon / public key**
@@ -1438,7 +1438,7 @@ This is the single doc for bringing the Phase 0 foundation online. Follow top to
 
 ## 2. Apply the schema (CLI)
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium/infra/supabase
+cd /Users/andreastsiartas/Documents/iFlixify IPTV/infra/supabase
 supabase login
 supabase link --project-ref <PROJECT_REF>
 supabase db push                 # applies migrations/00001..00005
@@ -1459,16 +1459,16 @@ The `auth.users` seed insert is fiddly; do this in the dashboard instead:
 
 ## 4. Create the Wasmer Edge app
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium/edge
+cd /Users/andreastsiartas/Documents/iFlixify IPTV/edge
 # Replace YOUR_WASMER_USERNAME in app.yaml with your Wasmer username first.
 wasmer login
-wasmer app create --owner <YOUR_WASMER_USERNAME> --name flixium-edge
+wasmer app create --owner <YOUR_WASMER_USERNAME> --name iflixify-edge
 ```
-Note the app URL Wasmer assigns (e.g. `https://flixium-edge-<user>.wasmer.app`).
+Note the app URL Wasmer assigns (e.g. `https://iflixify-edge-<user>.wasmer.app`).
 
 ## 5. Set Wasmer secrets (for P0 only `GITHUB_REPO`; more added in P4)
 ```bash
-wasmer app secret create GITHUB_REPO=andreastsiartas/Flixium --app-id <APP_ID>
+wasmer app secret create GITHUB_REPO=andreastsiartas/iFlixify IPTV --app-id <APP_ID>
 ```
 (Get `<APP_ID>` from `wasmer app list` or the deploy output.)
 
@@ -1479,20 +1479,20 @@ wasmer deploy
 ```
 Smoke-test:
 ```bash
-curl -I https://flixium-edge-<user>.wasmer.app/dl/latest
+curl -I https://iflixify-edge-<user>.wasmer.app/dl/latest
 # Expect: HTTP/2 302  (or 404 if no releases yet — that's fine in P0)
 ```
 ⚠️ If `wasmer deploy` rewrites `app.yaml` into something invalid (wasmer#6803), `git checkout edge/app.yaml` and redeploy.
 
 ## 7. Generate a release keystore (for signed APKs)
 ```bash
-keytool -genkey -v -keystore flixium-release.jks \
+keytool -genkey -v -keystore iflixify-release.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias flixium
+  -alias iflixify
 ```
 Save the `.jks` somewhere private. Add these GitHub repo secrets (Settings → Secrets → Actions):
-- `RELEASE_KEYSTORE_BASE64` = `base64 -i flixium-release.jks | pbcopy` output
-- `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_PASSWORD`, `RELEASE_KEY_ALIAS` = `flixium`
+- `RELEASE_KEYSTORE_BASE64` = `base64 -i iflixify-release.jks | pbcopy` output
+- `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_PASSWORD`, `RELEASE_KEY_ALIAS` = `iflixify`
 
 Until you do this, `release.yml` uploads **unsigned** APKs with a warning.
 
@@ -1507,15 +1507,15 @@ On your Fire TV / Android TV:
 2. Open Downloader → **Settings** → enable **Install unknown apps** for Downloader.
 3. In Downloader's URL bar, type:
    ```
-   https://flixium-edge-<user>.wasmer.app/dl/latest
+   https://iflixify-edge-<user>.wasmer.app/dl/latest
    ```
-4. The APK downloads → install → open Flixium.
+4. The APK downloads → install → open iFlixify IPTV.
 
 ## 9. (Optional, once) Claim a short Downloader code
 The Downloader app's short codes are operated by AFTVnews, not us. To claim one:
 1. On your TV, open Downloader → **Browser** → navigate to `go.aftvnews.com`.
 2. Search/claim your preferred code (e.g. `iptv` if available).
-3. Set its target URL to `https://flixium-edge-<user>.wasmer.app/dl/latest`.
+3. Set its target URL to `https://iflixify-edge-<user>.wasmer.app/dl/latest`.
 4. From then on, typing that code in Downloader resolves to the latest APK.
 
 ## 10. Flutter local dev
@@ -1533,7 +1533,7 @@ For TV: enable USB debugging on the stick, `adb connect <IP>:5555`, then `flutte
 
 Run:
 ```bash
-cd /Users/andreastsiartas/Documents/Flixium
+cd /Users/andreastsiartas/Documents/iFlixify IPTV
 git add docs/INSTALL.md
 git commit -m "docs: add INSTALL.md with Supabase + Wasmer + sideload setup steps"
 ```
@@ -1543,7 +1543,7 @@ git commit -m "docs: add INSTALL.md with Supabase + Wasmer + sideload setup step
 ## Self-Review (per writing-plans skill)
 
 **1. Spec coverage** — does every Phase 0 deliverable from the spec map to a task?
-- ✅ Create Supabase project "Flixium" — Task 8 §1 (manual) + Task 6/8 wiring
+- ✅ Create Supabase project "iFlixify IPTV" — Task 8 §1 (manual) + Task 6/8 wiring
 - ✅ Repo scaffold (`/app`, `/admin`, `/edge`, `/infra/supabase`) — Tasks 1–5
 - ✅ Migrations (profiles, licenses, devices, activation_codes + supporting) + RLS — Task 4
 - ✅ Set your `is_admin` — Task 8 §3
@@ -1563,7 +1563,7 @@ No gaps for Phase 0. (Items like the Admin Panel build, Revolut integration, rec
 **3. Type consistency** — check names across tasks:
 - `AppColors.bgBase / bgElevated / bgSurface / textPrimary / textSecondary / accentPrimary / accentHover` — defined in Task 2 Step 6, consumed in Task 2 Steps 9–10. Consistent.
 - `Env.supabaseUrl / supabaseAnonKey / isConfigured` — defined Task 2 Step 8; not yet consumed in P0 (consumed in P1+). Consistent.
-- `FlixiumApp` (Task 2 Step 9) ← used in `main.dart` (Task 2 Step 10). Consistent.
+- `iFlixify IPTVApp` (Task 2 Step 9) ← used in `main.dart` (Task 2 Step 10). Consistent.
 - Handler default-export `fetch(request, env)` (Task 5 Step 4) ← consumed by `dev_local.js` (Task 5 Step 5). Consistent.
 - Tables created in Task 4 migrations match spec §5.2 names: `profiles, licenses, devices, activation_codes, watch_progress_sync, favorites_sync, feature_flags, admin_audit_log`. Consistent with spec.
 

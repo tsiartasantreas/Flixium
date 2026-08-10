@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
 
-class FlixiumApp extends StatelessWidget {
-  const FlixiumApp({super.key});
+class iFlixify IPTVApp extends StatelessWidget {
+  const iFlixify IPTVApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flixium',
+      title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -34,7 +34,7 @@ class _PlaceholderHome extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Flixium',
+              'iFlixify IPTV',
               style: TextStyle(
                 color: AppColors.accentPrimary,
                 fontSize: 40,

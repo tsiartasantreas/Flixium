@@ -1,4 +1,4 @@
-# Flixium — Design Specification
+# iFlixify IPTV — Design Specification
 
 **Status:** Draft for review · **Date:** 2026-08-09 · **Supersedes:** preliminary plan v3 (approved)
 
@@ -32,7 +32,7 @@
 ## 1. Goals & Non-Goals
 
 ### Goals
-- **Netflix fidelity.** The app's look, feel, layout, motion, and interaction patterns must be a near pixel-for-pixel replica of the Netflix app — on both phone and TV. The **only** permitted visual deviation is a **slight color palette shift** (background stays near-black; Netflix red `#E50914` → Flixium accent). Per-screen acceptance gate: indistinguishable from Netflix reference when viewed side-by-side, except the accent.
+- **Netflix fidelity.** The app's look, feel, layout, motion, and interaction patterns must be a near pixel-for-pixel replica of the Netflix app — on both phone and TV. The **only** permitted visual deviation is a **slight color palette shift** (background stays near-black; Netflix red `#E50914` → iFlixify IPTV accent). Per-screen acceptance gate: indistinguishable from Netflix reference when viewed side-by-side, except the accent.
 - **Multi-source IPTV.** Import and manage M3U playlists from multiple providers; parse VOD (movies/series), Live TV (with XMLTV EPG), Catch-up TV, and Radio streams.
 - **TV-first.** Phone, Android TV, and Fire TV from a single codebase, TV-aware from day 1 (D-pad focus, 10-foot sizing, left-rail nav).
 - **Content recommendation engine.** Netflix-style personalized rows: "Because you watched X", "Trending", "Continue Watching" (Pro), and per-genre suggestions. Starts content-based (M3U groups + watch history), evolves toward collaborative as the user base grows. See §9A.
@@ -49,7 +49,7 @@
 - Local Docker — we use Supabase Cloud only (per decision).
 
 ### Legal guardrail
-Clone **UX/layout only**. Never use Netflix trademarks (wordmark, "N" logo), copyrighted artwork, or proprietary font (Netflix Sans). The accent color shift is both brand identity and legal differentiation. Final brand name locked before P0 implementation — provisional name "Flixium" is used throughout this spec.
+Clone **UX/layout only**. Never use Netflix trademarks (wordmark, "N" logo), copyrighted artwork, or proprietary font (Netflix Sans). The accent color shift is both brand identity and legal differentiation. Final brand name locked before P0 implementation — provisional name "iFlixify IPTV" is used throughout this spec.
 
 ---
 
@@ -78,7 +78,7 @@ Clone **UX/layout only**. Never use Netflix trademarks (wordmark, "N" logo), cop
 | M3U parsing | **`dart_m3u_filter`** + custom helpers | `#EXTINF`, `#EXTGRP`, catchup attributes (`catchup`, `catchup-source`, etc.). |
 | EPG parsing | Custom XMLTV parser | `<channel>` + `<programme>` elements; TTL-cached in Drift. |
 | UI kit | Custom Netflix-clone design system (Flutter widgets) + `flutter_animate` for motion | NOT generic Material. See §6. |
-| Database / Auth / schema web UI | **Supabase Cloud** (project "Flixium") | Postgres + Auth + Storage + **Supabase Studio** (the in-cloud web UI for schema editing). Single source of truth for app, payments, admin. No local Docker. |
+| Database / Auth / schema web UI | **Supabase Cloud** (project "iFlixify IPTV") | Postgres + Auth + Storage + **Supabase Studio** (the in-cloud web UI for schema editing). Single source of truth for app, payments, admin. No local Docker. |
 | Edge compute | **Wasmer Edge** (free tier) | ONE app co-hosts the Admin Panel SPA and the Payment/Licensing API. |
 | Admin Panel UI | **Next.js** (static export) | React, Netflix-dark themed; follows Wasmer's React Static Site guide. |
 | Payments | **Revolut Merchant API** | Order object + signed webhook → once-off $8.99. Hosted checkout (no app-store billing). |
@@ -95,7 +95,7 @@ Clone **UX/layout only**. Never use Netflix trademarks (wordmark, "N" logo), cop
 
 ```
                           ┌──────── SUPABASE CLOUD ────────┐
-                          │  project "Flixium"          │
+                          │  project "iFlixify IPTV"          │
                           │  Postgres · Auth · Storage      │
                           │  Supabase Studio (schema web UI)│
                           │  Row-Level Security policies    │
@@ -145,7 +145,7 @@ Clone **UX/layout only**. Never use Netflix trademarks (wordmark, "N" logo), cop
 ### 4.2 Component responsibilities
 
 1. **Flutter app** — all UI (Netflix clone), playback, local persistence (Drift), M3U/EPG parsing. Reads its entitlement from Supabase (auth user + `profiles.tier` + `licenses` row). Calls Wasmer functions only for checkout initiation and periodic device verification.
-2. **Supabase "Flixium"** — single source of truth. Postgres tables, Auth (email), Storage, RLS policies, and Supabase Studio (web UI for schema editing + manual data inspection). Zero local Docker.
+2. **Supabase "iFlixify IPTV"** — single source of truth. Postgres tables, Auth (email), Storage, RLS policies, and Supabase Studio (web UI for schema editing + manual data inspection). Zero local Docker.
 3. **Wasmer Edge app** — one deployment that serves (a) the Admin Panel SPA, (b) the payment + licensing API functions, and (c) the `/dl/latest` redirect that resolves to the newest GitHub Release APK (the target of the Downloader code, §11A). Holds the Supabase service-role key, Revolut API key, and webhook secret — server-side only, never shipped to the app.
 4. **Revolut Merchant API** — creates the $8.99 Order, hosts the browser checkout, fires the signed webhook to the Wasmer `/webhook` endpoint.
 
@@ -552,15 +552,15 @@ File: `/edge/app.yaml`. Schema confirmed from official Wasmer Edge docs.
 ```yaml
 kind: wasmer.io/App.v0
 owner: <YOUR_WASMER_USERNAME>   # set during install (§12)
-name: flixium-edge
+name: iflixify-edge
 package: '.'                    # uses wasmer.toml in same dir
 debug: false
 # Secrets set via CLI (never committed):
-#   wasmer app secret set SUPABASE_URL=... --app flixium-edge
-#   wasmer app secret set SUPABASE_SERVICE_ROLE_KEY=... --app flixium-edge
-#   wasmer app secret set REVOLUT_API_KEY=... --app flixium-edge
-#   wasmer app secret set REVOLUT_WEBHOOK_SECRET=... --app flixium-edge
-#   wasmer app secret set ADMIN_SESSION_SECRET=... --app flixium-edge
+#   wasmer app secret set SUPABASE_URL=... --app iflixify-edge
+#   wasmer app secret set SUPABASE_SERVICE_ROLE_KEY=... --app iflixify-edge
+#   wasmer app secret set REVOLUT_API_KEY=... --app iflixify-edge
+#   wasmer app secret set REVOLUT_WEBHOOK_SECRET=... --app iflixify-edge
+#   wasmer app secret set ADMIN_SESSION_SECRET=... --app iflixify-edge
 env:
   SUPABASE_URL: "${SUPABASE_URL}"
   SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
@@ -593,7 +593,7 @@ Git push to the configured branch triggers autodeploy via Wasmer for GitHub. Sec
 A first-class goal: every release ships a signed APK to GitHub Releases, resolvable through a short Downloader-app code so you can sideload it onto a TV screen by typing one code.
 
 ### 11A.1 Release artifact
-- **What:** signed universal APK (`flixium-universal.apk`) + a leaner arm64-v8a build (`flixium-arm64.apk`) for Fire TV sticks / modern Android TV.
+- **What:** signed universal APK (`iflixify-universal.apk`) + a leaner arm64-v8a build (`iflixify-arm64.apk`) for Fire TV sticks / modern Android TV.
 - **Where:** GitHub Releases on the repo, tagged `v<semver>` (e.g. `v0.1.0`, `v0.2.0-beta`).
 - **Generated by:** GitHub Actions on tag push (workflow `.github/workflows/release.yml`): `flutter build apk --split-per-abi` → sign with release keystore (keystore stored as GH Actions secret, base64) → create Release → upload both APKs.
 
@@ -648,10 +648,10 @@ Once P0 + the release workflow exist:
 ### 12.2 One-time manual steps (what YOU do)
 These cannot be automated for you:
 
-1. **Supabase** — supabase.com → New Project → name it **"Flixium"** → set a strong DB password → pick region → Create. Note down: **Project URL**, **anon key**, **service_role key** (Project Settings → API), and the **project ref** (in the URL).
+1. **Supabase** — supabase.com → New Project → name it **"iFlixify IPTV"** → set a strong DB password → pick region → Create. Note down: **Project URL**, **anon key**, **service_role key** (Project Settings → API), and the **project ref** (in the URL).
 2. **Wasmer** — you already have an account + CLI (v7.2.1). Note your **username** (goes in `app.yaml` `owner:`).
 3. **Revolut Business** — ensure Merchant API is enabled on your Business account; generate an API key + note the webhook signing secret. (Eligibility validated in P0; Stripe is the documented fallback if Revolut blocks your region/account.)
-4. **GitHub** — create the repo `Flixium` (or your preferred name).
+4. **GitHub** — create the repo `iFlixify IPTV` (or your preferred name).
 
 ### 12.3 Commands I run (after plan + spec approval)
 ```bash
@@ -663,11 +663,11 @@ supabase db execute < seed.sql   # your admin profile + a test Pro license
 
 # Wasmer — set secrets (values from §12.2)
 wasmer login
-wasmer app secret set SUPABASE_URL=...              --app flixium-edge
-wasmer app secret set SUPABASE_SERVICE_ROLE_KEY=...  --app flixium-edge
-wasmer app secret set REVOLUT_API_KEY=...            --app flixium-edge
-wasmer app secret set REVOLUT_WEBHOOK_SECRET=...     --app flixium-edge
-wasmer app secret set ADMIN_SESSION_SECRET=...       --app flixium-edge
+wasmer app secret set SUPABASE_URL=...              --app iflixify-edge
+wasmer app secret set SUPABASE_SERVICE_ROLE_KEY=...  --app iflixify-edge
+wasmer app secret set REVOLUT_API_KEY=...            --app iflixify-edge
+wasmer app secret set REVOLUT_WEBHOOK_SECRET=...     --app iflixify-edge
+wasmer app secret set ADMIN_SESSION_SECRET=...       --app iflixify-edge
 
 # Deploy the edge app (admin panel + payment API together)
 cd edge && wasmer deploy
@@ -724,7 +724,7 @@ Full step-by-step with screenshots → `docs/INSTALL.md` (produced during P0).
 
 | Phase | Weeks | Deliverables |
 |---|---|---|
-| **P0 Foundations** | 1 | Create Supabase project "Flixium"; repo scaffold (`/app`, `/admin`, `/edge`, `/infra/supabase`); migrations (profiles, licenses, devices, activation_codes + RLS); set your `is_admin`; `app.yaml` + `wasmer.toml`; GitHub Actions lint+build; Netflix reference capture → `docs/ui-references/`; `INSTALL.md` |
+| **P0 Foundations** | 1 | Create Supabase project "iFlixify IPTV"; repo scaffold (`/app`, `/admin`, `/edge`, `/infra/supabase`); migrations (profiles, licenses, devices, activation_codes + RLS); set your `is_admin`; `app.yaml` + `wasmer.toml`; GitHub Actions lint+build; Netflix reference capture → `docs/ui-references/`; `INSTALL.md` |
 | **P1 Player core** | 2–3 | M3U parser (VOD+Live+Radio+catchup); media_kit surface (phone+TV); single playlist import → flat list → play; Drift schema v1; anon entitlement stub |
 | **P2 Netflix-clone UI** | 4–7 (largest) | Design system (tokens/type/cards/rows/billboard/focus/motion); TV left-rail nav + mobile bottom-tab nav; Home, Browse, Detail, Favorites, Settings, EPG grid, Radio; per-screen acceptance gate |
 | **P3 Accounts + Pro + Recommendations v1** | 8–9 | Supabase Auth (free), anonymous still supported; multi-profile, multi-playlist, Continue/Up Next, cross-device sync; 4-class gating wired into UI; **content-based recommendation engine** (Trending, Because-you-watched, per-genre, New) with Home rows |
@@ -737,7 +737,7 @@ Full step-by-step with screenshots → `docs/INSTALL.md` (produced during P0).
 ## 17. Open Questions / Deferred to Later Phases
 
 - **Exact accent value** (`#E11D48` proposed) — locked at start of P2 after side-by-side comparison of 2–3 candidates.
-- **Final brand name** ("Flixium" provisional) — locked before P0 implementation.
+- **Final brand name** ("iFlixify IPTV" provisional) — locked before P0 implementation.
 - **Typeface picks** (Archivo Narrow vs Anton vs Bebas for billboards; Inter vs Roboto Flex for body) — locked in P2.
 - **Per-screen wireframes/mockups** — the visual companion will be offered when we reach screen-level design (during the writing-plans step for P2).
 - **EPG grid interaction detail** (time-scroll granularity, now-line, catch-up entry point) — specified in the P2 implementation plan.

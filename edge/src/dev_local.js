@@ -3,7 +3,7 @@
 import http from "node:http";
 import handler from "./handlers/dl_latest.js";
 
-const fakeEnv = { GITHUB_REPO: process.env.GITHUB_REPO || "andreastsiartas/Flixium" };
+const fakeEnv = { GITHUB_REPO: process.env.GITHUB_REPO || "andreastsiartas/iFlixify-IPTV" };
 const port = process.env.PORT || 8787;
 
 http
