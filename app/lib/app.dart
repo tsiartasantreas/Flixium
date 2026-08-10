@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
-import 'features/home/home_screen.dart';
+import 'features/shell/main_shell.dart';
 
 class FlixiumApp extends StatelessWidget {
   const FlixiumApp({super.key});
@@ -18,7 +18,7 @@ class FlixiumApp extends StatelessWidget {
           surface: AppColors.bgBase,
         ),
       ),
-      home: const HomeScreen(),
+      home: const MainShell(),
     );
   }
 }

@@ -1,0 +1,211 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_colors.dart';
+import '../browse/browse_screen.dart';
+import '../home/home_screen.dart';
+import 'mobile_nav.dart';
+import 'tv_left_rail.dart';
+
+/// Root navigation shell that switches between mobile and TV layouts.
+///
+/// Mobile layout: five-tab bottom navigation bar.
+/// TV layout: seven-item left vertical rail.
+/// TV mode is detected via screen shortest side exceeding 960 px on Android
+/// or always on Linux.
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _mobileIndex = 0;
+  int _tvIndex = 0;
+
+  bool get _isTv =>
+      Platform.isLinux ||
+      (Platform.isAndroid &&
+          MediaQueryData.fromView(
+                      WidgetsBinding.instance.platformDispatcher.views.first)
+                  .size
+                  .shortestSide >
+              960);
+
+  void _onTabChanged(int index) {
+    setState(() {
+      if (_isTv) {
+        _tvIndex = index;
+      } else {
+        _mobileIndex = index;
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Content builders for each tab
+  // ---------------------------------------------------------------------------
+
+  Widget _buildMobileTab(int index) {
+    switch (index) {
+      case 0: // Home
+        return const HomeScreen();
+      case 1: // Movies
+        return const BrowseScreen(contentType: 'vod', title: 'Movies');
+      case 2: // Live TV
+        return const BrowseScreen(contentType: 'live', title: 'Live TV');
+      case 3: // Radio
+        return const BrowseScreen(contentType: 'radio', title: 'Radio');
+      case 4: // My List
+        return const _MyListPlaceholder();
+      default:
+        return const HomeScreen();
+    }
+  }
+
+  Widget _buildTvTab(int index) {
+    switch (index) {
+      case 0: // Home
+        return const HomeScreen();
+      case 1: // Series
+        return const BrowseScreen(contentType: 'series', title: 'Series');
+      case 2: // Movies
+        return const BrowseScreen(contentType: 'vod', title: 'Movies');
+      case 3: // Live TV
+        return const BrowseScreen(contentType: 'live', title: 'Live TV');
+      case 4: // Radio
+        return const BrowseScreen(contentType: 'radio', title: 'Radio');
+      case 5: // My List
+        return const _MyListPlaceholder();
+      case 6: // Search
+        return const _SearchPlaceholder();
+      default:
+        return const HomeScreen();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isTv) {
+      return _buildTvLayout();
+    }
+    return _buildMobileLayout();
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      backgroundColor: AppColors.bgBase,
+      body: IndexedStack(
+        index: _mobileIndex,
+        children: [
+          _buildMobileTab(0),
+          _buildMobileTab(1),
+          _buildMobileTab(2),
+          _buildMobileTab(3),
+          _buildMobileTab(4),
+        ],
+      ),
+      bottomNavigationBar: MobileNav(
+        currentIndex: _mobileIndex,
+        onTap: _onTabChanged,
+      ),
+    );
+  }
+
+  Widget _buildTvLayout() {
+    return Scaffold(
+      backgroundColor: AppColors.bgBase,
+      body: Row(
+        children: [
+          TvLeftRail(
+            currentIndex: _tvIndex,
+            onTap: _onTabChanged,
+          ),
+          Expanded(
+            child: _buildTvTab(_tvIndex),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Placeholder widgets for tabs not yet implemented
+// -----------------------------------------------------------------------------
+
+/// Placeholder for "My List" — will show favourited / watchlisted items.
+class _MyListPlaceholder extends StatelessWidget {
+  const _MyListPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.playlist_play,
+            size: 64,
+            color: AppColors.textSecondary.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'My List',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Favourite content will appear here.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Placeholder for "Search" (TV only).
+class _SearchPlaceholder extends StatelessWidget {
+  const _SearchPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search,
+            size: 64,
+            color: AppColors.textSecondary.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Search',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Search functionality coming soon.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
