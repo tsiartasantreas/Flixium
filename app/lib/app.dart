@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
+import 'features/home/home_screen.dart';
 
-class iFlixify IPTVApp extends StatelessWidget {
-  const iFlixify IPTVApp({super.key});
+class FlixiumApp extends StatelessWidget {
+  const FlixiumApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'iFlixify IPTV',
+      title: 'Flixium IPTV',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -17,38 +18,7 @@ class iFlixify IPTVApp extends StatelessWidget {
           surface: AppColors.bgBase,
         ),
       ),
-      home: const _PlaceholderHome(),
-    );
-  }
-}
-
-class _PlaceholderHome extends StatelessWidget {
-  const _PlaceholderHome();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.bgBase,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'iFlixify IPTV',
-              style: TextStyle(
-                color: AppColors.accentPrimary,
-                fontSize: 40,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Phase 0 — foundation',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-            ),
-          ],
-        ),
-      ),
+      home: const HomeScreen(),
     );
   }
 }
