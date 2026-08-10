@@ -61,6 +61,9 @@ void main() {
     });
 
     testWidgets('card has correct width for mobile', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
       await tester.pumpWidget(wrapInApp(
         const NetflixCard(title: 'Width Test'),
       ));

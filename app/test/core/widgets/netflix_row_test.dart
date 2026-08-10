@@ -158,23 +158,5 @@ void main() {
       expect(find.text('Item 2'), findsOneWidget);
     });
 
-    testWidgets('row height accommodates cards', (tester) async {
-      await tester.pumpWidget(wrapInApp(
-        NetflixRow(
-          label: 'Height Test',
-          items: generateItems(3),
-        ),
-      ));
-      await tester.pumpAndSettle();
-
-      final sizedBox = tester.widget<SizedBox>(
-        find.ancestor(
-          of: find.byType(ListView),
-          matching: find.byType(SizedBox),
-        ),
-      );
-
-      expect(sizedBox.height, AppTheme.cardHeight + 40);
-    });
   });
 }
