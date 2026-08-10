@@ -132,7 +132,6 @@ class _RailItem extends StatefulWidget {
 }
 
 class _RailItemState extends State<_RailItem> {
-  bool _isFocused = false;
 
   @override
   void initState() {

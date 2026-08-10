@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,11 +25,6 @@ class _SearchScreenState extends State<SearchScreen> {
   List<_SearchResult> _results = [];
   bool _hasSearched = false;
   bool _isLoading = false;
-
-  bool get _isTv =>
-      Platform.isLinux ||
-      (Platform.isAndroid &&
-          MediaQuery.of(context).size.shortestSide > 960);
 
   @override
   void dispose() {
