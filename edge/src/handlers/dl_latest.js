@@ -6,7 +6,7 @@
 // to the matching browser_download_url. Edge-cached briefly so a cold GitHub
 // API doesn't slow the Downloader install.
 
-const DEFAULT_REPO = "andreastsiartas/iFlixify IPTV"; // overridden by GITHUB_REPO env
+const DEFAULT_REPO = "andreastsiartas/iFlixify-IPTV"; // overridden by GITHUB_REPO env
 
 function repoFromEnv(env) {
   const r = env.GITHUB_REPO?.trim();

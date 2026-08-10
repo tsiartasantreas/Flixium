@@ -964,7 +964,7 @@ Create `edge/src/handlers/dl_latest.js`:
 // to the matching browser_download_url. Edge-cached briefly so a cold GitHub
 // API doesn't slow the Downloader install.
 
-const DEFAULT_REPO = "andreastsiartas/iFlixify IPTV"; // overridden by GITHUB_REPO env
+const DEFAULT_REPO = "andreastsiartas/iFlixify-IPTV"; // overridden by GITHUB_REPO env
 
 function repoFromEnv(env) {
   const r = env.GITHUB_REPO?.trim();
@@ -1046,7 +1046,7 @@ Create `edge/src/dev_local.js`:
 // without a Wasmer deploy. Not used in production.
 import handler from "./handlers/dl_latest.js";
 
-const fakeEnv = { GITHUB_REPO: process.env.GITHUB_REPO || "andreastsiartas/iFlixify IPTV" };
+const fakeEnv = { GITHUB_REPO: process.env.GITHUB_REPO || "andreastsiartas/iFlixify-IPTV" };
 const port = process.env.PORT || 8787;
 
 const server = Bun
@@ -1468,7 +1468,7 @@ Note the app URL Wasmer assigns (e.g. `https://iflixify-edge-<user>.wasmer.app`)
 
 ## 5. Set Wasmer secrets (for P0 only `GITHUB_REPO`; more added in P4)
 ```bash
-wasmer app secret create GITHUB_REPO=andreastsiartas/iFlixify IPTV --app-id <APP_ID>
+wasmer app secret create GITHUB_REPO=andreastsiartas/iFlixify-IPTV --app-id <APP_ID>
 ```
 (Get `<APP_ID>` from `wasmer app list` or the deploy output.)
 
