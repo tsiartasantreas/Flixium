@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_manager.dart';
 import '../../core/data/database.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../auth/auth_screen.dart';
 import '../profiles/profile_switcher_screen.dart';
 
 /// Netflix-style settings screen.
@@ -581,15 +583,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sign out is not yet implemented'),
-                  backgroundColor: AppColors.bgSurface,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              navigator.pop(); // Close the dialog.
+              await AuthService().signOut();
+              if (mounted) {
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                  (route) => false,
+                );
+              }
             },
             child: const Text(
               'Sign Out',

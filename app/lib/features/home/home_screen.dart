@@ -392,13 +392,13 @@ class HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.playlist_add,
+              Icons.live_tv,
               size: 80,
-              color: AppColors.textSecondary.withValues(alpha: 0.3),
+              color: AppColors.accentPrimary.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 24),
             const Text(
-              'No Content Yet',
+              'No playlist loaded yet',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 24,
@@ -407,7 +407,9 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Import an M3U playlist to start\nwatching live TV, movies, and series.',
+              'iFlixify IPTV lets you watch live TV, movies,\n'
+              'and series from your IPTV provider.\n'
+              'Import a playlist to get started.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,
@@ -416,13 +418,13 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 32),
             SizedBox(
-              width: 200,
+              width: 240,
               height: 48,
               child: ElevatedButton.icon(
                 onPressed: _navigateToImport,
                 icon: const Icon(Icons.playlist_add, size: 20),
                 label: const Text(
-                  'Import Playlist',
+                  'Import your first playlist',
                   style: TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(

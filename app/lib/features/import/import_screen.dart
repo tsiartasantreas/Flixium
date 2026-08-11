@@ -87,7 +87,29 @@ class ImportScreenState extends State<ImportScreen> {
       return;
     }
 
-    final urlInfo = M3uUrlParser.parse(url);
+    var urlInfo = M3uUrlParser.parse(url);
+
+    // If the URL is not auto-detected as Xtream but the user provided
+    // username and password, treat it as an Xtream base URL.
+    if (!urlInfo.isXtream) {
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text.trim();
+      if (username.isNotEmpty && password.isNotEmpty) {
+        final uri = Uri.parse(url);
+        final baseUri = Uri(
+          scheme: uri.scheme,
+          host: uri.host,
+          port: uri.hasPort ? uri.port : null,
+        );
+        urlInfo = M3uUrlInfo(
+          type: M3uUrlType.xtream,
+          url: url,
+          baseUrl: baseUri.toString(),
+          username: username,
+          password: password,
+        );
+      }
+    }
 
     // Validate Xtream credentials.
     if (urlInfo.isXtream) {
@@ -119,6 +141,11 @@ class ImportScreenState extends State<ImportScreen> {
         setState(() => _detectedType = null);
       }
       await _loadPlaylists();
+
+      // Navigate back to home after successful import.
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = 'Import failed: $e');
@@ -390,7 +417,9 @@ class ImportScreenState extends State<ImportScreen> {
               ],
 
               // -- Xtream username / password fields -------------------------
-              if (_detectedType == M3uUrlType.xtream) ...[
+              // Shown whenever a URL is entered so users can provide
+              // Xtream credentials even for plain base URLs.
+              if (_detectedType != null) ...[
                 const SizedBox(height: 12),
                 TextField(
                   controller: _usernameController,
