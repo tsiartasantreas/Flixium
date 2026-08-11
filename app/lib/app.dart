@@ -1,61 +1,84 @@
 import 'package:flutter/material.dart';
-import 'core/theme/app_colors.dart';
 
-/// Minimal app — no Supabase, no Drift init, no auth.
-/// Just renders the Netflix background to confirm the app launches.
-class FlixiumApp extends StatelessWidget {
+import 'core/config/env.dart';
+import 'core/data/supabase_client.dart';
+import 'core/entitlement/entitlement_service.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/netflix_theme.dart';
+import 'features/auth/auth_screen.dart';
+import 'features/shell/main_shell.dart';
+
+/// Root widget of the Flixium IPTV app.
+///
+/// On startup the app initializes Supabase, checks the current auth state,
+/// and routes to either the [AuthScreen] or [MainShell].
+class FlixiumApp extends StatefulWidget {
   const FlixiumApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'iFlixify IPTV',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.bgBase,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.accentPrimary,
-          surface: AppColors.bgBase,
-        ),
-      ),
-      home: const _MinimalHome(),
-    );
-  }
+  State<FlixiumApp> createState() => _FlixiumAppState();
 }
 
-class _MinimalHome extends StatelessWidget {
-  const _MinimalHome();
+class _FlixiumAppState extends State<FlixiumApp> {
+  bool _initialized = false;
+  bool _authChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    // Initialize Supabase if credentials are configured.
+    if (Env.isConfigured) {
+      try {
+        await SupabaseService.initialize();
+        // Refresh entitlement tier on app start.
+        await EntitlementService().refreshTier();
+      } catch (_) {
+        // If Supabase init fails, the app still works in guest mode.
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _initialized = true;
+        _authChecked = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.bgBase,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'iFlixify IPTV',
-              style: TextStyle(
-                color: AppColors.accentPrimary,
-                fontSize: 40,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Minimal test build — if you see this, the base app launches.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-            ),
-            SizedBox(height: 24),
-            Text(
-              'v2.2.0-alpha',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-            ),
-          ],
+    // Splash / loading state while Supabase initializes.
+    if (!_initialized) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: NetflixTheme.dark,
+        home: const Scaffold(
+          backgroundColor: AppColors.bgBase,
+          body: Center(
+            child: CircularProgressIndicator(color: AppColors.accentPrimary),
+          ),
         ),
-      ),
+      );
+    }
+
+    return MaterialApp(
+      title: 'iFlixify IPTV',
+      debugShowCheckedModeBanner: false,
+      theme: NetflixTheme.dark,
+      home: _authChecked ? _buildHome() : const MainShell(),
     );
+  }
+
+  Widget _buildHome() {
+    // If Supabase is configured and a user is signed in, go to main shell.
+    // Otherwise show auth screen (with guest option).
+    if (Env.isConfigured && SupabaseService.auth.currentUser != null) {
+      return const MainShell();
+    }
+    return const AuthScreen();
   }
 }
