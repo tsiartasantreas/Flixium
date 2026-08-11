@@ -164,7 +164,7 @@ class _FilteredBrowseViewState extends State<_FilteredBrowseView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadItems();
+    // No-op: content is loaded in initState.
   }
 
   Future<void> _loadItems() async {

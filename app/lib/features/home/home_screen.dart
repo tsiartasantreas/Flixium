@@ -51,8 +51,7 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Reload when returning from import screen.
-    _loadContent();
+    // No-op: content is loaded in initState and explicitly after navigation.
   }
 
   // ---------------------------------------------------------------------------

@@ -57,7 +57,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     // Load active profile.
     final activeProfile = await _profileManager.getActiveProfile();
-    if (activeProfile != null && mounted) {
+    if (!mounted) return;
+    if (activeProfile != null) {
       setState(() {
         _profileName = activeProfile.displayName;
       });
@@ -65,11 +66,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     // Load tier.
     final tier = await _entitlementService.getTier();
-    if (mounted) {
-      setState(() {
-        _tier = tier == 'pro' ? 'Pro' : 'Free';
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _tier = tier == 'pro' ? 'Pro' : 'Free';
+    });
   }
 
   // ---------------------------------------------------------------------------
