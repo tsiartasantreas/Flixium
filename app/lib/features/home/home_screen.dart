@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/watch_progress_service.dart';
@@ -41,7 +40,7 @@ class HomeScreenState extends State<HomeScreen> {
                       WidgetsBinding.instance.platformDispatcher.views.first)
                   .size
                   .shortestSide >
-              960);
+              600);
 
   @override
   void initState() {
@@ -90,11 +89,13 @@ class HomeScreenState extends State<HomeScreen> {
 
     if (mounted) {
       final rows = <ContentRow>[];
+      bool isFirstRow = true;
 
       if (channels.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Live TV',
           isTv: _isTv,
+          autofocusFirst: _isTv && isFirstRow,
           items: channels.take(20).map((ch) {
             return ContentItem(
               title: ch.name,
@@ -111,12 +112,14 @@ class HomeScreenState extends State<HomeScreen> {
           }).toList(),
           onSeeAll: () => _navigateToBrowse('live', 'Live TV'),
         ));
+        isFirstRow = false;
       }
 
       if (vodItems.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Movies',
           isTv: _isTv,
+          autofocusFirst: _isTv && isFirstRow,
           items: vodItems.take(20).map((vod) {
             return ContentItem(
               title: vod.title,
@@ -133,12 +136,14 @@ class HomeScreenState extends State<HomeScreen> {
           }).toList(),
           onSeeAll: () => _navigateToBrowse('vod', 'Movies'),
         ));
+        isFirstRow = false;
       }
 
       if (series.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Series',
           isTv: _isTv,
+          autofocusFirst: _isTv && isFirstRow,
           items: series.take(20).map((s) {
             return ContentItem(
               title: s.title,
@@ -154,12 +159,14 @@ class HomeScreenState extends State<HomeScreen> {
           }).toList(),
           onSeeAll: () => _navigateToBrowse('series', 'Series'),
         ));
+        isFirstRow = false;
       }
 
       if (radioStations.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Radio',
           isTv: _isTv,
+          autofocusFirst: _isTv && isFirstRow,
           items: radioStations.take(20).map((radio) {
             return ContentItem(
               title: radio.name,
@@ -175,6 +182,7 @@ class HomeScreenState extends State<HomeScreen> {
           }).toList(),
           onSeeAll: () => _navigateToBrowse('radio', 'Radio'),
         ));
+        isFirstRow = false;
       }
 
       setState(() {
@@ -332,6 +340,19 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // On TV, skip the AppBar — the left rail handles top-level navigation.
+    if (_isTv) {
+      return _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.accentPrimary,
+              ),
+            )
+          : _isEmpty
+              ? _buildEmptyState()
+              : _buildContentRows();
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
@@ -345,20 +366,10 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          Focus(
-            onKeyEvent: (node, event) {
-              if (event is KeyDownEvent &&
-                  event.logicalKey == LogicalKeyboardKey.select) {
-                _navigateToImport();
-                return KeyEventResult.handled;
-              }
-              return KeyEventResult.ignored;
-            },
-            child: IconButton(
-              icon: const Icon(Icons.add, color: AppColors.textPrimary),
-              onPressed: _navigateToImport,
-              tooltip: 'Import Playlist',
-            ),
+          IconButton(
+            icon: const Icon(Icons.add, color: AppColors.textPrimary),
+            onPressed: _navigateToImport,
+            tooltip: 'Import Playlist',
           ),
         ],
       ),

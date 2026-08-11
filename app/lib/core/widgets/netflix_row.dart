@@ -50,7 +50,7 @@ class _NetflixRowState extends State<NetflixRow> {
                       WidgetsBinding.instance.platformDispatcher.views.first)
                   .size
                   .shortestSide >
-              960);
+              600);
 
   @override
   void dispose() {

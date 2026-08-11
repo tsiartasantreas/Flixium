@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/animated_focus.dart';
 
 /// Individual content card showing thumbnail/poster and title.
 ///
@@ -15,12 +16,14 @@ class ContentCard extends StatelessWidget {
     this.imageUrl,
     this.isTv = false,
     this.onTap,
+    this.autofocus = false,
   });
 
   final String title;
   final String? imageUrl;
   final bool isTv;
   final VoidCallback? onTap;
+  final bool autofocus;
 
   bool get _isTv =>
       isTv ||
@@ -30,7 +33,7 @@ class ContentCard extends StatelessWidget {
                       WidgetsBinding.instance.platformDispatcher.views.first)
                   .size
                   .shortestSide >
-              960);
+              600);
 
   @override
   Widget build(BuildContext context) {
@@ -80,27 +83,22 @@ class ContentCard extends StatelessWidget {
     );
 
     if (_isTv) {
-      return Focus(
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.select) {
-            onTap?.call();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: Builder(
-          builder: (context) {
-            return GestureDetector(
-              onTap: onTap,
-              child: FocusableActionDetector(
-                onShowFocusHighlight: (focused) {
-                  // Could add visual focus indicator here.
-                },
-                child: card,
-              ),
-            );
+      return AnimatedFocus(
+        isTv: true,
+        child: Focus(
+          autofocus: autofocus,
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.select) {
+              onTap?.call();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
           },
+          child: GestureDetector(
+            onTap: onTap,
+            child: card,
+          ),
         ),
       );
     }

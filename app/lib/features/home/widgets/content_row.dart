@@ -13,6 +13,7 @@ class ContentRow extends StatelessWidget {
     required this.items,
     this.isTv = false,
     this.onSeeAll,
+    this.autofocusFirst = false,
   });
 
   /// Section header label (e.g. "Live TV").
@@ -26,6 +27,9 @@ class ContentRow extends StatelessWidget {
 
   /// Callback when the "See All" header is tapped.
   final VoidCallback? onSeeAll;
+
+  /// Whether the first card in this row should auto-focus (for TV D-pad).
+  final bool autofocusFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +79,7 @@ class ContentRow extends StatelessWidget {
                 title: item.title,
                 imageUrl: item.imageUrl,
                 isTv: isTv,
+                autofocus: autofocusFirst && index == 0,
                 onTap: item.onTap,
               );
             },

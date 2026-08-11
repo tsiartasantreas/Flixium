@@ -55,7 +55,7 @@ class NetflixCard extends StatelessWidget {
                       WidgetsBinding.instance.platformDispatcher.views.first)
                   .size
                   .shortestSide >
-              960);
+              600);
 
   @override
   Widget build(BuildContext context) {

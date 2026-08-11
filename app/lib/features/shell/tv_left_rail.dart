@@ -123,6 +123,7 @@ class _TvLeftRailState extends State<TvLeftRail> {
         item: item,
         isSelected: isSelected,
         expanded: _expanded,
+        autofocus: index == 0,
         onTap: () => widget.onTap(index),
         onFocusChanged: (focused) {
           if (focused) {
@@ -182,6 +183,7 @@ class _RailItemWidget extends StatefulWidget {
     required this.onTap,
     required this.onFocusChanged,
     required this.onRightArrow,
+    this.autofocus = false,
   });
 
   final _RailItem item;
@@ -190,6 +192,7 @@ class _RailItemWidget extends StatefulWidget {
   final VoidCallback onTap;
   final ValueChanged<bool> onFocusChanged;
   final KeyEventResult Function() onRightArrow;
+  final bool autofocus;
 
   @override
   State<_RailItemWidget> createState() => _RailItemWidgetState();
@@ -218,6 +221,7 @@ class _RailItemWidgetState extends State<_RailItemWidget> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Focus(
+        autofocus: widget.autofocus,
         onFocusChange: (focused) {
           setState(() => _focused = focused);
           widget.onFocusChanged(focused);

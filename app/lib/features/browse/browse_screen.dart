@@ -219,7 +219,10 @@ class BrowseScreenState extends State<BrowseScreen> {
                             ),
                             itemCount: _filteredItems.length,
                             itemBuilder: (context, index) {
-                              return _buildItemCard(_filteredItems[index]);
+                              return _buildItemCard(
+                                _filteredItems[index],
+                                autofocus: index == 0,
+                              );
                             },
                           ),
                         ),
@@ -273,8 +276,9 @@ class BrowseScreenState extends State<BrowseScreen> {
     );
   }
 
-  Widget _buildItemCard(_BrowseItem item) {
+  Widget _buildItemCard(_BrowseItem item, {bool autofocus = false}) {
     return Focus(
+      autofocus: autofocus,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.select) {

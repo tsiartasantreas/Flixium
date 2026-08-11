@@ -60,7 +60,7 @@ class _NetflixFocusState extends State<NetflixFocus>
                       WidgetsBinding.instance.platformDispatcher.views.first)
                   .size
                   .shortestSide >
-              960);
+              600);
 
   @override
   void initState() {

@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/animated_focus.dart';
 
 /// A content card for Continue Watching items with a progress bar.
 ///
@@ -28,9 +32,18 @@ class ContinueWatchingCard extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  bool get _isTv =>
+      Platform.isLinux ||
+      (Platform.isAndroid &&
+          MediaQueryData.fromView(
+                      WidgetsBinding.instance.platformDispatcher.views.first)
+                  .size
+                  .shortestSide >
+              600);
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final card = GestureDetector(
       onTap: onTap,
       child: Container(
         width: 160,
@@ -104,6 +117,25 @@ class ContinueWatchingCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (_isTv) {
+      return AnimatedFocus(
+        isTv: true,
+        child: Focus(
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.select) {
+              onTap?.call();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: card,
+        ),
+      );
+    }
+
+    return card;
   }
 
   Widget _buildPlaceholder() {

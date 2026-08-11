@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
@@ -34,7 +35,7 @@ class _MainShellState extends State<MainShell> {
                       WidgetsBinding.instance.platformDispatcher.views.first)
                   .size
                   .shortestSide >
-              960);
+              600);
 
   void _onTabChanged(int index) {
     setState(() {
@@ -160,31 +161,31 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildTvLayout() {
-    return Scaffold(
-      backgroundColor: AppColors.bgBase,
-      body: Row(
-        children: [
-          TvLeftRail(
-            currentIndex: _tvIndex,
-            onTap: _onTabChanged,
-          ),
-          Expanded(
-            child: _buildTvTab(_tvIndex),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const SettingsScreen(),
-            ),
-          );
+    return FocusTraversalGroup(
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          // Handle global Back button on TV remote to exit the app gracefully.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.goBack) {
+            // Let the system handle back navigation.
+            return KeyEventResult.ignored;
+          }
+          return KeyEventResult.ignored;
         },
-        backgroundColor: AppColors.bgSurface,
-        child: const Icon(
-          Icons.person_outline,
-          color: AppColors.textSecondary,
+        child: Scaffold(
+          backgroundColor: AppColors.bgBase,
+          body: Row(
+            children: [
+              TvLeftRail(
+                currentIndex: _tvIndex,
+                onTap: _onTabChanged,
+              ),
+              Expanded(
+                child: _buildTvTab(_tvIndex),
+              ),
+            ],
+          ),
         ),
       ),
     );
