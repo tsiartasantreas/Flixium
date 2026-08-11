@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../core/data/database.dart';
 import '../../core/data/m3u_parser.dart';
 import '../../core/data/m3u_url_parser.dart';
+import '../../core/data/playlist_manager.dart';
 import '../../core/data/xtream_importer.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -25,6 +26,7 @@ class ImportScreenState extends State<ImportScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _db = AppDatabase();
+  late final PlaylistManager _playlistManager;
   List<Playlist> _playlists = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -42,6 +44,7 @@ class ImportScreenState extends State<ImportScreen> {
   @override
   void initState() {
     super.initState();
+    _playlistManager = PlaylistManager(database: _db);
     _loadPlaylists();
     _urlController.addListener(_onUrlChanged);
   }
@@ -80,7 +83,7 @@ class ImportScreenState extends State<ImportScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadPlaylists() async {
-    final playlists = await _db.select(_db.playlists).get();
+    final playlists = await _playlistManager.getPlaylists();
     if (mounted) {
       setState(() => _playlists = playlists);
     }
@@ -183,7 +186,16 @@ class ImportScreenState extends State<ImportScreen> {
         return;
       }
 
+      // Create the playlist record via PlaylistManager (encrypted, with user_id).
+      final playlist = await _playlistManager.addPlaylist(
+        '${urlInfo.username}@${urlInfo.baseUrl}',
+        urlInfo.url,
+        username: urlInfo.username,
+        password: urlInfo.password,
+      );
+
       final result = await importer.import(
+        playlistId: playlist.id,
         baseUrl: urlInfo.baseUrl!,
         username: urlInfo.username!,
         password: urlInfo.password!,
@@ -304,21 +316,17 @@ class ImportScreenState extends State<ImportScreen> {
       throw Exception('No items found in playlist');
     }
 
-    // Create playlist record.
-    final playlistId = await _db.into(_db.playlists).insert(
-          PlaylistsCompanion.insert(
-            name: 'Playlist ${_playlists.length + 1}',
-            url: url,
-            type: 'remote',
-            lastSyncedAt: drift.Value(DateTime.now()),
-          ),
-        );
+    // Create playlist record via PlaylistManager (encrypted, with user_id).
+    final playlist = await _playlistManager.addPlaylist(
+      'Playlist ${_playlists.length + 1}',
+      url,
+    );
 
     // Batch insert channels.
     for (final ch in result.channels) {
       await _db.into(_db.channels).insert(
             ChannelsCompanion.insert(
-              playlistId: playlistId,
+              playlistId: playlist.id,
               name: ch.name,
               logo: drift.Value(ch.logo),
               url: ch.url,
@@ -332,7 +340,7 @@ class ImportScreenState extends State<ImportScreen> {
     for (final vod in result.vodItems) {
       await _db.into(_db.vodItems).insert(
             VodItemsCompanion.insert(
-              playlistId: playlistId,
+              playlistId: playlist.id,
               title: vod.title,
               poster: drift.Value(vod.poster),
               url: vod.url,
@@ -345,7 +353,7 @@ class ImportScreenState extends State<ImportScreen> {
     for (final s in result.series) {
       final seriesId = await _db.into(_db.tvSeries).insert(
             TvSeriesCompanion.insert(
-              playlistId: playlistId,
+              playlistId: playlist.id,
               title: s.title,
               poster: drift.Value(s.poster),
             ),
@@ -368,7 +376,7 @@ class ImportScreenState extends State<ImportScreen> {
     for (final radio in result.radioStations) {
       await _db.into(_db.radioStations).insert(
             RadioStationsCompanion.insert(
-              playlistId: playlistId,
+              playlistId: playlist.id,
               name: radio.name,
               logo: drift.Value(radio.logo),
               url: radio.url,
@@ -393,35 +401,7 @@ class ImportScreenState extends State<ImportScreen> {
   }
 
   Future<void> _removePlaylist(Playlist playlist) async {
-    // Delete child records first (foreign key constraints).
-    await (_db.delete(_db.channels)
-          ..where((t) => t.playlistId.equals(playlist.id)))
-        .go();
-    await (_db.delete(_db.vodItems)
-          ..where((t) => t.playlistId.equals(playlist.id)))
-        .go();
-    await (_db.delete(_db.radioStations)
-          ..where((t) => t.playlistId.equals(playlist.id)))
-        .go();
-
-    // Delete episodes via series.
-    final seriesIds = await (_db.select(_db.tvSeries)
-          ..where((t) => t.playlistId.equals(playlist.id)))
-        .get();
-    for (final s in seriesIds) {
-      await (_db.delete(_db.episodes)
-            ..where((t) => t.seriesId.equals(s.id)))
-          .go();
-    }
-    await (_db.delete(_db.tvSeries)
-          ..where((t) => t.playlistId.equals(playlist.id)))
-        .go();
-
-    // Delete the playlist itself.
-    await (_db.delete(_db.playlists)
-          ..where((t) => t.id.equals(playlist.id)))
-        .go();
-
+    await _playlistManager.deletePlaylist(playlist.id);
     await _loadPlaylists();
   }
 
@@ -714,6 +694,8 @@ class ImportScreenState extends State<ImportScreen> {
   }
 
   Widget _buildPlaylistTile(Playlist playlist) {
+    // Decrypt the URL for display.
+    final displayUrl = _playlistManager.getDecryptedUrl(playlist);
     return Card(
       color: AppColors.bgElevated,
       margin: const EdgeInsets.only(bottom: 8),
@@ -734,7 +716,7 @@ class ImportScreenState extends State<ImportScreen> {
           ),
         ),
         subtitle: Text(
-          playlist.url,
+          displayUrl,
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

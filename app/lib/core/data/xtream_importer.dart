@@ -16,10 +16,16 @@ enum XtreamContentType {
 
 /// Imports content from an Xtream Codes provider into the local Drift database.
 ///
+/// The playlist record must be created by the caller (e.g. via
+/// [PlaylistManager]) so that credentials are encrypted and linked to the
+/// correct user. This class only inserts content items (channels, VOD,
+/// series, episodes) under the given [playlistId].
+///
 /// Usage:
 /// ```dart
 /// final importer = XtreamImporter(db: database);
 /// await importer.import(
+///   playlistId: 42,
 ///   baseUrl: 'http://provider:8080',
 ///   username: 'user',
 ///   password: 'pass',
@@ -35,7 +41,7 @@ class XtreamImporter {
   final AppDatabase _db;
   XtreamApiClient? _client;
 
-  /// Imports content from the Xtream provider.
+  /// Imports content from the Xtream provider under the given [playlistId].
   ///
   /// [importTypes] controls which content types to import. Defaults to all
   /// supported types (Live, VOD, Series). Radio is not supported by the
@@ -43,10 +49,10 @@ class XtreamImporter {
   ///
   /// Returns an [XtreamImportResult] summarising what was imported.
   Future<XtreamImportResult> import({
+    required int playlistId,
     required String baseUrl,
     required String username,
     required String password,
-    String? playlistName,
     Set<XtreamContentType>? importTypes,
     ImportProgressCallback? onProgress,
   }) async {
@@ -64,16 +70,6 @@ class XtreamImporter {
           password: password,
         );
     _client = client;
-
-    // Create playlist record.
-    final playlistId = await _db.into(_db.playlists).insert(
-          PlaylistsCompanion.insert(
-            name: playlistName ?? '$username@$baseUrl',
-            url: '$baseUrl/player_api.php?username=$username&password=$password',
-            type: 'remote',
-            lastSyncedAt: drift.Value(DateTime.now()),
-          ),
-        );
 
     var totalChannels = 0;
     var totalVod = 0;

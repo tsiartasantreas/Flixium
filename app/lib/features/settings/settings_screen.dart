@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_manager.dart';
 import '../../core/data/database.dart';
+import '../../core/data/supabase_client.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -34,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Profile.
   String _profileName = 'User';
+  String _profileEmail = '';
   String _tier = 'Free';
 
   static const _qualityOptions = ['Auto', '1080p', '720p', '480p', '360p'];
@@ -64,6 +66,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _profileName = activeProfile.displayName;
       });
+    }
+
+    // Load Supabase user email (if signed in).
+    if (SupabaseService.isInitialized) {
+      final user = SupabaseService.client.auth.currentUser;
+      if (user != null) {
+        setState(() {
+          _profileEmail = user.email ?? '';
+        });
+      }
     }
 
     // Load tier.
@@ -382,7 +394,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(width: 16),
 
-              // Name and tier.
+              // Name, email, and tier.
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,6 +407,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (_profileEmail.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _profileEmail,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -586,7 +610,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               final navigator = Navigator.of(context);
               navigator.pop(); // Close the dialog.
-              await AuthService().signOut();
+              // Only sign out if Supabase is initialized (user is authenticated).
+              if (SupabaseService.isInitialized) {
+                await AuthService().signOut();
+              }
               if (mounted) {
                 navigator.pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const AuthScreen()),

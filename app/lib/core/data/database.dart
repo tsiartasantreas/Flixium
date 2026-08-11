@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Bump this when you add / remove tables or alter columns.
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -60,6 +60,12 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.createTable(downloadedItems);
+          }
+          if (from < 4) {
+            // Add user_id and Xtream credential columns to playlists.
+            await m.addColumn(playlists, playlists.userId);
+            await m.addColumn(playlists, playlists.username);
+            await m.addColumn(playlists, playlists.password);
           }
         },
       );

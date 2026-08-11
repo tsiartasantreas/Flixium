@@ -60,8 +60,48 @@ class $PlaylistsTable extends Playlists
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
-  List<GeneratedColumn> get $columns => [id, name, url, type, lastSyncedAt];
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usernameMeta = const VerificationMeta(
+    'username',
+  );
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+    'username',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _passwordMeta = const VerificationMeta(
+    'password',
+  );
+  @override
+  late final GeneratedColumn<String> password = GeneratedColumn<String>(
+    'password',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    url,
+    type,
+    lastSyncedAt,
+    userId,
+    username,
+    password,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -110,6 +150,24 @@ class $PlaylistsTable extends Playlists
         ),
       );
     }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('username')) {
+      context.handle(
+        _usernameMeta,
+        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+      );
+    }
+    if (data.containsKey('password')) {
+      context.handle(
+        _passwordMeta,
+        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
+      );
+    }
     return context;
   }
 
@@ -139,6 +197,18 @@ class $PlaylistsTable extends Playlists
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_synced_at'],
       ),
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      ),
+      username: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}username'],
+      ),
+      password: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password'],
+      ),
     );
   }
 
@@ -155,6 +225,7 @@ class Playlist extends DataClass implements Insertable<Playlist> {
   final String name;
 
   /// M3U source URL or local file path.
+  /// Stored encrypted (AES-256-CBC) when the user is authenticated.
   final String url;
 
   /// `local` or `remote`.
@@ -162,12 +233,24 @@ class Playlist extends DataClass implements Insertable<Playlist> {
 
   /// When the playlist was last fetched / re-imported.
   final DateTime? lastSyncedAt;
+
+  /// Supabase user UUID. Null for anonymous / guest playlists.
+  final String? userId;
+
+  /// Xtream Codes username (encrypted). Null for standard M3U playlists.
+  final String? username;
+
+  /// Xtream Codes password (encrypted). Null for standard M3U playlists.
+  final String? password;
   const Playlist({
     required this.id,
     required this.name,
     required this.url,
     required this.type,
     this.lastSyncedAt,
+    this.userId,
+    this.username,
+    this.password,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -178,6 +261,15 @@ class Playlist extends DataClass implements Insertable<Playlist> {
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || lastSyncedAt != null) {
       map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    if (!nullToAbsent || userId != null) {
+      map['user_id'] = Variable<String>(userId);
+    }
+    if (!nullToAbsent || username != null) {
+      map['username'] = Variable<String>(username);
+    }
+    if (!nullToAbsent || password != null) {
+      map['password'] = Variable<String>(password);
     }
     return map;
   }
@@ -191,6 +283,15 @@ class Playlist extends DataClass implements Insertable<Playlist> {
       lastSyncedAt: lastSyncedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSyncedAt),
+      userId: userId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userId),
+      username: username == null && nullToAbsent
+          ? const Value.absent()
+          : Value(username),
+      password: password == null && nullToAbsent
+          ? const Value.absent()
+          : Value(password),
     );
   }
 
@@ -205,6 +306,9 @@ class Playlist extends DataClass implements Insertable<Playlist> {
       url: serializer.fromJson<String>(json['url']),
       type: serializer.fromJson<String>(json['type']),
       lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      userId: serializer.fromJson<String?>(json['userId']),
+      username: serializer.fromJson<String?>(json['username']),
+      password: serializer.fromJson<String?>(json['password']),
     );
   }
   @override
@@ -216,6 +320,9 @@ class Playlist extends DataClass implements Insertable<Playlist> {
       'url': serializer.toJson<String>(url),
       'type': serializer.toJson<String>(type),
       'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'userId': serializer.toJson<String?>(userId),
+      'username': serializer.toJson<String?>(username),
+      'password': serializer.toJson<String?>(password),
     };
   }
 
@@ -225,12 +332,18 @@ class Playlist extends DataClass implements Insertable<Playlist> {
     String? url,
     String? type,
     Value<DateTime?> lastSyncedAt = const Value.absent(),
+    Value<String?> userId = const Value.absent(),
+    Value<String?> username = const Value.absent(),
+    Value<String?> password = const Value.absent(),
   }) => Playlist(
     id: id ?? this.id,
     name: name ?? this.name,
     url: url ?? this.url,
     type: type ?? this.type,
     lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    userId: userId.present ? userId.value : this.userId,
+    username: username.present ? username.value : this.username,
+    password: password.present ? password.value : this.password,
   );
   Playlist copyWithCompanion(PlaylistsCompanion data) {
     return Playlist(
@@ -241,6 +354,9 @@ class Playlist extends DataClass implements Insertable<Playlist> {
       lastSyncedAt: data.lastSyncedAt.present
           ? data.lastSyncedAt.value
           : this.lastSyncedAt,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      username: data.username.present ? data.username.value : this.username,
+      password: data.password.present ? data.password.value : this.password,
     );
   }
 
@@ -251,13 +367,25 @@ class Playlist extends DataClass implements Insertable<Playlist> {
           ..write('name: $name, ')
           ..write('url: $url, ')
           ..write('type: $type, ')
-          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('userId: $userId, ')
+          ..write('username: $username, ')
+          ..write('password: $password')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, url, type, lastSyncedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    url,
+    type,
+    lastSyncedAt,
+    userId,
+    username,
+    password,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -266,7 +394,10 @@ class Playlist extends DataClass implements Insertable<Playlist> {
           other.name == this.name &&
           other.url == this.url &&
           other.type == this.type &&
-          other.lastSyncedAt == this.lastSyncedAt);
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.userId == this.userId &&
+          other.username == this.username &&
+          other.password == this.password);
 }
 
 class PlaylistsCompanion extends UpdateCompanion<Playlist> {
@@ -275,12 +406,18 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
   final Value<String> url;
   final Value<String> type;
   final Value<DateTime?> lastSyncedAt;
+  final Value<String?> userId;
+  final Value<String?> username;
+  final Value<String?> password;
   const PlaylistsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.url = const Value.absent(),
     this.type = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.username = const Value.absent(),
+    this.password = const Value.absent(),
   });
   PlaylistsCompanion.insert({
     this.id = const Value.absent(),
@@ -288,6 +425,9 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
     required String url,
     required String type,
     this.lastSyncedAt = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.username = const Value.absent(),
+    this.password = const Value.absent(),
   }) : name = Value(name),
        url = Value(url),
        type = Value(type);
@@ -297,6 +437,9 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
     Expression<String>? url,
     Expression<String>? type,
     Expression<DateTime>? lastSyncedAt,
+    Expression<String>? userId,
+    Expression<String>? username,
+    Expression<String>? password,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -304,6 +447,9 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
       if (url != null) 'url': url,
       if (type != null) 'type': type,
       if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (userId != null) 'user_id': userId,
+      if (username != null) 'username': username,
+      if (password != null) 'password': password,
     });
   }
 
@@ -313,6 +459,9 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
     Value<String>? url,
     Value<String>? type,
     Value<DateTime?>? lastSyncedAt,
+    Value<String?>? userId,
+    Value<String?>? username,
+    Value<String?>? password,
   }) {
     return PlaylistsCompanion(
       id: id ?? this.id,
@@ -320,6 +469,9 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
       url: url ?? this.url,
       type: type ?? this.type,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      password: password ?? this.password,
     );
   }
 
@@ -341,6 +493,15 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
     if (lastSyncedAt.present) {
       map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
     }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (password.present) {
+      map['password'] = Variable<String>(password.value);
+    }
     return map;
   }
 
@@ -351,7 +512,10 @@ class PlaylistsCompanion extends UpdateCompanion<Playlist> {
           ..write('name: $name, ')
           ..write('url: $url, ')
           ..write('type: $type, ')
-          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('userId: $userId, ')
+          ..write('username: $username, ')
+          ..write('password: $password')
           ..write(')'))
         .toString();
   }
@@ -4380,6 +4544,9 @@ typedef $$PlaylistsTableCreateCompanionBuilder =
       required String url,
       required String type,
       Value<DateTime?> lastSyncedAt,
+      Value<String?> userId,
+      Value<String?> username,
+      Value<String?> password,
     });
 typedef $$PlaylistsTableUpdateCompanionBuilder =
     PlaylistsCompanion Function({
@@ -4388,6 +4555,9 @@ typedef $$PlaylistsTableUpdateCompanionBuilder =
       Value<String> url,
       Value<String> type,
       Value<DateTime?> lastSyncedAt,
+      Value<String?> userId,
+      Value<String?> username,
+      Value<String?> password,
     });
 
 final class $$PlaylistsTableReferences
@@ -4501,6 +4671,21 @@ class $$PlaylistsTableFilterComposer
 
   ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
     column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get password => $composableBuilder(
+    column: $table.password,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4638,6 +4823,21 @@ class $$PlaylistsTableOrderingComposer
     column: $table.lastSyncedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PlaylistsTableAnnotationComposer
@@ -4665,6 +4865,15 @@ class $$PlaylistsTableAnnotationComposer
     column: $table.lastSyncedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get username =>
+      $composableBuilder(column: $table.username, builder: (column) => column);
+
+  GeneratedColumn<String> get password =>
+      $composableBuilder(column: $table.password, builder: (column) => column);
 
   Expression<T> channelsRefs<T extends Object>(
     Expression<T> Function($$ChannelsTableAnnotationComposer a) f,
@@ -4805,12 +5014,18 @@ class $$PlaylistsTableTableManager
                 Value<String> url = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<String?> userId = const Value.absent(),
+                Value<String?> username = const Value.absent(),
+                Value<String?> password = const Value.absent(),
               }) => PlaylistsCompanion(
                 id: id,
                 name: name,
                 url: url,
                 type: type,
                 lastSyncedAt: lastSyncedAt,
+                userId: userId,
+                username: username,
+                password: password,
               ),
           createCompanionCallback:
               ({
@@ -4819,12 +5034,18 @@ class $$PlaylistsTableTableManager
                 required String url,
                 required String type,
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<String?> userId = const Value.absent(),
+                Value<String?> username = const Value.absent(),
+                Value<String?> password = const Value.absent(),
               }) => PlaylistsCompanion.insert(
                 id: id,
                 name: name,
                 url: url,
                 type: type,
                 lastSyncedAt: lastSyncedAt,
+                userId: userId,
+                username: username,
+                password: password,
               ),
           withReferenceMapper: (p0) => p0
               .map(

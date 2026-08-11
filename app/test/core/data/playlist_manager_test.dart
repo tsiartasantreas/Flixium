@@ -48,9 +48,35 @@ void main() {
 
       expect(playlist.id, isPositive);
       expect(playlist.name, 'My Playlist');
-      expect(playlist.url, 'http://example.com/playlist.m3u');
+      // URL is stored encrypted -- verify via the decryption helper.
+      expect(
+        manager.getDecryptedUrl(playlist),
+        'http://example.com/playlist.m3u',
+      );
       expect(playlist.type, 'remote');
       expect(playlist.lastSyncedAt, isNotNull);
+    });
+
+    test('addPlaylist encrypts Xtream credentials', () async {
+      final playlist = await manager.addPlaylist(
+        'Xtream Playlist',
+        'http://server:8080/player_api.php?username=user&password=pass',
+        username: 'user',
+        password: 'pass',
+      );
+
+      // Raw fields should be encrypted (not equal to plaintext).
+      expect(playlist.url, isNot('http://server:8080/player_api.php?username=user&password=pass'));
+      expect(playlist.username, isNot('user'));
+      expect(playlist.password, isNot('pass'));
+
+      // Decrypted values should match the originals.
+      expect(
+        manager.getDecryptedUrl(playlist),
+        'http://server:8080/player_api.php?username=user&password=pass',
+      );
+      expect(manager.getDecryptedUsername(playlist), 'user');
+      expect(manager.getDecryptedPassword(playlist), 'pass');
     });
 
     test('addPlaylist throws for free user exceeding limit', () async {

@@ -2,11 +2,16 @@ import 'package:drift/drift.dart' as drift;
 
 import '../entitlement/entitlement_service.dart';
 import 'database.dart';
+import 'encryption_service.dart';
+import 'supabase_client.dart';
 
 /// Manages multiple M3U playlists.
 ///
 /// Free users are limited to one playlist. Pro users can add multiple
 /// playlists. The entitlement check is performed before mutations.
+///
+/// Playlist credentials (URL, username, password) are encrypted at rest
+/// using AES-256-CBC before being stored in the local Drift database.
 class PlaylistManager {
   PlaylistManager({
     AppDatabase? database,
@@ -21,29 +26,86 @@ class PlaylistManager {
   static const int freePlaylistLimit = 1;
 
   // ---------------------------------------------------------------------------
+  // User context
+  // ---------------------------------------------------------------------------
+
+  /// Returns the current Supabase user ID, or `null` for anonymous users.
+  String? get _currentUserId {
+    if (!SupabaseService.isInitialized) return null;
+    return SupabaseService.client.auth.currentUser?.id;
+  }
+
+  // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------
 
-  /// Returns all playlists sorted by creation (rowid).
+  /// Returns all playlists for the current user (or all anonymous playlists
+  /// if the user is not signed in), sorted by creation (rowid).
   Future<List<Playlist>> getPlaylists() async {
-    return _db.select(_db.playlists).get();
+    final userId = _currentUserId;
+    if (userId != null) {
+      return (_db.select(_db.playlists)
+            ..where((t) => t.userId.equals(userId)))
+          .get();
+    }
+    // Anonymous: return playlists with no user_id.
+    return (_db.select(_db.playlists)
+          ..where((t) => t.userId.isNull()))
+        .get();
   }
 
-  /// Returns the count of playlists.
+  /// Returns the count of playlists for the current user.
   Future<int> getPlaylistCount() async {
-    final playlists = await _db.select(_db.playlists).get();
+    final playlists = await getPlaylists();
     return playlists.length;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Encrypted getters
+  // ---------------------------------------------------------------------------
+
+  /// Returns the decrypted URL for a [playlist].
+  String getDecryptedUrl(Playlist playlist) {
+    if (EncryptionService.isEncrypted(playlist.url)) {
+      return EncryptionService.decrypt(playlist.url, userId: playlist.userId);
+    }
+    return playlist.url;
+  }
+
+  /// Returns the decrypted username for a [playlist] (Xtream only).
+  String? getDecryptedUsername(Playlist playlist) {
+    if (playlist.username == null) return null;
+    if (EncryptionService.isEncrypted(playlist.username!)) {
+      return EncryptionService.decrypt(playlist.username!, userId: playlist.userId);
+    }
+    return playlist.username;
+  }
+
+  /// Returns the decrypted password for a [playlist] (Xtream only).
+  String? getDecryptedPassword(Playlist playlist) {
+    if (playlist.password == null) return null;
+    if (EncryptionService.isEncrypted(playlist.password!)) {
+      return EncryptionService.decrypt(playlist.password!, userId: playlist.userId);
+    }
+    return playlist.password;
   }
 
   // ---------------------------------------------------------------------------
   // Mutations
   // ---------------------------------------------------------------------------
 
-  /// Adds a new playlist with the given [name] and [url].
+  /// Adds a new playlist with the given [name], [url], and optional
+  /// Xtream [username] / [password].
   ///
+  /// All credential fields are encrypted before storage.
   /// Checks entitlement: free users cannot exceed [freePlaylistLimit].
   /// Throws [StateError] if the free limit is reached.
-  Future<Playlist> addPlaylist(String name, String url) async {
+  Future<Playlist> addPlaylist(
+    String name,
+    String url, {
+    String? username,
+    String? password,
+  }) async {
     final isPro = await _entitlement.getTier() == 'pro';
     if (!isPro) {
       final count = await getPlaylistCount();
@@ -55,12 +117,26 @@ class PlaylistManager {
       }
     }
 
+    final userId = _currentUserId;
+
+    // Encrypt credentials before storing.
+    final encryptedUrl = EncryptionService.encrypt(url, userId: userId);
+    final encryptedUsername = username != null
+        ? EncryptionService.encrypt(username, userId: userId)
+        : null;
+    final encryptedPassword = password != null
+        ? EncryptionService.encrypt(password, userId: userId)
+        : null;
+
     final id = await _db.into(_db.playlists).insert(
           PlaylistsCompanion.insert(
             name: name,
-            url: url,
+            url: encryptedUrl,
             type: 'remote',
             lastSyncedAt: drift.Value(DateTime.now()),
+            userId: drift.Value(userId),
+            username: drift.Value(encryptedUsername),
+            password: drift.Value(encryptedPassword),
           ),
         );
 

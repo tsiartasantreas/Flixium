@@ -46,6 +46,10 @@ dependencies:
   # Supabase — auth, database, and realtime.
   supabase_flutter: ^2.8.0
 
+  # Encrypt — AES encryption for playlist credentials.
+  encrypt: ^5.0.3
+  crypto: ^3.0.6
+
   # media_kit — cross-platform video/audio playback.
   media_kit: ^1.1.11
   media_kit_video: ^1.2.5
