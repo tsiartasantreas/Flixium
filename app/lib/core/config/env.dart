@@ -10,9 +10,12 @@ class Env {
     'SUPABASE_URL',
     defaultValue: 'https://zosckkklctvrsjqjmyiv.supabase.co',
   );
+
+  // Supabase preshareable key — safe to ship in client apps.
+  // This replaces the old JWT-based anon key format.
   static const String _supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue: 'sb_publishable_ntuO3AUCB1XfdHpBWJwSxQ_q9CRlLFK',
   );
 
   static String get supabaseUrl {

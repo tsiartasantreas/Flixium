@@ -19,7 +19,7 @@ class SupabaseService {
     if (_initialized) return;
     await Supabase.initialize(
       url: Env.supabaseUrl,
-      publishableKey: Env.supabaseAnonKey,
+      anonKey: Env.supabaseAnonKey,
     );
     _initialized = true;
   }
