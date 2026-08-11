@@ -21,20 +21,50 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isSignUp = false;
   bool _isLoading = false;
+  bool _emailConfirmationSent = false;
   String? _error;
 
   AuthService get _auth => widget.authService ?? AuthService();
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Password validation
+  // ---------------------------------------------------------------------------
+
+  bool get _hasMinLength => _passwordController.text.length >= 8;
+  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordController.text);
+  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordController.text);
+  bool get _hasDigit => RegExp(r'[0-9]').hasMatch(_passwordController.text);
+  bool get _hasSpecialChar => RegExp(r'[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\\/~`]').hasMatch(_passwordController.text);
+
+  /// Returns null when valid, or an error string for the form validator.
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your password';
+    }
+    if (!_isSignUp) {
+      // Sign-in: only require non-empty.
+      return null;
+    }
+    if (!_hasMinLength) return 'Password must be at least 8 characters';
+    if (!_hasUppercase) return 'Password must contain at least 1 uppercase letter';
+    if (!_hasLowercase) return 'Password must contain at least 1 lowercase letter';
+    if (!_hasDigit) return 'Password must contain at least 1 number';
+    if (!_hasSpecialChar) return 'Password must contain at least 1 special character';
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -52,12 +82,18 @@ class _AuthScreenState extends State<AuthScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    final result =
-        _isSignUp ? await _auth.signUp(email, password) : await _auth.signIn(email, password);
+    final result = _isSignUp
+        ? await _auth.signUp(email, password, name: _nameController.text.trim())
+        : await _auth.signIn(email, password);
 
     if (!mounted) return;
 
-    if (result.isSuccess) {
+    if (result.needsEmailConfirmation) {
+      setState(() {
+        _emailConfirmationSent = true;
+        _isLoading = false;
+      });
+    } else if (result.isSuccess) {
       _navigateToHome();
     } else {
       setState(() {
@@ -91,187 +127,324 @@ class _AuthScreenState extends State<AuthScreen> {
             padding: const EdgeInsets.symmetric(
               horizontal: AppTheme.horizontalPadding,
             ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Logo / branding.
-                  const Icon(
-                    Icons.live_tv,
-                    size: 64,
-                    color: AppColors.accentPrimary,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'FLIXIUM',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+            child: _emailConfirmationSent
+                ? _buildConfirmationMessage()
+                : _buildAuthForm(),
+          ),
+        ),
+      ),
+    );
+  }
 
-                  // Error banner.
-                  if (_error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+  // ---------------------------------------------------------------------------
+  // Email confirmation view
+  // ---------------------------------------------------------------------------
 
-                  // Email field.
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: _inputDecoration('Email'),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Password field.
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: _inputDecoration('Password'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
-                    onFieldSubmitted: (_) => _submit(),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Submit button.
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentPrimary,
-                        foregroundColor: AppColors.textPrimary,
-                        disabledBackgroundColor:
-                            AppColors.accentPrimary.withValues(alpha: 0.5),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.textPrimary,
-                              ),
-                            )
-                          : Text(
-                              _isSignUp ? 'Create Account' : 'Sign In',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Toggle sign-in / sign-up.
-                  TextButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => setState(() {
-                              _isSignUp = !_isSignUp;
-                              _error = null;
-                            }),
-                    child: Text(
-                      _isSignUp
-                          ? 'Already have an account? Sign In'
-                          : "Don't have an account? Sign Up",
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Divider.
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Divider(color: AppColors.bgSurface),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(
-                            color: AppColors.textSecondary
-                                .withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const Expanded(
-                        child: Divider(color: AppColors.bgSurface),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Guest button.
-                  SizedBox(
-                    height: 48,
-                    child: OutlinedButton(
-                      onPressed: _isLoading ? null : _continueAsGuest,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary,
-                        side: const BorderSide(color: AppColors.bgSurface),
-                      ),
-                      child: const Text(
-                        'Continue as Guest',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+  Widget _buildConfirmationMessage() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Icon(
+          Icons.mark_email_unread_outlined,
+          size: 64,
+          color: AppColors.accentPrimary,
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Check your email',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'We sent a confirmation link to\n${_emailController.text.trim()}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 15,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Click the link in the email to activate your account, then come back to sign in.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 32),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _emailConfirmationSent = false;
+                _isSignUp = false;
+                _error = null;
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentPrimary,
+              foregroundColor: AppColors.textPrimary,
+            ),
+            child: const Text(
+              'Back to Sign In',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Auth form
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAuthForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Logo / branding.
+          const Icon(
+            Icons.live_tv,
+            size: 64,
+            color: AppColors.accentPrimary,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'FLIXIUM',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 4,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Error banner.
+          if (_error != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                _error!,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Name field (sign-up only).
+          if (_isSignUp) ...[
+            TextFormField(
+              controller: _nameController,
+              textCapitalization: TextCapitalization.words,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: _inputDecoration('Name'),
+              validator: (value) {
+                if (!_isSignUp) return null;
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Email field.
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: _inputDecoration('Email'),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter your email';
+              }
+              if (!value.contains('@')) {
+                return 'Please enter a valid email';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Password field.
+          TextFormField(
+            controller: _passwordController,
+            obscureText: true,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: _inputDecoration('Password'),
+            validator: _validatePassword,
+            onChanged: (_) => setState(() {}), // Refresh checklist.
+            onFieldSubmitted: (_) => _submit(),
+          ),
+
+          // Password requirements checklist (sign-up only).
+          if (_isSignUp) ...[
+            const SizedBox(height: 12),
+            _buildPasswordRequirements(),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Submit button.
+          SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentPrimary,
+                foregroundColor: AppColors.textPrimary,
+                disabledBackgroundColor:
+                    AppColors.accentPrimary.withValues(alpha: 0.5),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.textPrimary,
+                      ),
+                    )
+                  : Text(
+                      _isSignUp ? 'Create Account' : 'Sign In',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Toggle sign-in / sign-up.
+          TextButton(
+            onPressed: _isLoading
+                ? null
+                : () => setState(() {
+                      _isSignUp = !_isSignUp;
+                      _error = null;
+                    }),
+            child: Text(
+              _isSignUp
+                  ? 'Already have an account? Sign In'
+                  : "Don't have an account? Sign Up",
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Divider.
+          Row(
+            children: [
+              const Expanded(
+                child: Divider(color: AppColors.bgSurface),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'OR',
+                  style: TextStyle(
+                    color: AppColors.textSecondary
+                        .withValues(alpha: 0.6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Expanded(
+                child: Divider(color: AppColors.bgSurface),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Guest button.
+          SizedBox(
+            height: 48,
+            child: OutlinedButton(
+              onPressed: _isLoading ? null : _continueAsGuest,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                side: const BorderSide(color: AppColors.bgSurface),
+              ),
+              child: const Text(
+                'Continue as Guest',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Password requirements checklist
+  // ---------------------------------------------------------------------------
+
+  Widget _buildPasswordRequirements() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _requirementRow('At least 8 characters', _hasMinLength),
+        _requirementRow('At least 1 uppercase letter (A-Z)', _hasUppercase),
+        _requirementRow('At least 1 lowercase letter (a-z)', _hasLowercase),
+        _requirementRow('At least 1 number (0-9)', _hasDigit),
+        _requirementRow('At least 1 special character (!@#\$...)', _hasSpecialChar),
+      ],
+    );
+  }
+
+  Widget _requirementRow(String label, bool met) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(
+            met ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: met ? Colors.greenAccent : AppColors.textSecondary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: met ? Colors.greenAccent : AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/supabase_client.dart';
+import 'profile_manager.dart';
 
 /// Result of a sign-in or sign-up operation.
 ///
 /// Exactly one of [user] or [error] will be non-null.
 class AuthResult {
-  const AuthResult({this.user, this.error});
+  const AuthResult({this.user, this.error, this.needsEmailConfirmation = false});
 
   /// The authenticated user on success.
   final User? user;
@@ -16,8 +17,11 @@ class AuthResult {
   /// A human-readable error message on failure.
   final String? error;
 
-  /// Whether the operation succeeded.
-  bool get isSuccess => user != null;
+  /// Whether the user needs to confirm their email before signing in.
+  final bool needsEmailConfirmation;
+
+  /// Whether the operation succeeded (user is authenticated).
+  bool get isSuccess => user != null && !needsEmailConfirmation;
 }
 
 /// Thin wrapper around Supabase GoTrue authentication.
@@ -26,9 +30,10 @@ class AuthResult {
 /// so that the rest of the codebase is decoupled from the GoTrue API shape.
 class AuthService {
   // ignore: prefer_initializing_formals
-  AuthService({SupabaseClient? client}) : _client = client;
+  AuthService({SupabaseClient? client, ProfileManager? profileManager}) : _client = client, _profileManager = profileManager;
 
   final SupabaseClient? _client;
+  final ProfileManager? _profileManager;
 
   SupabaseClient? get _supabase {
     if (_client != null) return _client;
@@ -60,8 +65,17 @@ class AuthService {
   // Sign up
   // ---------------------------------------------------------------------------
 
-  /// Creates a new account with [email] and [password].
-  Future<AuthResult> signUp(String email, String password) async {
+  /// The redirect URL for email confirmation links.
+  ///
+  /// Supabase uses this to generate the confirmation link in the email.
+  static const String _emailRedirectTo = 'io.supabase.iflixify://login-callback/';
+
+  /// Creates a new account with [email], [password], and [name].
+  ///
+  /// After successful signup, a local profile is created with [name] and
+  /// Supabase sends a confirmation email. The user must confirm before
+  /// they can sign in.
+  Future<AuthResult> signUp(String email, String password, {required String name}) async {
     if (_auth == null) {
       return const AuthResult(error: 'Supabase is not initialized.');
     }
@@ -69,8 +83,22 @@ class AuthService {
       final response = await _auth!.signUp(
         email: email,
         password: password,
+        emailRedirectTo: _emailRedirectTo,
+        data: {'display_name': name},
       );
       if (response.user != null) {
+        // Create a local profile with the user's name.
+        try {
+          final pm = _profileManager ?? ProfileManager();
+          await pm.createProfile(name);
+        } catch (_) {
+          // Profile creation failure is non-fatal; user can still confirm email.
+        }
+
+        // If there is no session, Supabase requires email confirmation.
+        if (response.session == null) {
+          return AuthResult(user: response.user, needsEmailConfirmation: true);
+        }
         return AuthResult(user: response.user);
       }
       return const AuthResult(error: 'Sign up failed. Please try again.');
