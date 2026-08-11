@@ -12,7 +12,7 @@ class Env {
   );
 
   // Supabase anon key (JWT format) — safe to ship in client apps.
-  // Required for Supabase SDK compatibility.
+  // Required for supabase_flutter SDK compatibility.
   static const String _supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc2Nra2tsY3R2cnNqcWpteWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyODA2NDAsImV4cCI6MjEwMTg1NjY0MH0.bVAxexYv9e7Jo8PLRwYVyzLi6L9PFvxE3M8ZIheMmmA',

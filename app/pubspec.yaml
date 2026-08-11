@@ -44,7 +44,7 @@ dependencies:
   xml: ^6.6.0
 
   # Supabase — auth, database, and realtime.
-  supabase: ^2.8.0
+  supabase_flutter: ^2.8.0
 
   # media_kit — cross-platform video/audio playback.
   media_kit: ^1.1.11

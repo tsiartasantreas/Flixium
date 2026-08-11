@@ -59,3 +59,5 @@ Thumbs.db
 docs/ui-references/**/*.png
 docs/ui-references/**/*.jpg
 !docs/ui-references/README.md
+android/local.properties
+app/android/local.properties
