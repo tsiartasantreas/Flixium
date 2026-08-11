@@ -9,7 +9,7 @@ import 'profile_manager.dart';
 ///
 /// Exactly one of [user] or [error] will be non-null.
 class AuthResult {
-  const AuthResult({this.user, this.error, this.needsEmailConfirmation = false});
+  const AuthResult({this.user, this.error});
 
   /// The authenticated user on success.
   final User? user;
@@ -17,11 +17,8 @@ class AuthResult {
   /// A human-readable error message on failure.
   final String? error;
 
-  /// Whether the user needs to confirm their email before signing in.
-  final bool needsEmailConfirmation;
-
   /// Whether the operation succeeded (user is authenticated).
-  bool get isSuccess => user != null && !needsEmailConfirmation;
+  bool get isSuccess => user != null;
 }
 
 /// Thin wrapper around Supabase GoTrue authentication.
@@ -65,16 +62,10 @@ class AuthService {
   // Sign up
   // ---------------------------------------------------------------------------
 
-  /// The redirect URL for email confirmation links.
-  ///
-  /// Supabase uses this to generate the confirmation link in the email.
-  static const String _emailRedirectTo = 'io.supabase.iflixify://login-callback/';
-
   /// Creates a new account with [email], [password], and [name].
   ///
-  /// After successful signup, a local profile is created with [name] and
-  /// Supabase sends a confirmation email. The user must confirm before
-  /// they can sign in.
+  /// Email confirmation is disabled — the user is auto-confirmed and
+  /// signed in immediately after signup.
   Future<AuthResult> signUp(String email, String password, {required String name}) async {
     if (_auth == null) {
       return const AuthResult(error: 'Supabase is not initialized.');
@@ -83,7 +74,6 @@ class AuthService {
       final response = await _auth!.signUp(
         email: email,
         password: password,
-        emailRedirectTo: _emailRedirectTo,
         data: {'display_name': name},
       );
       if (response.user != null) {
@@ -92,12 +82,7 @@ class AuthService {
           final pm = _profileManager ?? ProfileManager();
           await pm.createProfile(name);
         } catch (_) {
-          // Profile creation failure is non-fatal; user can still confirm email.
-        }
-
-        // If there is no session, Supabase requires email confirmation.
-        if (response.session == null) {
-          return AuthResult(user: response.user, needsEmailConfirmation: true);
+          // Profile creation failure is non-fatal.
         }
         return AuthResult(user: response.user);
       }

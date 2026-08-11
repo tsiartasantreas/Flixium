@@ -33,6 +33,12 @@ class ImportScreenState extends State<ImportScreen> {
   M3uUrlType? _detectedType;
   String _importProgressMessage = '';
 
+  /// Stream type selection for Xtream imports.
+  bool _importLive = true;
+  bool _importMovies = true;
+  bool _importSeries = true;
+  bool _importRadio = true;
+
   @override
   void initState() {
     super.initState();
@@ -142,8 +148,9 @@ class ImportScreenState extends State<ImportScreen> {
       }
       await _loadPlaylists();
 
-      // Navigate back to home after successful import.
-      if (mounted) {
+      // Navigate back to home after successful M3U import.
+      // Xtream imports show a summary dialog instead.
+      if (mounted && !urlInfo.isXtream) {
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -164,10 +171,23 @@ class ImportScreenState extends State<ImportScreen> {
   Future<void> _importXtream(M3uUrlInfo urlInfo) async {
     final importer = XtreamImporter(db: _db);
     try {
+      // Build the set of selected content types.
+      final selectedTypes = <XtreamContentType>{};
+      if (_importLive) selectedTypes.add(XtreamContentType.live);
+      if (_importMovies) selectedTypes.add(XtreamContentType.vod);
+      if (_importSeries) selectedTypes.add(XtreamContentType.series);
+      // Radio is not supported by Xtream API, but we track the checkbox state.
+
+      if (selectedTypes.isEmpty) {
+        setState(() => _errorMessage = 'Please select at least one content type');
+        return;
+      }
+
       final result = await importer.import(
         baseUrl: urlInfo.baseUrl!,
         username: urlInfo.username!,
         password: urlInfo.password!,
+        importTypes: selectedTypes,
         onProgress: (message, progress) {
           if (mounted) {
             setState(() => _importProgressMessage = message);
@@ -176,21 +196,97 @@ class ImportScreenState extends State<ImportScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Imported ${result.totalItems} items '
-              '(${result.channels} channels, '
-              '${result.vodItems} movies, '
-              '${result.series} series)',
-            ),
-            backgroundColor: AppColors.bgSurface,
-          ),
-        );
+        _showImportSummary(result);
       }
     } finally {
       importer.close();
     }
+  }
+
+  /// Shows a dialog summarizing what was imported.
+  void _showImportSummary(XtreamImportResult result) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: Row(
+          children: [
+            Icon(
+              result.hasContent ? Icons.check_circle : Icons.info_outline,
+              color: result.hasContent ? Colors.greenAccent : AppColors.accentPrimary,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              result.hasContent ? 'Import Complete' : 'No Content Found',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (result.channels > 0)
+              _summaryRow(Icons.live_tv, 'Live TV', result.channels),
+            if (result.vodItems > 0)
+              _summaryRow(Icons.movie, 'Movies', result.vodItems),
+            if (result.series > 0)
+              _summaryRow(Icons.tv, 'Series', result.series),
+            if (result.radio > 0)
+              _summaryRow(Icons.radio, 'Radio', result.radio),
+            if (!result.hasContent)
+              const Text(
+                'No items were found for the selected content types.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            if (result.error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Note: Some categories failed to load.',
+                style: TextStyle(
+                  color: Colors.orangeAccent.withValues(alpha: 0.8),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'OK',
+              style: TextStyle(color: AppColors.accentPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(IconData icon, String label, int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.accentPrimary, size: 20),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+          ),
+          const Spacer(),
+          Text(
+            '$count',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Import from a standard M3U URL.
@@ -457,20 +553,73 @@ class ImportScreenState extends State<ImportScreen> {
                 ),
               ],
 
+              // -- Stream type selection (Xtream only) ----------------------
+              if (_detectedType == M3uUrlType.xtream) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Content to import',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _buildContentTypeChip(
+                      label: 'Live TV',
+                      icon: Icons.live_tv,
+                      value: _importLive,
+                      onChanged: (v) => setState(() => _importLive = v),
+                    ),
+                    _buildContentTypeChip(
+                      label: 'Movies',
+                      icon: Icons.movie,
+                      value: _importMovies,
+                      onChanged: (v) => setState(() => _importMovies = v),
+                    ),
+                    _buildContentTypeChip(
+                      label: 'Series',
+                      icon: Icons.tv,
+                      value: _importSeries,
+                      onChanged: (v) => setState(() => _importSeries = v),
+                    ),
+                    _buildContentTypeChip(
+                      label: 'Radio',
+                      icon: Icons.radio,
+                      value: _importRadio,
+                      onChanged: (v) => setState(() => _importRadio = v),
+                    ),
+                  ],
+                ),
+              ],
+
               const SizedBox(height: 12),
 
               // -- Import progress ------------------------------------------
               if (_isLoading && _importProgressMessage.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    _importProgressMessage,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: const LinearProgressIndicator(
+                    backgroundColor: AppColors.bgSurface,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.accentPrimary),
+                    minHeight: 4,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  _importProgressMessage,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
               ],
 
               // -- Add button -----------------------------------------------
@@ -605,6 +754,47 @@ class ImportScreenState extends State<ImportScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildContentTypeChip({
+    required String label,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: value ? AppColors.textPrimary : AppColors.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      ),
+      selected: value,
+      onSelected: onChanged,
+      backgroundColor: AppColors.bgSurface,
+      selectedColor: AppColors.accentPrimary.withValues(alpha: 0.2),
+      checkmarkColor: AppColors.accentPrimary,
+      labelStyle: TextStyle(
+        color: value ? AppColors.textPrimary : AppColors.textSecondary,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+      side: BorderSide(
+        color: value
+            ? AppColors.accentPrimary.withValues(alpha: 0.5)
+            : AppColors.bgSurface,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     );
   }
 

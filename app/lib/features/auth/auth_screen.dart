@@ -27,7 +27,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _isSignUp = false;
   bool _isLoading = false;
-  bool _emailConfirmationSent = false;
   String? _error;
 
   AuthService get _auth => widget.authService ?? AuthService();
@@ -88,12 +87,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (!mounted) return;
 
-    if (result.needsEmailConfirmation) {
-      setState(() {
-        _emailConfirmationSent = true;
-        _isLoading = false;
-      });
-    } else if (result.isSuccess) {
+    if (result.isSuccess) {
       _navigateToHome();
     } else {
       setState(() {
@@ -127,81 +121,10 @@ class _AuthScreenState extends State<AuthScreen> {
             padding: const EdgeInsets.symmetric(
               horizontal: AppTheme.horizontalPadding,
             ),
-            child: _emailConfirmationSent
-                ? _buildConfirmationMessage()
-                : _buildAuthForm(),
+            child: _buildAuthForm(),
           ),
         ),
       ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Email confirmation view
-  // ---------------------------------------------------------------------------
-
-  Widget _buildConfirmationMessage() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Icon(
-          Icons.mark_email_unread_outlined,
-          size: 64,
-          color: AppColors.accentPrimary,
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Check your email',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'We sent a confirmation link to\n${_emailController.text.trim()}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 15,
-            height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Click the link in the email to activate your account, then come back to sign in.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-            height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _emailConfirmationSent = false;
-                _isSignUp = false;
-                _error = null;
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentPrimary,
-              foregroundColor: AppColors.textPrimary,
-            ),
-            child: const Text(
-              'Back to Sign In',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
