@@ -25,7 +25,7 @@ void main() {
           'http://provider:8080/get.php?username=u&password=pass',
         );
 
-        expect(info.baseUrl, 'http://provider:8080/get.php');
+        expect(info.baseUrl, 'http://provider:8080');
       });
 
       test('extracts output parameter when present', () {
@@ -78,7 +78,7 @@ void main() {
         );
 
         expect(info.isXtream, isTrue);
-        expect(info.baseUrl, 'http://provider:8080/player_api.php');
+        expect(info.baseUrl, 'http://provider:8080');
       });
 
       test('handles URL without explicit port', () {
@@ -87,7 +87,7 @@ void main() {
         );
 
         expect(info.isXtream, isTrue);
-        expect(info.baseUrl, 'http://provider/get.php');
+        expect(info.baseUrl, 'http://provider');
       });
     });
 

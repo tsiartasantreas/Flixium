@@ -66,7 +66,7 @@ class _FlixiumAppState extends State<FlixiumApp> {
     }
 
     return MaterialApp(
-      title: 'Flixium IPTV',
+      title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: NetflixTheme.dark,
       home: _authChecked ? _buildHome() : const MainShell(),

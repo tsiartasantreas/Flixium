@@ -5,9 +5,10 @@
 class Env {
   Env._();
 
+  // Supabase project URL — public knowledge, safe to hardcode.
   static const String _supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://zosckkklctvrsjqjmyiv.supabase.co',
   );
   static const String _supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',

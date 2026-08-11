@@ -69,12 +69,12 @@ class M3uUrlParser {
     final hasPassword = params.containsKey('password');
 
     if (hasUsername && hasPassword) {
-      // Reconstruct base URL (scheme + host + port + path, no query).
+      // Reconstruct base URL (scheme + host + port only — no path, no query).
+      // Xtream API uses /player_api.php as the endpoint, not /get.php.
       final baseUri = Uri(
         scheme: uri.scheme,
         host: uri.host,
         port: uri.hasPort ? uri.port : null,
-        path: uri.path,
       );
 
       return M3uUrlInfo(
