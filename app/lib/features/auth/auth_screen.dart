@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_service.dart';
+import '../../core/data/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../shell/main_shell.dart';
@@ -77,6 +78,21 @@ class _AuthScreenState extends State<AuthScreen> {
       _isLoading = true;
       _error = null;
     });
+
+    // Ensure Supabase is initialized before attempting auth.
+    // Supabase is lazy (not at app startup) to avoid native plugin crash on Android 16.
+    if (!SupabaseService.isInitialized) {
+      try {
+        await SupabaseService.initialize();
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Failed to connect. Please check your internet.';
+          _isLoading = false;
+        });
+        return;
+      }
+    }
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
