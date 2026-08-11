@@ -1,4 +1,4 @@
-package com.flixium.flixium
+package com.iflixify.iflixify
 
 import io.flutter.embedding.android.FlutterActivity
 
