@@ -74,11 +74,17 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Widget _buildHome() {
-    // If Supabase is configured and a user is signed in, go to main shell.
-    // Otherwise show auth screen (with guest option).
-    if (Env.isConfigured && SupabaseService.auth.currentUser != null) {
-      return const MainShell();
+    // If Supabase is configured and initialized, check auth state.
+    // If Supabase failed to init, skip to main shell (guest mode).
+    if (Env.isConfigured && SupabaseService.isInitialized) {
+      try {
+        if (SupabaseService.auth.currentUser != null) {
+          return const MainShell();
+        }
+      } catch (_) {
+        // Supabase auth check failed — continue as guest.
+      }
     }
-    return const AuthScreen();
+    return const MainShell();
   }
 }
