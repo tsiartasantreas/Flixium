@@ -30,17 +30,10 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Future<void> _bootstrap() async {
-    // Initialize Supabase if credentials are configured.
-    if (Env.isConfigured) {
-      try {
-        await SupabaseService.initialize();
-        // Refresh entitlement tier on app start.
-        await EntitlementService().refreshTier();
-      } catch (_) {
-        // If Supabase init fails, the app still works in guest mode.
-      }
-    }
-
+    // Supabase is NOT initialized at startup — its native Android plugin
+    // (supabase_flutter) crashes on Android 16 (Galaxy Fold 5). Initialize
+    // lazily only when the user actually signs in. The app works fully in
+    // guest mode without any network dependency.
     if (mounted) {
       setState(() {
         _initialized = true;
@@ -74,17 +67,8 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Widget _buildHome() {
-    // If Supabase is configured and initialized, check auth state.
-    // If Supabase failed to init, skip to main shell (guest mode).
-    if (Env.isConfigured && SupabaseService.isInitialized) {
-      try {
-        if (SupabaseService.auth.currentUser != null) {
-          return const MainShell();
-        }
-      } catch (_) {
-        // Supabase auth check failed — continue as guest.
-      }
-    }
+    // Always go to main shell — Supabase is initialized lazily when the user
+    // signs in, never at startup. No crash on Android 16.
     return const MainShell();
   }
 }
