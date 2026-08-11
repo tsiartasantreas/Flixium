@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase/supabase.dart';
 
 import '../auth/auth_service.dart';
 import '../data/database.dart';

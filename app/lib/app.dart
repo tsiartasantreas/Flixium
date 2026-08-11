@@ -27,7 +27,7 @@ class _FlixiumAppState extends State<FlixiumApp> {
 
   Future<void> _bootstrap() async {
     // Supabase is NOT initialized at startup — its native Android plugin
-    // (supabase_flutter) crashes on Android 16 (Galaxy Fold 5). Initialize
+    // supabase_flutter's app_links plugin crashes on Android 16 (Galaxy Fold 5). Initialize
     // lazily only when the user actually signs in. The app works fully in
     // guest mode without any network dependency.
     if (mounted) {
