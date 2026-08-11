@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'core/config/env.dart';
-import 'core/data/supabase_client.dart';
-import 'core/entitlement/entitlement_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
-import 'features/auth/auth_screen.dart';
 import 'features/shell/main_shell.dart';
 
 /// Root widget of the Flixium IPTV app.
 ///
 /// On startup the app initializes Supabase, checks the current auth state,
-/// and routes to either the [AuthScreen] or [MainShell].
+/// and routes to the [MainShell].
 class FlixiumApp extends StatefulWidget {
   const FlixiumApp({super.key});
 
