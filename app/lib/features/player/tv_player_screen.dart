@@ -2,25 +2,33 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
+import 'widgets/player_overlay_widgets.dart';
 
-/// Full-screen TV / Fire TV player with D-pad controls.
+/// Full-screen TV / Fire TV player with D-pad controls and advanced overlays.
 ///
+/// D-pad mapping:
 /// - **Left / Right** arrows: seek +/- 10 s
 /// - **Select / Enter / Space**: toggle play / pause
-/// - **Back**: exit the player
+/// - **Up**: show controls (if hidden)
+/// - **Down**: hide controls
+/// - **Back / Escape**: exit player
 ///
 /// Controls are visible by default and auto-hide after 5 seconds.
-/// No touch-specific interactions are provided.
 class TvPlayerScreen extends StatefulWidget {
   const TvPlayerScreen({
     super.key,
     required this.controller,
     this.title = '',
     this.isLive = false,
+    this.category,
+    this.contentType,
+    this.onNextChannel,
+    this.onPreviousChannel,
   });
 
   final PlayerController controller;
@@ -28,8 +36,20 @@ class TvPlayerScreen extends StatefulWidget {
   /// Display name shown in the top overlay.
   final String title;
 
-  /// When true the seek bar is hidden and duration shows "LIVE".
+  /// When true the seek bar shows a live indicator instead of a slider.
   final bool isLive;
+
+  /// Channel group / category name (e.g. "Sports", "Movies 4K").
+  final String? category;
+
+  /// Content type: "live", "vod", "series", "radio".
+  final String? contentType;
+
+  /// Called when the user triggers "next channel" via D-pad or button.
+  final VoidCallback? onNextChannel;
+
+  /// Called when the user triggers "previous channel" via D-pad or button.
+  final VoidCallback? onPreviousChannel;
 
   @override
   State<TvPlayerScreen> createState() => _TvPlayerScreenState();
@@ -157,7 +177,7 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
               // -- Buffering indicator ---------------------------------------
               _buildBufferingOverlay(ctrl),
 
-              // -- D-pad hint (fades with controls) --------------------------
+              // -- Overlay controls ------------------------------------------
               if (_controlsVisible) _buildControls(ctrl),
             ],
           ),
@@ -257,16 +277,16 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // -- Top: title -----------------------------------------------
-              _buildTopBar(),
+              // -- Top: title + track buttons --------------------------------
+              _buildTopBar(ctrl),
 
               const Spacer(),
 
-              // -- Center: large play/pause indicator -----------------------
-              _buildCenterIndicator(ctrl),
+              // -- Center: play/pause + next/prev ----------------------------
+              _buildCenterArea(ctrl),
 
-              // -- Bottom: seek bar + timestamps + D-pad hints --------------
-              if (!widget.isLive) _buildSeekBar(ctrl),
+              // -- Bottom: progress bar + timestamps + D-pad hints -----------
+              _buildProgressBarArea(ctrl),
               const SizedBox(height: 8),
               if (!widget.isLive) _buildDpadHints(),
               const SizedBox(height: 8),
@@ -277,94 +297,127 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(PlayerController ctrl) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Row(
         children: [
-          const Icon(Icons.arrow_back, color: AppColors.textSecondary, size: 20),
+          const Icon(Icons.arrow_back,
+              color: AppColors.textSecondary, size: 20),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              widget.title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
+            child: StreamInfoOverlay(
+              title: widget.title,
+              category: widget.category,
+              resolution: ctrl.videoResolution,
+              contentType: widget.contentType,
             ),
+          ),
+          // Audio track button (only if multiple tracks)
+          AnimatedBuilder(
+            animation: ctrl,
+            builder: (context, _) {
+              if (ctrl.hasMultipleAudioTracks) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _TvIconButton(
+                    icon: Icons.audiotrack,
+                    tooltip: 'Audio tracks',
+                    onPressed: () async {
+                      final track = await showAudioTrackSelector(
+                        context,
+                        tracks: ctrl.audioTracks,
+                        current: ctrl.currentAudioTrack,
+                      );
+                      if (track != null) ctrl.setAudioTrack(track);
+                    },
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          // Subtitle track button (only if subtitles available)
+          AnimatedBuilder(
+            animation: ctrl,
+            builder: (context, _) {
+              if (ctrl.hasSubtitleTracks) {
+                final hasActive =
+                    ctrl.currentSubtitleTrack != SubtitleTrack.no();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _TvIconButton(
+                    icon: Icons.subtitles,
+                    tooltip: 'Subtitles',
+                    color: hasActive ? AppColors.accentPrimary : null,
+                    onPressed: () async {
+                      final track = await showSubtitleTrackSelector(
+                        context,
+                        tracks: ctrl.subtitleTracks,
+                        current: ctrl.currentSubtitleTrack,
+                      );
+                      if (track != null) ctrl.setSubtitleTrack(track);
+                    },
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCenterIndicator(PlayerController ctrl) {
+  Widget _buildCenterArea(PlayerController ctrl) {
     return AnimatedBuilder(
       animation: ctrl,
       builder: (context, _) {
-        return Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.accentPrimary.withValues(alpha: 0.8),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            ctrl.isPlaying ? Icons.pause : Icons.play_arrow,
-            color: AppColors.textPrimary,
-            size: 40,
-          ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Next/Prev buttons for live TV
+            if (widget.isLive &&
+                (widget.onNextChannel != null ||
+                    widget.onPreviousChannel != null))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: NextPrevChannelButtons(
+                  onPrevious: widget.onPreviousChannel,
+                  onNext: widget.onNextChannel,
+                ),
+              ),
+
+            // Play/Pause indicator
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.accentPrimary.withValues(alpha: 0.8),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                ctrl.isPlaying ? Icons.pause : Icons.play_arrow,
+                color: AppColors.textPrimary,
+                size: 40,
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildSeekBar(PlayerController ctrl) {
+  Widget _buildProgressBarArea(PlayerController ctrl) {
     return AnimatedBuilder(
       animation: ctrl,
       builder: (context, _) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Row(
-            children: [
-              Text(
-                ctrl.positionText,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SliderTheme(
-                  data: const SliderThemeData(
-                    activeTrackColor: AppColors.accentPrimary,
-                    inactiveTrackColor: AppColors.bgSurface,
-                    thumbColor: AppColors.accentPrimary,
-                    thumbShape:
-                        RoundSliderThumbShape(enabledThumbRadius: 8),
-                    trackHeight: 4,
-                    overlayShape:
-                        RoundSliderOverlayShape(overlayRadius: 16),
-                  ),
-                  child: Slider(
-                    value: ctrl.seekFraction,
-                    onChanged: ctrl.seekFractionally,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                ctrl.durationText,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+        return PlayerProgressBar(
+          positionText: ctrl.positionText,
+          durationText: ctrl.durationText,
+          seekFraction: ctrl.seekFraction,
+          isLive: widget.isLive,
+          onSeek: widget.isLive ? null : ctrl.seekFractionally,
         );
       },
     );
@@ -403,6 +456,64 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Focusable icon button for TV/D-pad navigation.
+class _TvIconButton extends StatelessWidget {
+  const _TvIconButton({
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+    this.color,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? tooltip;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter)) {
+          onPressed();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Builder(
+        builder: (ctx) {
+          final focused = Focus.of(ctx).hasFocus;
+          return GestureDetector(
+            onTap: onPressed,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: focused
+                    ? AppColors.accentPrimary.withValues(alpha: 0.3)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: focused
+                    ? Border.all(color: AppColors.accentPrimary, width: 2)
+                    : null,
+              ),
+              child: Tooltip(
+                message: tooltip ?? '',
+                child: Icon(
+                  icon,
+                  color: color ?? AppColors.textPrimary,
+                  size: 24,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

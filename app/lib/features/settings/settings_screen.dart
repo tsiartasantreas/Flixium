@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_manager.dart';
@@ -34,6 +35,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Playback settings.
   bool _autoPlay = true;
   String _videoQuality = 'Auto';
+
+  // Update check state.
+  bool _isCheckingForUpdates = false;
 
   // Profile.
   String _profileName = 'User';
@@ -324,8 +328,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSectionHeader('About'),
           _buildInfoTile(
             icon: Icons.info_outline,
-            title: 'Version',
-            subtitle: '1.0.0 (build 1)',
+            title: 'iFlixify IPTV',
+            subtitle: 'Version 4.7.0-alpha (build 1)',
+          ),
+          _buildNavigationTile(
+            icon: Icons.system_update_outlined,
+            title: 'Check for Updates',
+            subtitle: _isCheckingForUpdates
+                ? 'Checking...'
+                : 'Check for the latest version',
+            onTap: _checkForUpdates,
+          ),
+          _buildInfoTile(
+            icon: Icons.person_outline,
+            title: 'Developer',
+            subtitle: 'iFlixify Team',
+          ),
+          _buildNavigationTile(
+            icon: Icons.language_outlined,
+            title: 'Website',
+            subtitle: 'https://iflixify.wasmer.app',
+            onTap: () => _launchUrl('https://iflixify.wasmer.app'),
+          ),
+          _buildNavigationTile(
+            icon: Icons.email_outlined,
+            title: 'Support',
+            subtitle: 'support@iflixify.app',
+            onTap: () => _launchUrl('mailto:support@iflixify.app'),
+          ),
+          _buildNavigationTile(
+            icon: Icons.description_outlined,
+            title: 'Terms of Service',
+            subtitle: 'View terms and conditions',
+            onTap: () => _launchUrl('https://iflixify.wasmer.app/terms'),
+          ),
+          _buildNavigationTile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+            subtitle: 'View privacy policy',
+            onTap: () => _launchUrl('https://iflixify.wasmer.app/privacy'),
           ),
           _buildNavigationTile(
             icon: Icons.description_outlined,
@@ -334,13 +375,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'iFlixify IPTV',
-              applicationVersion: '1.0.0',
+              applicationVersion: '4.7.0-alpha',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,
                 size: 32,
               ),
-              applicationLegalese: 'Copyright 2026 iFlixify',
+              applicationLegalese:
+                  'iFlixify IPTV uses an open-source technology stack but is not open-source software itself. All rights reserved. The app is provided as-is for personal use.',
             ),
           ),
 
@@ -657,5 +699,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // URL launcher helper
+  // ---------------------------------------------------------------------------
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open $url'),
+            backgroundColor: AppColors.bgSurface,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check for updates
+  // ---------------------------------------------------------------------------
+
+  Future<void> _checkForUpdates() async {
+    setState(() => _isCheckingForUpdates = true);
+
+    try {
+      // Open the latest release page directly.
+      await _launchUrl('https://iflixify.wasmer.app/dl/latest');
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingForUpdates = false);
+      }
+    }
   }
 }

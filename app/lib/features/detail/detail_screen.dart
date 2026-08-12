@@ -43,6 +43,8 @@ class _DetailScreenState extends State<DetailScreen> {
   late final OfflineDownloadService _downloadService;
   List<_EpisodeItem> _episodes = [];
   bool _isLoadingEpisodes = false;
+  EpgProgramme? _currentProgramme;
+  EpgProgramme? _nextProgramme;
 
   bool get _isTv =>
       Platform.isLinux ||
@@ -62,6 +64,9 @@ class _DetailScreenState extends State<DetailScreen> {
     _downloadService = OfflineDownloadService(db: _db);
     if (_isSeries) {
       _loadEpisodes();
+    }
+    if (_isLive) {
+      _loadEpgData();
     }
   }
 
@@ -115,6 +120,140 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // EPG data loading
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadEpgData() async {
+    try {
+      // Look up the channel's tvgName for EPG matching.
+      final channel = await (_db.select(_db.channels)
+            ..where((t) => t.id.equals(widget.id)))
+          .getSingleOrNull();
+      if (channel == null) return;
+
+      // Build list of possible EPG channel IDs to match.
+      final matchIds = <String>[];
+      if (channel.tvgName != null && channel.tvgName!.isNotEmpty) {
+        matchIds.add(channel.tvgName!);
+      }
+      matchIds.add(channel.name);
+
+      final now = DateTime.now();
+
+      // Query all programmes for matching channel IDs, ordered by start.
+      final programmes = await (_db.select(_db.epgProgrammes)
+            ..where((t) => t.channelId.isIn(matchIds))
+            ..orderBy([(t) => drift.OrderingTerm.asc(t.start)]))
+          .get();
+
+      if (programmes.isEmpty) return;
+
+      // Find the current programme (start <= now < stop).
+      EpgProgramme? current;
+      EpgProgramme? next;
+      for (final p in programmes) {
+        if (p.start.isBefore(now) && p.stop.isAfter(now)) {
+          current = p;
+        } else if (p.start.isAfter(now) && current != null) {
+          next = p;
+          break;
+        }
+      }
+
+      // If we found current but not next, look for the programme right after.
+      if (current != null && next == null) {
+        for (final p in programmes) {
+          if (p.start.isAfter(current.stop)) {
+            next = p;
+            break;
+          }
+        }
+      }
+
+      // If no current programme found, find the next upcoming one.
+      if (current == null) {
+        for (final p in programmes) {
+          if (p.start.isAfter(now)) {
+            next = p;
+            break;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _currentProgramme = current;
+          _nextProgramme = next;
+        });
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to load EPG data: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Channel navigation (live TV — next/prev in same group)
+  // ---------------------------------------------------------------------------
+
+  /// Cache of channels in the same group as the current live channel, ordered
+  /// by name.  Loaded lazily on first play of a live channel.
+  List<Channel>? _siblingChannels;
+  int _currentChannelIndex = -1;
+
+  /// Load channels in the same group as the current channel, determine the
+  /// current channel's index, and cache the result.
+  Future<void> _ensureSiblingChannels() async {
+    if (_siblingChannels != null) return;
+    if (widget.groupTitle == null || widget.groupTitle!.isEmpty) return;
+
+    try {
+      // First get the current channel to find its playlistId.
+      final currentChannel = await (_db.select(_db.channels)
+            ..where((t) => t.id.equals(widget.id)))
+          .getSingleOrNull();
+      if (currentChannel == null) return;
+
+      // Get all channels in the same group from the same playlist.
+      final channels = await (_db.select(_db.channels)
+            ..where((t) =>
+                t.playlistId.equals(currentChannel.playlistId) &
+                t.groupTitle.equals(widget.groupTitle!))
+            ..orderBy([(t) => drift.OrderingTerm.asc(t.name)]))
+          .get();
+
+      _siblingChannels = channels;
+      _currentChannelIndex =
+          channels.indexWhere((c) => c.id == widget.id);
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to load sibling channels: $e');
+      _siblingChannels = [];
+    }
+  }
+
+  void _playNextChannel() {
+    if (_siblingChannels == null || _siblingChannels!.isEmpty) return;
+    final nextIndex = _currentChannelIndex + 1;
+    if (nextIndex >= _siblingChannels!.length) return; // Already last.
+    final next = _siblingChannels![nextIndex];
+    _currentChannelIndex = nextIndex;
+    // Pop the current player and play the next channel.
+    Navigator.of(context).pop();
+    _playContent(next.url, next.name, isLive: true);
+  }
+
+  void _playPreviousChannel() {
+    if (_siblingChannels == null || _siblingChannels!.isEmpty) return;
+    final prevIndex = _currentChannelIndex - 1;
+    if (prevIndex < 0) return; // Already first.
+    final prev = _siblingChannels![prevIndex];
+    _currentChannelIndex = prevIndex;
+    Navigator.of(context).pop();
+    _playContent(prev.url, prev.name, isLive: true);
+  }
+
+  // ---------------------------------------------------------------------------
   // Playback
   // ---------------------------------------------------------------------------
 
@@ -141,6 +280,23 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (!mounted) return;
 
+    // For live TV, pre-load sibling channels for next/prev navigation.
+    VoidCallback? onNext;
+    VoidCallback? onPrevious;
+    if (isLive) {
+      await _ensureSiblingChannels();
+      if (_siblingChannels != null && _siblingChannels!.isNotEmpty) {
+        if (_currentChannelIndex < _siblingChannels!.length - 1) {
+          onNext = _playNextChannel;
+        }
+        if (_currentChannelIndex > 0) {
+          onPrevious = _playPreviousChannel;
+        }
+      }
+    }
+
+    if (!mounted) return;
+
     final controller = PlayerController();
     controller.open(playbackUrl);
 
@@ -149,11 +305,19 @@ class _DetailScreenState extends State<DetailScreen> {
             controller: controller,
             title: title,
             isLive: isLive,
+            category: widget.groupTitle,
+            contentType: widget.contentType,
+            onNextChannel: onNext,
+            onPreviousChannel: onPrevious,
           )
         : PlayerScreen(
             controller: controller,
             title: title,
             isLive: isLive,
+            category: widget.groupTitle,
+            contentType: widget.contentType,
+            onNextChannel: onNext,
+            onPreviousChannel: onPrevious,
           );
 
     Navigator.of(context)
@@ -304,6 +468,34 @@ class _DetailScreenState extends State<DetailScreen> {
                           ],
                         ],
                       ),
+
+                    // -- EPG Programme Guide (live channels) -----------------
+                    if (_isLive &&
+                        (_currentProgramme != null ||
+                            _nextProgramme != null)) ...[
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Programme Guide',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_currentProgramme != null)
+                        _buildEpgTile(
+                          _currentProgramme!,
+                          isLive: true,
+                        ),
+                      if (_nextProgramme != null) ...[
+                        const SizedBox(height: 8),
+                        _buildEpgTile(
+                          _nextProgramme!,
+                          isLive: false,
+                        ),
+                      ],
+                    ],
 
                     // -- Series episodes -------------------------------------
                     if (_isSeries) ...[
@@ -485,6 +677,113 @@ class _DetailScreenState extends State<DetailScreen> {
             contentId: episodeContentId,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEpgTile(EpgProgramme programme, {required bool isLive}) {
+    final startH = programme.start.hour.toString().padLeft(2, '0');
+    final startM = programme.start.minute.toString().padLeft(2, '0');
+    final stopH = programme.stop.hour.toString().padLeft(2, '0');
+    final stopM = programme.stop.minute.toString().padLeft(2, '0');
+    final timeRange = '$startH:$startM - $stopH:$stopM';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isLive
+            ? AppColors.accentPrimary.withValues(alpha: 0.15)
+            : AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(8),
+        border: isLive
+            ? Border.all(
+                color: AppColors.accentPrimary.withValues(alpha: 0.4),
+                width: 1,
+              )
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // -- Header row: label + time ------------------------------------
+          Row(
+            children: [
+              if (isLive)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentPrimary,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'NOW',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgElevated,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'NEXT',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Text(
+                timeRange,
+                style: TextStyle(
+                  color: isLive
+                      ? AppColors.accentPrimary
+                      : AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // -- Programme title ---------------------------------------------
+          Text(
+            programme.title,
+            style: TextStyle(
+              color: isLive ? AppColors.textPrimary : AppColors.textSecondary,
+              fontSize: 16,
+              fontWeight: isLive ? FontWeight.w600 : FontWeight.w500,
+            ),
+          ),
+
+          // -- Description -------------------------------------------------
+          if (programme.description != null &&
+              programme.description!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                programme.description!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.3,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

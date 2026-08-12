@@ -38,7 +38,6 @@ class HomeScreenState extends State<HomeScreen> {
   List<ContinueWatchingItem> _continueWatchingItems = [];
   bool _isEmpty = true;
   bool _isLoading = true;
-
   bool get _isTv =>
       Platform.isLinux ||
       (Platform.isAndroid &&
@@ -751,31 +750,40 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _onRefresh() async {
+    await _loadContent();
+  }
+
   Widget _buildContentRows() {
     // Total items: 1 optional Continue Watching row + content rows.
     final hasContinueWatching = _continueWatchingItems.isNotEmpty;
     final totalItems = _rows.length + (hasContinueWatching ? 1 : 0);
 
-    return FocusTraversalGroup(
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: totalItems,
-        itemBuilder: (context, index) {
-          // First slot: Continue Watching (if present).
-          if (hasContinueWatching && index == 0) {
+    return RefreshIndicator(
+      color: AppColors.accentPrimary,
+      backgroundColor: AppColors.bgElevated,
+      onRefresh: _onRefresh,
+      child: FocusTraversalGroup(
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          itemCount: totalItems,
+          itemBuilder: (context, index) {
+            // First slot: Continue Watching (if present).
+            if (hasContinueWatching && index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: ContinueWatchingRow(items: _continueWatchingItems),
+              );
+            }
+
+            // Remaining slots: standard content rows.
+            final rowIndex = hasContinueWatching ? index - 1 : index;
             return Padding(
               padding: const EdgeInsets.only(bottom: 24),
-              child: ContinueWatchingRow(items: _continueWatchingItems),
+              child: _rows[rowIndex],
             );
-          }
-
-          // Remaining slots: standard content rows.
-          final rowIndex = hasContinueWatching ? index - 1 : index;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: _rows[rowIndex],
-          );
-        },
+          },
+        ),
       ),
     );
   }

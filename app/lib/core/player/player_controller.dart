@@ -50,6 +50,25 @@ class PlayerController extends ChangeNotifier {
       _timeoutTimer?.cancel();
       notifyListeners();
     });
+
+    // -- Track streams (audio / subtitle / video) ----------------------------
+    _tracksSub = _player.stream.tracks.listen((t) {
+      _audioTracks = t.audio;
+      _subtitleTracks = t.subtitle;
+      _videoTracks = t.video;
+      notifyListeners();
+    });
+    _trackSub = _player.stream.track.listen((t) {
+      _currentAudioTrack = t.audio;
+      _currentSubtitleTrack = t.subtitle;
+      notifyListeners();
+    });
+
+    // -- Volume stream -------------------------------------------------------
+    _volumeSub = _player.stream.volume.listen((v) {
+      _volume = v;
+      notifyListeners();
+    });
   }
 
   /// Call once before first use. Must run after
@@ -91,6 +110,21 @@ class PlayerController extends ChangeNotifier {
   late final StreamSubscription<bool> _playingSub;
   late final StreamSubscription<bool> _bufferingSub;
   late final StreamSubscription<String> _errorSub;
+
+  // -- Track state -----------------------------------------------------------
+  late final StreamSubscription<Tracks> _tracksSub;
+  late final StreamSubscription<Track> _trackSub;
+
+  List<AudioTrack> _audioTracks = [];
+  List<SubtitleTrack> _subtitleTracks = [];
+  List<VideoTrack> _videoTracks = [];
+
+  AudioTrack _currentAudioTrack = AudioTrack.no();
+  SubtitleTrack _currentSubtitleTrack = SubtitleTrack.no();
+
+  // -- Volume state ----------------------------------------------------------
+  late final StreamSubscription<double> _volumeSub;
+  double _volume = 100.0;
 
   // ---------------------------------------------------------------------------
   // Public API — read-only properties
@@ -136,6 +170,61 @@ class PlayerController extends ChangeNotifier {
   /// Convenience flag for UI layers.
   bool get hasError => _error != null;
 
+  // -- Track getters ---------------------------------------------------------
+
+  /// Available audio tracks for the current media.
+  List<AudioTrack> get audioTracks => _audioTracks;
+
+  /// Available subtitle tracks for the current media.
+  List<SubtitleTrack> get subtitleTracks => _subtitleTracks;
+
+  /// Available video tracks (quality levels) for the current media.
+  List<VideoTrack> get videoTracks => _videoTracks;
+
+  /// Currently active audio track.
+  AudioTrack get currentAudioTrack => _currentAudioTrack;
+
+  /// Currently active subtitle track.
+  SubtitleTrack get currentSubtitleTrack => _currentSubtitleTrack;
+
+  /// Whether multiple audio tracks are available.
+  bool get hasMultipleAudioTracks => _audioTracks.length > 1;
+
+  /// Whether any subtitle tracks are available (excluding "none").
+  bool get hasSubtitleTracks =>
+      _subtitleTracks.where((t) => t != SubtitleTrack.no()).isNotEmpty;
+
+  /// Human-readable label for the current video resolution.
+  /// Returns e.g. "1920x1080" or empty string if unknown.
+  String get videoResolution {
+    if (_videoTracks.isEmpty) return '';
+    // Try the first video track for dimensions.
+    final track = _videoTracks.first;
+    final w = track.w;
+    final h = track.h;
+    if (w != null && h != null && w > 0 && h > 0) {
+      return '${w}x$h';
+    }
+    return '';
+  }
+
+  // -- Volume getter/setter --------------------------------------------------
+
+  /// Current volume in the range [0, 100].
+  double get volume => _volume;
+
+  /// Set volume. [value] is clamped to [0, 100].
+  Future<void> setVolume(double value) async {
+    await _player.setVolume(value.clamp(0, 100));
+  }
+
+  /// Volume as a fraction [0, 1] (convenient for slider widgets).
+  double get volumeFraction => (_volume / 100).clamp(0.0, 1.0);
+
+  /// Set volume from a fraction [0, 1].
+  Future<void> setVolumeFraction(double fraction) =>
+      setVolume(fraction * 100);
+
   // ---------------------------------------------------------------------------
   // Public API — playback controls
   // ---------------------------------------------------------------------------
@@ -144,7 +233,7 @@ class PlayerController extends ChangeNotifier {
   ///
   /// When [config] is provided, its HTTP headers are applied to the
   /// underlying [Media] object. MPV options (hwdec, protocol-whitelist, etc.)
-  /// are stored in [currentConfig] for use by platform-specific code.
+  /// are applied to the underlying [Player] before the media is opened.
   ///
   /// If the stream does not begin playback within 15 seconds an error is set
   /// automatically. Call [retry] to re-open the same URL.
@@ -155,7 +244,18 @@ class PlayerController extends ChangeNotifier {
     _lastConfig = config ?? PlayerConfig.defaultConfig;
     _currentConfig = _lastConfig!;
 
+    // ignore: avoid_print
+    print('[PlayerController] open() url=$url');
+    // ignore: avoid_print
+    print('[PlayerController] config: hwdec=${_currentConfig.hwdec}, '
+        'userAgent=${_currentConfig.userAgent}, '
+        'referer=${_currentConfig.referer}, '
+        'protocolWhitelist=${_currentConfig.protocolWhitelist}');
+
     final headers = _currentConfig.buildHttpHeaders();
+    // ignore: avoid_print
+    print('[PlayerController] HTTP headers: $headers');
+
     final media = Media(
       url,
       httpHeaders: headers.isNotEmpty ? headers : null,
@@ -163,7 +263,13 @@ class PlayerController extends ChangeNotifier {
 
     try {
       await _player.open(media);
-    } catch (e) {
+      // ignore: avoid_print
+      print('[PlayerController] _player.open() succeeded');
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[PlayerController] _player.open() FAILED: $e');
+      // ignore: avoid_print
+      print('[PlayerController] stack: $st');
       _error = 'Failed to open stream: $e';
       notifyListeners();
       return;
@@ -175,6 +281,9 @@ class PlayerController extends ChangeNotifier {
       if (!_isPlaying && _error == null) {
         _error =
             'Stream timed out. The channel may be offline or unreachable.';
+        // ignore: avoid_print
+        print('[PlayerController] TIMEOUT — isPlaying=$_isPlaying, '
+            'isBuffering=$_isBuffering, error=$_error');
         notifyListeners();
       }
     });
@@ -212,6 +321,17 @@ class PlayerController extends ChangeNotifier {
     return seek(target);
   }
 
+  // -- Track controls --------------------------------------------------------
+
+  /// Switch to the given [AudioTrack].
+  Future<void> setAudioTrack(AudioTrack track) =>
+      _player.setAudioTrack(track);
+
+  /// Switch to the given [SubtitleTrack].
+  /// Pass [SubtitleTrack.no()] to disable subtitles.
+  Future<void> setSubtitleTrack(SubtitleTrack track) =>
+      _player.setSubtitleTrack(track);
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -224,6 +344,9 @@ class PlayerController extends ChangeNotifier {
     _playingSub.cancel();
     _bufferingSub.cancel();
     _errorSub.cancel();
+    _tracksSub.cancel();
+    _trackSub.cancel();
+    _volumeSub.cancel();
     _player.dispose();
     super.dispose();
   }

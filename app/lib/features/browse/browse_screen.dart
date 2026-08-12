@@ -1,5 +1,7 @@
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/supabase_client.dart';
@@ -7,9 +9,12 @@ import '../../core/theme/app_colors.dart';
 import '../detail/detail_screen.dart';
 import '../search/search_screen.dart';
 
+/// View mode for browse screen (persisted in SharedPreferences).
+enum ViewMode { grid, list }
+
 /// Category browse screen showing all items in a content type.
 ///
-/// Displays a grid of items with optional group filtering.
+/// Displays a grid or list of items with optional group filtering.
 class BrowseScreen extends StatefulWidget {
   const BrowseScreen({
     super.key,
@@ -35,11 +40,43 @@ class BrowseScreenState extends State<BrowseScreen> {
   List<String> _groups = [];
   String? _selectedGroup;
   bool _isLoading = true;
+  ViewMode _viewMode = ViewMode.grid;
+
+  /// Map from EPG channelId to the current programme title.
+  Map<String, String> _epgCurrentTitles = {};
 
   @override
   void initState() {
     super.initState();
+    _loadViewMode();
     _loadItems();
+  }
+
+  // ---------------------------------------------------------------------------
+  // View mode persistence
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('browse_view_mode');
+    if (saved != null && mounted) {
+      setState(() {
+        _viewMode = saved == 'list' ? ViewMode.list : ViewMode.grid;
+      });
+    }
+  }
+
+  Future<void> _saveViewMode(ViewMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('browse_view_mode', mode == ViewMode.list ? 'list' : 'grid');
+  }
+
+  void _toggleViewMode() {
+    setState(() {
+      _viewMode =
+          _viewMode == ViewMode.grid ? ViewMode.list : ViewMode.grid;
+    });
+    _saveViewMode(_viewMode);
   }
 
   // ---------------------------------------------------------------------------
@@ -88,6 +125,7 @@ class BrowseScreenState extends State<BrowseScreen> {
             url: ch.url,
             groupTitle: ch.groupTitle,
             contentType: 'live',
+            tvgName: ch.tvgName,
           ));
         }
         break;
@@ -157,13 +195,43 @@ class BrowseScreenState extends State<BrowseScreen> {
       }
     }
 
+    // Load EPG data for live channels.
+    Map<String, String> epgTitles = {};
+    if (widget.contentType == 'live') {
+      epgTitles = await _loadEpgCurrentTitles();
+    }
+
     if (mounted) {
       setState(() {
         _allItems = items;
         _filteredItems = items;
         _groups = groupSet.toList()..sort();
+        _epgCurrentTitles = epgTitles;
         _isLoading = false;
       });
+    }
+  }
+
+  /// Loads a map of EPG channelId -> current programme title.
+  Future<Map<String, String>> _loadEpgCurrentTitles() async {
+    try {
+      final now = DateTime.now();
+      final programmes = await (_db.select(_db.epgProgrammes)
+            ..orderBy([(t) => OrderingTerm.asc(t.channelId)]))
+          .get();
+
+      final map = <String, String>{};
+      for (final p in programmes) {
+        // Filter to currently airing programmes (start <= now < stop).
+        if (!p.start.isAfter(now) && p.stop.isAfter(now)) {
+          map[p.channelId] = p.title;
+        }
+      }
+      return map;
+    } catch (e) {
+      // ignore: avoid_print
+      print('[BrowseScreen] Failed to load EPG data: $e');
+      return {};
     }
   }
 
@@ -228,6 +296,23 @@ class BrowseScreenState extends State<BrowseScreen> {
     });
   }
 
+  Future<void> _onRefresh() async {
+    await _loadItems();
+  }
+
+  /// Returns the current EPG programme title for a live channel,
+  /// matching by tvgName (EPG matching key) or channel name.
+  String? _epgTitleForItem(_BrowseItem item) {
+    if (item.contentType != 'live') return null;
+    // Try matching by tvgName first.
+    if (item.tvgName != null && item.tvgName!.isNotEmpty) {
+      final title = _epgCurrentTitles[item.tvgName!];
+      if (title != null) return title;
+    }
+    // Fallback: match by channel name.
+    return _epgCurrentTitles[item.title];
+  }
+
   // ---------------------------------------------------------------------------
   // Navigation
   // ---------------------------------------------------------------------------
@@ -265,6 +350,17 @@ class BrowseScreenState extends State<BrowseScreen> {
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
+          // View toggle button.
+          IconButton(
+            icon: Icon(
+              _viewMode == ViewMode.grid ? Icons.view_list : Icons.grid_view,
+              color: AppColors.textPrimary,
+            ),
+            onPressed: _toggleViewMode,
+            tooltip: _viewMode == ViewMode.grid
+                ? 'Switch to list view'
+                : 'Switch to grid view',
+          ),
           IconButton(
             icon: const Icon(Icons.search, color: AppColors.textPrimary),
             onPressed: () {
@@ -306,7 +402,7 @@ class BrowseScreenState extends State<BrowseScreen> {
                   ),
                 ),
 
-                // -- Grid of items ------------------------------------------
+                // -- Content (grid or list) ---------------------------------
                 Expanded(
                   child: _filteredItems.isEmpty
                       ? const Center(
@@ -318,30 +414,177 @@ class BrowseScreenState extends State<BrowseScreen> {
                             ),
                           ),
                         )
-                      : FocusTraversalGroup(
-                          child: GridView.builder(
-                            padding: const EdgeInsets.all(12),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              childAspectRatio: 0.55,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                            ),
-                            itemCount: _filteredItems.length,
-                            itemBuilder: (context, index) {
-                              return _buildItemCard(
-                                _filteredItems[index],
-                                autofocus: index == 0,
-                              );
-                            },
-                          ),
+                      : RefreshIndicator(
+                          color: AppColors.accentPrimary,
+                          backgroundColor: AppColors.bgElevated,
+                          onRefresh: _onRefresh,
+                          child: _viewMode == ViewMode.grid
+                              ? _buildGridView()
+                              : _buildListView(),
                         ),
                 ),
               ],
             ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Grid view
+  // ---------------------------------------------------------------------------
+
+  Widget _buildGridView() {
+    return FocusTraversalGroup(
+      child: GridView.builder(
+        padding: const EdgeInsets.all(12),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.55,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: _filteredItems.length,
+        itemBuilder: (context, index) {
+          return _buildItemCard(
+            _filteredItems[index],
+            autofocus: index == 0,
+          );
+        },
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // List view
+  // ---------------------------------------------------------------------------
+
+  Widget _buildListView() {
+    return FocusTraversalGroup(
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: _filteredItems.length,
+        itemBuilder: (context, index) {
+          return _buildListItem(
+            _filteredItems[index],
+            autofocus: index == 0,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildListItem(_BrowseItem item, {bool autofocus = false}) {
+    final epgTitle = _epgTitleForItem(item);
+
+    return Focus(
+      autofocus: autofocus,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.select) {
+          _navigateToDetail(item);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        onTap: () => _navigateToDetail(item),
+        child: Card(
+          color: AppColors.bgElevated,
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                // -- Thumbnail ----------------------------------------------
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          item.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildSmallPlaceholder(),
+                        )
+                      : _buildSmallPlaceholder(),
+                ),
+                const SizedBox(width: 12),
+
+                // -- Title, category, EPG -----------------------------------
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (item.groupTitle != null &&
+                          item.groupTitle!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            item.groupTitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      if (epgTitle != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            epgTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.accentPrimary.withValues(alpha: 0.8),
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // -- Play button --------------------------------------------
+                IconButton(
+                  icon: const Icon(
+                    Icons.play_circle_outline,
+                    color: AppColors.accentPrimary,
+                    size: 32,
+                  ),
+                  onPressed: () => _navigateToDetail(item),
+                  tooltip: 'Play ${item.title}',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Group chips
+  // ---------------------------------------------------------------------------
 
   Widget _buildGroupChips() {
     return SizedBox(
@@ -387,7 +630,13 @@ class BrowseScreenState extends State<BrowseScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Grid item card
+  // ---------------------------------------------------------------------------
+
   Widget _buildItemCard(_BrowseItem item, {bool autofocus = false}) {
+    final epgTitle = _epgTitleForItem(item);
+
     return Focus(
       autofocus: autofocus,
       onKeyEvent: (node, event) {
@@ -447,6 +696,19 @@ class BrowseScreenState extends State<BrowseScreen> {
                   fontSize: 11,
                 ),
               ),
+
+            // -- EPG current programme ------------------------------------
+            if (epgTitle != null)
+              Text(
+                epgTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.accentPrimary.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
           ],
         ),
       ),
@@ -462,6 +724,16 @@ class BrowseScreenState extends State<BrowseScreen> {
       ),
     );
   }
+
+  Widget _buildSmallPlaceholder() {
+    return const Center(
+      child: Icon(
+        Icons.movie,
+        color: AppColors.textSecondary,
+        size: 24,
+      ),
+    );
+  }
 }
 
 /// Internal model for browse items.
@@ -473,6 +745,7 @@ class _BrowseItem {
     required this.url,
     this.groupTitle,
     required this.contentType,
+    this.tvgName,
   });
 
   final int id;
@@ -481,4 +754,7 @@ class _BrowseItem {
   final String url;
   final String? groupTitle;
   final String contentType;
+
+  /// M3U `tvg-name` — used to match EPG data to live channels.
+  final String? tvgName;
 }
