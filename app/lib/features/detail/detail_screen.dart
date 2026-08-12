@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:android_intent_plus/android_intent.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -279,13 +279,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (useExternalPlayer && Platform.isAndroid) {
       // Launch stream URL in an external video player via ACTION_VIEW.
-      final intent = AndroidIntent(
-        action: 'action_view',
-        data: playbackUrl,
-        type: 'video/*',
-      );
+      final uri = Uri.parse(playbackUrl);
       try {
-        await intent.launch();
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (e) {
         // ignore: avoid_print
         print('[DetailScreen] Failed to launch external player: $e');

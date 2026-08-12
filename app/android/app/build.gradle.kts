@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.iflixify.iflixify"
-    compileSdk = 34
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
