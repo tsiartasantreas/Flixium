@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/data/supabase_client.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
 import 'features/auth/auth_screen.dart';
@@ -30,11 +31,25 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Future<void> _bootstrap() async {
-    // No Supabase init at startup — app launches instantly in guest mode.
-    // Auth is only triggered when the user explicitly signs in.
-    // Check if the user previously signed in (cached flag from SharedPreferences).
+    // Initialize Supabase so auth works on first try.
+    try {
+      await SupabaseService.initialize();
+    } catch (_) {
+      // If Supabase fails to initialize (e.g. no network), the app can
+      // still run in guest mode.
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    _hasCachedAuth = prefs.getString('auth_user_email') != null;
+    final cachedEmail = prefs.getString('auth_user_email');
+
+    // If we have a cached email AND an active Supabase session, the user
+    // is already logged in — skip the auth screen.
+    if (cachedEmail != null && SupabaseService.isInitialized) {
+      final session = SupabaseService.client.auth.currentSession;
+      _hasCachedAuth = session != null;
+    } else {
+      _hasCachedAuth = cachedEmail != null;
+    }
 
     if (mounted) {
       setState(() {

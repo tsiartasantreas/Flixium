@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/data/database.dart';
+import '../../core/data/offline_download_service.dart';
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../player/player_screen.dart';
 import '../player/tv_player_screen.dart';
 import 'widgets/download_button.dart';
+import 'widgets/episode_download_button.dart';
 
 /// Content detail screen showing title, poster, and play button.
 ///
@@ -38,6 +40,7 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   final _db = AppDatabase();
+  late final OfflineDownloadService _downloadService;
   List<_EpisodeItem> _episodes = [];
   bool _isLoadingEpisodes = false;
 
@@ -56,9 +59,16 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
+    _downloadService = OfflineDownloadService(db: _db);
     if (_isSeries) {
       _loadEpisodes();
     }
+  }
+
+  @override
+  void dispose() {
+    _downloadService.close();
+    super.dispose();
   }
 
   // ---------------------------------------------------------------------------
@@ -68,26 +78,39 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _loadEpisodes() async {
     setState(() => _isLoadingEpisodes = true);
 
-    final episodes = await (_db.select(_db.episodes)
-          ..where((t) => t.seriesId.equals(widget.id))
-          ..orderBy([(t) => drift.OrderingTerm.asc(t.season),
-                     (t) => drift.OrderingTerm.asc(t.episode)]))
-        .get();
+    try {
+      final episodes = await (_db.select(_db.episodes)
+            ..where((t) => t.seriesId.equals(widget.id))
+            ..orderBy([
+              (t) => drift.OrderingTerm.asc(t.season),
+              (t) => drift.OrderingTerm.asc(t.episode),
+            ]))
+          .get();
 
-    if (mounted) {
-      setState(() {
-        _episodes = episodes
-            .map((ep) => _EpisodeItem(
-                  id: ep.id,
-                  season: ep.season,
-                  episode: ep.episode,
-                  title: ep.title,
-                  url: ep.url,
-                  thumbnail: ep.thumbnail,
-                ))
-            .toList();
-        _isLoadingEpisodes = false;
-      });
+      if (mounted) {
+        setState(() {
+          _episodes = episodes
+              .map((ep) => _EpisodeItem(
+                    id: ep.id,
+                    season: ep.season,
+                    episode: ep.episode,
+                    title: ep.title,
+                    url: ep.url,
+                    thumbnail: ep.thumbnail,
+                  ))
+              .toList();
+          _isLoadingEpisodes = false;
+        });
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to load episodes: $e');
+      if (mounted) {
+        setState(() {
+          _episodes = [];
+          _isLoadingEpisodes = false;
+        });
+      }
     }
   }
 
@@ -95,9 +118,25 @@ class _DetailScreenState extends State<DetailScreen> {
   // Playback
   // ---------------------------------------------------------------------------
 
-  void _playContent(String url, String title, {bool isLive = false}) {
+  Future<void> _playContent(
+    String url,
+    String title, {
+    bool isLive = false,
+    String? contentId,
+  }) async {
+    // If a contentId is provided, check for a local download first.
+    String playbackUrl = url;
+    if (contentId != null) {
+      final localPath = await _downloadService.getLocalPath(contentId);
+      if (localPath != null && await File(localPath).exists()) {
+        playbackUrl = localPath;
+      }
+    }
+
+    if (!mounted) return;
+
     final controller = PlayerController();
-    controller.open(url);
+    controller.open(playbackUrl);
 
     final playerScreen = _isTv
         ? TvPlayerScreen(
@@ -206,6 +245,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                       widget.url,
                                       widget.title,
                                       isLive: _isLive,
+                                      contentId:
+                                          '${widget.contentType}_${widget.id}',
                                     );
                                     return KeyEventResult.handled;
                                   }
@@ -216,6 +257,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                     widget.url,
                                     widget.title,
                                     isLive: _isLive,
+                                    contentId:
+                                        '${widget.contentType}_${widget.id}',
                                   ),
                                   icon: const Icon(Icons.play_arrow, size: 24),
                                   label: Text(
@@ -248,6 +291,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                 widget.url,
                                 widget.title,
                                 isLive: _isLive,
+                                contentId:
+                                    '${widget.contentType}_${widget.id}',
                               ),
                             ),
                           ],
@@ -350,6 +395,7 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildEpisodeTile(_EpisodeItem episode) {
+    final episodeContentId = 'series_ep_${episode.id}';
     return Card(
       color: AppColors.bgElevated,
       margin: const EdgeInsets.only(bottom: 8),
@@ -358,7 +404,11 @@ class _DetailScreenState extends State<DetailScreen> {
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.select) {
-            _playContent(episode.url, episode.title);
+            _playContent(
+              episode.url,
+              episode.title,
+              contentId: episodeContentId,
+            );
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -401,12 +451,33 @@ class _DetailScreenState extends State<DetailScreen> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: const Icon(
-            Icons.play_circle_outline,
-            color: AppColors.accentPrimary,
-            size: 28,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              EpisodeDownloadButton(
+                contentId: episodeContentId,
+                title: 'S${episode.season}E${episode.episode} - ${episode.title}',
+                url: episode.url,
+                thumbnailUrl: episode.thumbnail,
+                onPlayOffline: () => _playContent(
+                  episode.url,
+                  episode.title,
+                  contentId: episodeContentId,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.play_circle_outline,
+                color: AppColors.accentPrimary,
+                size: 28,
+              ),
+            ],
           ),
-          onTap: () => _playContent(episode.url, episode.title),
+          onTap: () => _playContent(
+            episode.url,
+            episode.title,
+            contentId: episodeContentId,
+          ),
         ),
       ),
     );

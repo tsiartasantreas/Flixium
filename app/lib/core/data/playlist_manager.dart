@@ -204,4 +204,46 @@ class PlaylistManager {
       throw StateError('Playlist $playlistId not found');
     }
   }
+
+  /// Updates the playlist with [playlistId] with new credentials and name.
+  ///
+  /// All credential fields are re-encrypted before storage.
+  /// Pass `null` for [username] / [password] to keep existing values, or
+  /// pass empty strings to clear them.
+  Future<void> updatePlaylist(
+    int playlistId, {
+    required String name,
+    required String url,
+    String? username,
+    String? password,
+  }) async {
+    final userId = _currentUserId;
+
+    final encryptedUrl = EncryptionService.encrypt(url, userId: userId);
+
+    // Build the companion with only the fields that should change.
+    final companion = PlaylistsCompanion(
+      name: drift.Value(name),
+      url: drift.Value(encryptedUrl),
+      lastSyncedAt: drift.Value(DateTime.now()),
+      username: drift.Value(
+        username != null
+            ? EncryptionService.encrypt(username, userId: userId)
+            : null,
+      ),
+      password: drift.Value(
+        password != null
+            ? EncryptionService.encrypt(password, userId: userId)
+            : null,
+      ),
+    );
+
+    final updated = await (_db.update(_db.playlists)
+          ..where((t) => t.id.equals(playlistId)))
+        .write(companion);
+
+    if (updated == 0) {
+      throw StateError('Playlist $playlistId not found');
+    }
+  }
 }

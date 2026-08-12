@@ -35,10 +35,19 @@ class PlayerController extends ChangeNotifier {
     });
     _playingSub = _player.stream.playing.listen((p) {
       _isPlaying = p;
+      if (p) {
+        // Playback started -- cancel the startup timeout.
+        _timeoutTimer?.cancel();
+      }
       notifyListeners();
     });
     _bufferingSub = _player.stream.buffering.listen((b) {
       _isBuffering = b;
+      notifyListeners();
+    });
+    _errorSub = _player.stream.error.listen((msg) {
+      _error = msg;
+      _timeoutTimer?.cancel();
       notifyListeners();
     });
   }
@@ -67,10 +76,21 @@ class PlayerController extends ChangeNotifier {
   bool _isPlaying = false;
   bool _isBuffering = false;
 
+  /// Last error message from the player, if any.
+  String? _error;
+
+  /// Stored for [retry].
+  String? _lastUrl;
+  PlayerConfig? _lastConfig;
+
+  /// Fires if playback does not start within the timeout window.
+  Timer? _timeoutTimer;
+
   late final StreamSubscription<Duration> _positionSub;
   late final StreamSubscription<Duration> _durationSub;
   late final StreamSubscription<bool> _playingSub;
   late final StreamSubscription<bool> _bufferingSub;
+  late final StreamSubscription<String> _errorSub;
 
   // ---------------------------------------------------------------------------
   // Public API — read-only properties
@@ -110,6 +130,12 @@ class PlayerController extends ChangeNotifier {
     return (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
   }
 
+  /// Non-null when the current stream has failed.
+  String? get error => _error;
+
+  /// Convenience flag for UI layers.
+  bool get hasError => _error != null;
+
   // ---------------------------------------------------------------------------
   // Public API — playback controls
   // ---------------------------------------------------------------------------
@@ -119,17 +145,46 @@ class PlayerController extends ChangeNotifier {
   /// When [config] is provided, its HTTP headers are applied to the
   /// underlying [Media] object. MPV options (hwdec, protocol-whitelist, etc.)
   /// are stored in [currentConfig] for use by platform-specific code.
+  ///
+  /// If the stream does not begin playback within 15 seconds an error is set
+  /// automatically. Call [retry] to re-open the same URL.
   Future<void> open(String url, {PlayerConfig? config}) async {
-    _currentConfig = config ?? PlayerConfig.defaultConfig;
+    // Clear any previous error.
+    _error = null;
+    _lastUrl = url;
+    _lastConfig = config ?? PlayerConfig.defaultConfig;
+    _currentConfig = _lastConfig!;
 
-    // Apply HTTP headers via the Media object.
     final headers = _currentConfig.buildHttpHeaders();
     final media = Media(
       url,
       httpHeaders: headers.isNotEmpty ? headers : null,
     );
 
-    await _player.open(media);
+    try {
+      await _player.open(media);
+    } catch (e) {
+      _error = 'Failed to open stream: $e';
+      notifyListeners();
+      return;
+    }
+
+    // Start a timeout -- if playback never begins, surface an error.
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(const Duration(seconds: 15), () {
+      if (!_isPlaying && _error == null) {
+        _error =
+            'Stream timed out. The channel may be offline or unreachable.';
+        notifyListeners();
+      }
+    });
+  }
+
+  /// Re-open the last stream URL (e.g. after an error).
+  Future<void> retry() async {
+    if (_lastUrl != null) {
+      await open(_lastUrl!, config: _lastConfig);
+    }
   }
 
   /// Start or resume playback.
@@ -163,10 +218,12 @@ class PlayerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _timeoutTimer?.cancel();
     _positionSub.cancel();
     _durationSub.cancel();
     _playingSub.cancel();
     _bufferingSub.cancel();
+    _errorSub.cancel();
     _player.dispose();
     super.dispose();
   }

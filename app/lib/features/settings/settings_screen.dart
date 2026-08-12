@@ -9,6 +9,7 @@ import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/auth_screen.dart';
+import '../offline/offline_screen.dart';
 import '../profiles/profile_switcher_screen.dart';
 
 /// Netflix-style settings screen.
@@ -297,6 +298,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // -- Data section -------------------------------------------------
           _buildSectionHeader('Data'),
           _buildNavigationTile(
+            icon: Icons.download_done_outlined,
+            title: 'Downloads',
+            subtitle: 'Manage offline content',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const OfflineScreen()),
+            ),
+          ),
+          _buildNavigationTile(
             icon: Icons.delete_outline,
             title: 'Clear Cache',
             subtitle: 'Free up storage space',
@@ -324,14 +333,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Open source licenses',
             onTap: () => showLicensePage(
               context: context,
-              applicationName: 'Flixium IPTV',
+              applicationName: 'iFlixify IPTV',
               applicationVersion: '1.0.0',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,
                 size: 32,
               ),
-              applicationLegalese: 'Copyright 2026 Flixium',
+              applicationLegalese: 'Copyright 2026 iFlixify',
             ),
           ),
 

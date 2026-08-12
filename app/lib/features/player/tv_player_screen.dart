@@ -174,6 +174,53 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
     return AnimatedBuilder(
       animation: ctrl,
       builder: (context, _) {
+        // -- Error state -------------------------------------------------
+        if (ctrl.hasError) {
+          return Container(
+            color: Colors.black87,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.redAccent,
+                      size: 56,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      ctrl.error ?? 'Playback error',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      autofocus: true,
+                      onPressed: () => ctrl.retry(),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentPrimary,
+                        foregroundColor: AppColors.textPrimary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // -- Buffering state ---------------------------------------------
         if (!ctrl.isBuffering) return const SizedBox.shrink();
         return Container(
           color: Colors.black45,

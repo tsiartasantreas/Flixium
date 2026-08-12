@@ -176,6 +176,48 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return AnimatedBuilder(
       animation: ctrl,
       builder: (context, _) {
+        // -- Error state -------------------------------------------------
+        if (ctrl.hasError) {
+          return Container(
+            color: Colors.black87,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.redAccent,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      ctrl.error ?? 'Playback error',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: () => ctrl.retry(),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentPrimary,
+                        foregroundColor: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // -- Buffering state ---------------------------------------------
         if (!ctrl.isBuffering) return const SizedBox.shrink();
         return Container(
           color: Colors.black45,

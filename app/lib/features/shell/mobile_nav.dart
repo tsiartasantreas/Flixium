@@ -4,7 +4,7 @@ import '../../core/theme/app_colors.dart';
 
 /// Netflix-style bottom tab bar for mobile navigation.
 ///
-/// Displays five tabs: Home, Movies, Live TV, Radio, and My List.
+/// Displays five tabs: Home, Live TV, Movies, Series, and Radio.
 /// Selected tab uses [AppColors.accentPrimary]; unselected uses
 /// [AppColors.textSecondary]. The bar sits above the system UI insets.
 class MobileNav extends StatelessWidget {
@@ -51,24 +51,24 @@ class MobileNav extends StatelessWidget {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.movie_outlined),
-              activeIcon: Icon(Icons.movie),
-              label: 'Movies',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.live_tv_outlined),
               activeIcon: Icon(Icons.live_tv),
               label: 'Live TV',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.movie_outlined),
+              activeIcon: Icon(Icons.movie),
+              label: 'Movies',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.tv_outlined),
+              activeIcon: Icon(Icons.tv),
+              label: 'Series',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.radio_outlined),
               activeIcon: Icon(Icons.radio),
               label: 'Radio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.playlist_play_outlined),
-              activeIcon: Icon(Icons.playlist_play),
-              label: 'My List',
             ),
           ],
         ),

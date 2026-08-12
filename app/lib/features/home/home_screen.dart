@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/data/database.dart';
+import '../../core/data/import_progress_service.dart';
 import '../../core/data/watch_progress_service.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -28,6 +29,7 @@ class HomeScreenState extends State<HomeScreen> {
   final _db = AppDatabase();
   final _watchProgressService = WatchProgressService();
   final _entitlementService = EntitlementService();
+  final _importProgress = ImportProgressService.instance;
   List<ContentRow> _rows = [];
   List<ContinueWatchingItem> _continueWatchingItems = [];
   bool _isEmpty = true;
@@ -46,12 +48,38 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadContent();
+    // Listen for background import progress changes.
+    _importProgress.progressNotifier.addListener(_onImportProgressChanged);
+  }
+
+  @override
+  void dispose() {
+    _importProgress.progressNotifier.removeListener(_onImportProgressChanged);
+    super.dispose();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // No-op: content is loaded in initState and explicitly after navigation.
+  }
+
+  /// Called whenever the background import progress changes.
+  void _onImportProgressChanged() {
+    if (!mounted) return;
+    // Trigger a rebuild to update the progress banner.
+    setState(() {});
+
+    // When import completes, refresh the content rows.
+    final progress = _importProgress.progressNotifier.value;
+    if (progress != null && progress.isComplete && !progress.hasError) {
+      _loadContent();
+    }
+  }
+
+  /// Dismisses the completed import banner.
+  void _dismissImportBanner() {
+    _importProgress.clear();
   }
 
   // ---------------------------------------------------------------------------
@@ -357,7 +385,7 @@ class HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bgElevated,
         title: const Text(
-          'Flixium',
+          'iFlixify IPTV',
           style: TextStyle(
             color: AppColors.accentPrimary,
             fontSize: 24,
@@ -372,15 +400,133 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.accentPrimary,
+      body: Column(
+        children: [
+          // -- Import progress banner ----------------------------------------
+          _buildImportBanner(),
+          // -- Main content --------------------------------------------------
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.accentPrimary,
+                    ),
+                  )
+                : _isEmpty
+                    ? _buildEmptyState()
+                    : _buildContentRows(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import progress banner
+  // ---------------------------------------------------------------------------
+
+  Widget _buildImportBanner() {
+    final progress = _importProgress.progressNotifier.value;
+    if (progress == null) return const SizedBox.shrink();
+
+    final isActive = !progress.isComplete;
+    final hasError = progress.hasError;
+    final color = hasError
+        ? Colors.redAccent
+        : isActive
+            ? AppColors.accentPrimary
+            : Colors.greenAccent;
+    final icon = hasError
+        ? Icons.error_outline
+        : isActive
+            ? Icons.downloading
+            : Icons.check_circle_outline;
+
+    return Material(
+      color: AppColors.bgElevated,
+      child: InkWell(
+        onTap: progress.isComplete ? _dismissImportBanner : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          progress.playlistName,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasError
+                              ? progress.error ?? 'Import failed'
+                              : progress.message,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (progress.isComplete && !hasError) ...[
+                    Text(
+                      '${progress.totalItems} items',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.close,
+                        color: AppColors.textSecondary, size: 18),
+                  ],
+                  if (isActive) ...[
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: progress.progress > 0 ? progress.progress : null,
+                        color: AppColors.accentPrimary,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            )
-          : _isEmpty
-              ? _buildEmptyState()
-              : _buildContentRows(),
+              if (isActive) ...[
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: progress.progress > 0 ? progress.progress : null,
+                    backgroundColor: AppColors.bgSurface,
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.accentPrimary),
+                    minHeight: 3,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -55,14 +55,14 @@ class _MainShellState extends State<MainShell> {
     switch (index) {
       case 0: // Home
         return const HomeScreen();
-      case 1: // Movies
-        return const BrowseScreen(contentType: 'vod', title: 'Movies');
-      case 2: // Live TV
+      case 1: // Live TV
         return const BrowseScreen(contentType: 'live', title: 'Live TV');
-      case 3: // Radio
+      case 2: // Movies
+        return const BrowseScreen(contentType: 'vod', title: 'Movies');
+      case 3: // Series
+        return const BrowseScreen(contentType: 'series', title: 'Series');
+      case 4: // Radio
         return const BrowseScreen(contentType: 'radio', title: 'Radio');
-      case 4: // My List
-        return const FavoritesScreen();
       default:
         return const HomeScreen();
     }

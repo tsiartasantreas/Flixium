@@ -87,7 +87,7 @@ class _TvLeftRailState extends State<TvLeftRail> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: Text(
-                  'Flixium',
+                  'iFlixify IPTV',
                   style: TextStyle(
                     color: AppColors.accentPrimary,
                     fontSize: _expanded ? 20 : 0,

@@ -5,17 +5,19 @@ import 'package:drift/drift.dart' as drift;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-import '../data/database.dart';
+import 'database.dart';
 
-/// Callback for tracking download progress.
-typedef DownloadProgressCallback = void Function(double progress);
+/// Callback for tracking download progress as a percentage (0.0 to 1.0).
+typedef ProgressCallback = void Function(double progress);
 
-/// Manages offline media downloads using the app's documents directory.
+/// High-level download service for offline viewing of movies and series.
 ///
-/// Files are stored in `<documents>/flixium_downloads/` and tracked in the
-/// [DownloadedItems] Drift table.
-class OfflineDownloadService {
-  OfflineDownloadService({
+/// Downloads video files to the device's app documents directory and tracks
+/// state in the Drift [DownloadedItems] table.
+///
+/// Files are stored under `<documents>/flixium_downloads/`.
+class DownloadService {
+  DownloadService({
     required this._db,
     http.Client? client,
   }) : _client = client ?? http.Client();
@@ -28,21 +30,32 @@ class OfflineDownloadService {
   // Public API
   // ---------------------------------------------------------------------------
 
-  /// Downloads content from [url] and stores it locally.
+  /// Starts downloading content from [url].
   ///
-  /// The file is saved under `<documents>/flixium_downloads/` with a safe
-  /// filename derived from [contentId].  Progress is reported through
-  /// [onProgress] if provided.
-  Future<void> downloadContent({
-    required String contentId,
-    required String url,
-    required String title,
-    required String contentType,
+  /// - [url]   -- remote video/stream URL.
+  /// - [title] -- display title for the download record.
+  /// - [type]  -- content type: `"movie"`, `"series"`, etc.
+  /// - [thumbnailUrl] -- optional poster image URL.
+  /// - [onProgress]   -- called with progress fraction (0.0-1.0).
+  ///
+  /// Returns the database id of the inserted record on success.
+  Future<int> startDownload(
+    String url,
+    String title,
+    String type, {
     String? thumbnailUrl,
-    DownloadProgressCallback? onProgress,
+    ProgressCallback? onProgress,
   }) async {
+    final contentId = '${type}_${title.hashCode.toRadixString(16)}';
+
     // Don't download twice.
-    if (await isDownloaded(contentId)) return;
+    if (await isDownloaded(contentId)) {
+      final existing = await (_db.select(_db.downloadedItems)
+            ..where((t) => t.contentId.equals(contentId))
+            ..limit(1))
+          .getSingleOrNull();
+      return existing?.id ?? -1;
+    }
 
     final dir = await _getDownloadDirectory();
     final safeName = _safeFilename(contentId);
@@ -52,7 +65,7 @@ class OfflineDownloadService {
     final response = await _client.send(request);
 
     if (response.statusCode != 200) {
-      throw OfflineDownloadException(
+      throw DownloadException(
         'HTTP ${response.statusCode} downloading $url',
       );
     }
@@ -88,45 +101,29 @@ class OfflineDownloadService {
 
     final fileSize = await file.length();
 
-    // Insert record into database.
-    await _db.into(_db.downloadedItems).insert(
+    final id = await _db.into(_db.downloadedItems).insert(
           DownloadedItemsCompanion.insert(
             contentId: contentId,
             title: title,
             filePath: file.path,
             fileSize: fileSize,
             downloadedAt: DateTime.now(),
-            contentType: contentType,
+            contentType: type,
             thumbnailUrl: drift.Value(thumbnailUrl),
             streamUrl: drift.Value(url),
           ),
         );
+
+    return id;
   }
 
-  /// Cancels an in-progress download.
+  /// Cancels an in-progress download identified by [contentId].
   void cancelDownload(String contentId) {
     final sub = _activeDownloads.remove(contentId);
     sub?.cancel();
   }
 
-  /// Returns all downloaded items, newest first.
-  Future<List<DownloadedItem>> getDownloadedItems() async {
-    final items = await (_db.select(_db.downloadedItems)
-          ..orderBy([(t) => drift.OrderingTerm.desc(t.downloadedAt)]))
-        .get();
-    return items;
-  }
-
-  /// Returns downloaded items filtered by content type.
-  Future<List<DownloadedItem>> getDownloadedByType(String contentType) async {
-    final items = await (_db.select(_db.downloadedItems)
-          ..where((t) => t.contentType.equals(contentType))
-          ..orderBy([(t) => drift.OrderingTerm.desc(t.downloadedAt)]))
-        .get();
-    return items;
-  }
-
-  /// Deletes the downloaded file and removes the database record.
+  /// Deletes the downloaded file and its database record.
   Future<void> deleteDownload(String contentId) async {
     final item = await (_db.select(_db.downloadedItems)
           ..where((t) => t.contentId.equals(contentId)))
@@ -134,19 +131,24 @@ class OfflineDownloadService {
 
     if (item == null) return;
 
-    // Remove file from disk.
     final file = File(item.filePath);
     if (await file.exists()) {
       await file.delete();
     }
 
-    // Remove database record.
     await (_db.delete(_db.downloadedItems)
           ..where((t) => t.id.equals(item.id)))
         .go();
   }
 
-  /// Returns `true` if the content is already downloaded.
+  /// Returns all downloaded items, newest first.
+  Future<List<DownloadedItem>> getDownloads() async {
+    return (_db.select(_db.downloadedItems)
+          ..orderBy([(t) => drift.OrderingTerm.desc(t.downloadedAt)]))
+        .get();
+  }
+
+  /// Returns `true` if content with [contentId] is already downloaded.
   Future<bool> isDownloaded(String contentId) async {
     final item = await (_db.select(_db.downloadedItems)
           ..where((t) => t.contentId.equals(contentId))
@@ -165,16 +167,15 @@ class OfflineDownloadService {
     return item?.filePath;
   }
 
-  /// Returns total disk usage (bytes) of all downloaded files.
-  Future<int> getTotalDownloadSize() async {
-    final items = await getDownloadedItems();
+  /// Returns total disk usage (bytes) of all downloads.
+  Future<int> getTotalSize() async {
+    final items = await getDownloads();
     return items.fold<int>(0, (sum, item) => sum + item.fileSize);
   }
 
-  /// Returns a human-readable string for total download size.
-  Future<String> getTotalDownloadSizeFormatted() async {
-    final bytes = await getTotalDownloadSize();
-    return _formatBytes(bytes);
+  /// Returns total disk usage as a human-readable string.
+  Future<String> getTotalSizeFormatted() async {
+    return _formatBytes(await getTotalSize());
   }
 
   // ---------------------------------------------------------------------------
@@ -190,8 +191,6 @@ class OfflineDownloadService {
     return dlDir;
   }
 
-  /// Creates a safe filename from [contentId], replacing non-alphanumeric
-  /// characters with underscores and appending a hash to avoid collisions.
   static String _safeFilename(String contentId) {
     final safe = contentId.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
     return '${safe}_${contentId.hashCode.toRadixString(16)}';
@@ -206,16 +205,15 @@ class OfflineDownloadService {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  /// Releases resources.
-  void close() => _client.close();
+  /// Releases HTTP client resources.
+  void dispose() => _client.close();
 }
 
-/// Exception thrown when an offline download fails.
-class OfflineDownloadException implements Exception {
-  const OfflineDownloadException(this.message);
-
+/// Exception thrown when a download fails.
+class DownloadException implements Exception {
+  const DownloadException(this.message);
   final String message;
 
   @override
-  String toString() => 'OfflineDownloadException: $message';
+  String toString() => 'DownloadException: $message';
 }

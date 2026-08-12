@@ -22,7 +22,23 @@ jobs:
       - name: Prepare APK
         working-directory: app
         run: cp build/app/outputs/flutter-apk/app-release.apk ../iFlixify.apk
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
       - uses: softprops/action-gh-release@v2
         with:
+          name: "iFlixify IPTV ${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## iFlixify IPTV ${{ steps.version.outputs.VERSION }}
+
+            Netflix-style IPTV player for Android phone, Android TV, and Fire TV.
+
+            ### Installation
+            1. Download `iFlixify.apk` below
+            2. Enable "Install from unknown sources" on your device
+            3. Open the APK to install
+
+            ### Changes
+            See [full changelog](https://github.com/tsiartasantreas/iFlixify-IPTV/compare/${{ steps.version.outputs.VERSION }}...main) for details.
           generate_release_notes: true
           files: iFlixify.apk

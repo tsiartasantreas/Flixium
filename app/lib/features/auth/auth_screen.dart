@@ -112,8 +112,11 @@ class _AuthScreenState extends State<AuthScreen> {
       await prefs.setString('auth_user_email', email);
       _navigateToHome();
     } else {
+      final rawError = result.error ?? 'Authentication failed. Please try again.';
+      // Provide a clearer message for common Supabase auth errors.
+      final friendlyError = _friendlyAuthError(rawError);
       setState(() {
-        _error = result.error ?? 'Authentication failed. Please try again.';
+        _error = friendlyError;
         _isLoading = false;
       });
     }
@@ -121,6 +124,164 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _continueAsGuest() {
     _navigateToHome();
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    String? dialogError;
+    bool dialogLoading = false;
+    bool sent = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.bgElevated,
+              title: const Text(
+                'Reset Password',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!sent) ...[
+                    const Text(
+                      'Enter your email and we will send you a password reset link.',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        labelStyle: const TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.bgBase,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const Icon(
+                      Icons.mark_email_read,
+                      size: 48,
+                      color: Colors.greenAccent,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Password reset email sent! Check your inbox.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                  if (dialogError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      dialogError!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(
+                    sent ? 'Done' : 'Cancel',
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+                if (!sent)
+                  ElevatedButton(
+                    onPressed: dialogLoading
+                        ? null
+                        : () async {
+                            final email = emailController.text.trim();
+                            if (email.isEmpty || !email.contains('@')) {
+                              setDialogState(() {
+                                dialogError = 'Please enter a valid email.';
+                              });
+                              return;
+                            }
+
+                            setDialogState(() {
+                              dialogLoading = true;
+                              dialogError = null;
+                            });
+
+                            // Ensure Supabase is initialized.
+                            if (!SupabaseService.isInitialized) {
+                              try {
+                                await SupabaseService.initialize();
+                              } catch (e) {
+                                setDialogState(() {
+                                  dialogLoading = false;
+                                  dialogError =
+                                      'Failed to connect. Check your internet.';
+                                });
+                                return;
+                              }
+                            }
+
+                            try {
+                              await SupabaseService.client.auth
+                                  .resetPasswordForEmail(email);
+                              setDialogState(() {
+                                sent = true;
+                                dialogLoading = false;
+                              });
+                            } catch (e) {
+                              setDialogState(() {
+                                dialogLoading = false;
+                                dialogError =
+                                    'Could not send reset email. Please try again.';
+                              });
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentPrimary,
+                      foregroundColor: AppColors.textPrimary,
+                    ),
+                    child: dialogLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.textPrimary,
+                            ),
+                          )
+                        : const Text('Send Reset Link'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    emailController.dispose();
   }
 
   void _navigateToHome() {
@@ -246,6 +407,29 @@ class _AuthScreenState extends State<AuthScreen> {
             onChanged: (_) => setState(() {}), // Refresh checklist.
             onFieldSubmitted: (_) => _submit(),
           ),
+
+          // Forgot password link (sign-in only).
+          if (!_isSignUp) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _isLoading ? null : _showForgotPasswordDialog,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Forgot Password?',
+                  style: TextStyle(
+                    color: AppColors.accentPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ],
 
           // Confirm password field (sign-up only).
           if (_isSignUp) ...[
@@ -418,6 +602,31 @@ class _AuthScreenState extends State<AuthScreen> {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// Converts raw Supabase auth error messages into user-friendly text.
+  String _friendlyAuthError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('invalid login credentials') ||
+        lower.contains('invalid credentials') ||
+        lower.contains('user not found')) {
+      return 'Invalid email or password. Please check your credentials or sign up.';
+    }
+    if (lower.contains('user already registered') ||
+        lower.contains('already been registered')) {
+      return 'An account with this email already exists. Try signing in instead.';
+    }
+    if (lower.contains('weak password') || lower.contains('password')) {
+      return 'Password is too weak. Please use a stronger password.';
+    }
+    if (lower.contains('invalid email') || lower.contains('unable to validate email')) {
+      return 'Please enter a valid email address.';
+    }
+    if (lower.contains('network') || lower.contains('connection')) {
+      return 'Network error. Please check your internet connection.';
+    }
+    // Return the original message if we don't have a friendlier version.
+    return raw;
+  }
 
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
