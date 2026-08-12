@@ -397,7 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.open_in_new,
             title: 'External Player',
             subtitle: _useExternalPlayer
-                ? 'When enabled, tapping play will open a chooser to select your preferred video player (VLC, MX Player, etc.)'
+                ? 'Opens streams in VLC or your default video player'
                 : 'Use the built-in player',
             value: _useExternalPlayer,
             onChanged: (value) async {

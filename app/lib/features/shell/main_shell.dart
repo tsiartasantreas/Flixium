@@ -10,7 +10,6 @@ import '../favorites/favorites_screen.dart';
 import '../home/home_screen.dart';
 import '../offline/offline_screen.dart';
 import '../search/search_screen.dart';
-import '../settings/settings_screen.dart';
 import 'mobile_nav.dart';
 import 'tv_left_rail.dart';
 
@@ -146,63 +145,24 @@ class _MainShellState extends State<MainShell> {
   Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: AppColors.bgBase,
-      body: Column(
-        children: [
-          // Top bar with settings access.
-          Container(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              MediaQuery.of(context).padding.top + 8,
-              16,
-              8,
-            ),
-            decoration: const BoxDecoration(
-              color: AppColors.bgBase,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.person_outline,
-                    color: AppColors.textSecondary,
-                    size: 24,
-                  ),
-                ),
+      body: IndexedStack(
+        index: _mobileIndex,
+        children: _showRadioTab
+            ? [
+                _buildMobileTab(0),
+                _buildMobileTab(1),
+                _buildMobileTab(2),
+                _buildMobileTab(3),
+                _buildMobileTab(4),
+                _buildMobileTab(5),
+              ]
+            : [
+                _buildMobileTab(0),
+                _buildMobileTab(1),
+                _buildMobileTab(2),
+                _buildMobileTab(3),
+                _buildMobileTab(4),
               ],
-            ),
-          ),
-
-          // Tab content.
-          Expanded(
-            child: IndexedStack(
-              index: _mobileIndex,
-              children: _showRadioTab
-                  ? [
-                      _buildMobileTab(0),
-                      _buildMobileTab(1),
-                      _buildMobileTab(2),
-                      _buildMobileTab(3),
-                      _buildMobileTab(4),
-                      _buildMobileTab(5),
-                    ]
-                  : [
-                      _buildMobileTab(0),
-                      _buildMobileTab(1),
-                      _buildMobileTab(2),
-                      _buildMobileTab(3),
-                      _buildMobileTab(4),
-                    ],
-            ),
-          ),
-        ],
       ),
       bottomNavigationBar: MobileNav(
         currentIndex: _mobileIndex,

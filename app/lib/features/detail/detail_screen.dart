@@ -49,6 +49,10 @@ class _DetailScreenState extends State<DetailScreen> {
   EpgProgramme? _currentProgramme;
   EpgProgramme? _nextProgramme;
 
+  // Metadata loaded from database for VOD / Series.
+  VodItem? _vodItem;
+  TvSery? _seriesData;
+
   bool get _isTv =>
       Platform.isLinux ||
       (Platform.isAndroid &&
@@ -61,11 +65,17 @@ class _DetailScreenState extends State<DetailScreen> {
   bool get _isLive => widget.contentType == 'live';
   bool get _isSeries => widget.contentType == 'series';
 
+  bool get _isVod => widget.contentType == 'vod';
+
   @override
   void initState() {
     super.initState();
     if (_isSeries) {
+      _loadSeriesMetadata();
       _loadEpisodes();
+    }
+    if (_isVod) {
+      _loadVodMetadata();
     }
     if (_isLive) {
       _loadEpgData();
@@ -189,6 +199,42 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // VOD metadata loading
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadVodMetadata() async {
+    try {
+      final item = await (_db.select(_db.vodItems)
+            ..where((t) => t.id.equals(widget.id)))
+          .getSingleOrNull();
+      if (mounted && item != null) {
+        setState(() => _vodItem = item);
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to load VOD metadata: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Series metadata loading
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadSeriesMetadata() async {
+    try {
+      final series = await (_db.select(_db.tvSeries)
+            ..where((t) => t.id.equals(widget.id)))
+          .getSingleOrNull();
+      if (mounted && series != null) {
+        setState(() => _seriesData = series);
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to load series metadata: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Channel navigation (live TV — next/prev in same group)
   // ---------------------------------------------------------------------------
 
@@ -278,23 +324,21 @@ class _DetailScreenState extends State<DetailScreen> {
     final prefs = await SharedPreferences.getInstance();
     final useExternalPlayer = prefs.getBool('use_external_player') ?? false;
 
-    if (useExternalPlayer && Platform.isAndroid) {
-      // Try VLC first via its intent scheme, then fall back to the generic
-      // external app chooser so the user can pick another player.
-      final vlcIntentUri = Uri.parse(
-        'intent:$playbackUrl#Intent;scheme=vlc;package=org.videolan.vlc;end',
-      );
+    if (useExternalPlayer) {
+      // Try VLC first via its custom URL scheme, then fall back to the
+      // device's default video player.
+      final encodedUrl = Uri.encodeFull(playbackUrl);
+      final vlcUri = Uri.parse('vlc://$encodedUrl');
       try {
-        final vlcLaunched = await launchUrl(
-          vlcIntentUri,
-          mode: LaunchMode.externalApplication,
-        );
-        if (vlcLaunched) return;
+        if (await canLaunchUrl(vlcUri)) {
+          await launchUrl(vlcUri);
+          return;
+        }
       } catch (_) {
-        // VLC not installed or intent failed — fall through to generic.
+        // VLC not installed — fall through to generic external player.
       }
 
-      // Fall back to the system app chooser.
+      // Fall back to the system's default external video player.
       final uri = Uri.parse(playbackUrl);
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -433,7 +477,39 @@ class _DetailScreenState extends State<DetailScreen> {
 
                     // -- Content type badge ----------------------------------
                     _buildTypeBadge(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
+                    // -- Info badges (genre, rating, duration, year) -----------
+                    if (_isVod || _isSeries) ...[
+                      _buildInfoBadges(),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // -- Description / Plot ------------------------------------
+                    if (_descriptionText != null &&
+                        _descriptionText!.isNotEmpty) ...[
+                      Text(
+                        _descriptionText!,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // -- Cast & Director ---------------------------------------
+                    if (_castText != null || _directorText != null) ...[
+                      _buildCastDirectorSection(),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // -- Additional Info (country, release date, etc.) ---------
+                    if (_isVod || _isSeries) ...[
+                      _buildAdditionalInfoSection(),
+                      const SizedBox(height: 20),
+                    ],
 
                     // -- Play + Download + Favorite buttons ----------------------
                     if (widget.url.isNotEmpty)
@@ -570,7 +646,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         )
                       else
-                        ..._episodes.map(_buildEpisodeTile),
+                        ..._buildSeasonGroups(),
                     ],
                   ],
                 ),
@@ -580,6 +656,290 @@ class _DetailScreenState extends State<DetailScreen> {
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Metadata helpers
+  // ---------------------------------------------------------------------------
+
+  String? get _descriptionText {
+    if (_isVod) return _vodItem?.description;
+    if (_isSeries) return _seriesData?.description;
+    return null;
+  }
+
+  String? get _ratingText {
+    if (_isVod) return _vodItem?.rating;
+    if (_isSeries) return _seriesData?.rating;
+    return null;
+  }
+
+  String? get _genreText {
+    if (_isVod) return _vodItem?.genre;
+    if (_isSeries) return _seriesData?.genre;
+    return null;
+  }
+
+  String? get _castText {
+    if (_isVod) return _vodItem?.cast;
+    if (_isSeries) return _seriesData?.cast;
+    return null;
+  }
+
+  String? get _directorText {
+    if (_isVod) return _vodItem?.director;
+    if (_isSeries) return _seriesData?.director;
+    return null;
+  }
+
+  String? get _releaseDateText {
+    if (_isVod) return _vodItem?.releaseDate;
+    if (_isSeries) return _seriesData?.releaseDate;
+    return null;
+  }
+
+  String? get _durationText => null;
+
+  String? get _countryText => null;
+
+  String? get _youtubeTrailer => null;
+
+  String? get _episodeRunTime => null;
+
+  /// Extract a year from a date string like "2024-01-15" or return null.
+  String? _extractYear(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return null;
+    final match = RegExp(r'^(\d{4})').firstMatch(dateStr);
+    return match?.group(1);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Info badges
+  // ---------------------------------------------------------------------------
+
+  Widget _buildInfoBadges() {
+    final badges = <Widget>[];
+
+    // Genre
+    if (_genreText != null && _genreText!.isNotEmpty) {
+      badges.add(_buildBadge(Icons.category, _genreText!));
+    }
+
+    // Rating
+    if (_ratingText != null && _ratingText!.isNotEmpty) {
+      badges.add(_buildBadge(Icons.star, _ratingText!));
+    }
+
+    // Duration (VOD)
+    if (_durationText != null && _durationText!.isNotEmpty) {
+      badges.add(_buildBadge(Icons.access_time, _durationText!));
+    }
+
+    // Episode run time (Series)
+    if (_episodeRunTime != null && _episodeRunTime!.isNotEmpty) {
+      badges.add(_buildBadge(Icons.timer, '$_episodeRunTime min/ep'));
+    }
+
+    // Year
+    final year = _extractYear(_releaseDateText);
+    if (year != null) {
+      badges.add(_buildBadge(Icons.calendar_today, year));
+    }
+
+    if (badges.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: badges,
+    );
+  }
+
+  Widget _buildBadge(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppColors.textSecondary, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cast & Director section
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCastDirectorSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_directorText != null && _directorText!.isNotEmpty) ...[
+          const Text(
+            'Director',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _directorText!,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        ],
+        if (_castText != null && _castText!.isNotEmpty) ...[
+          if (_directorText != null && _directorText!.isNotEmpty)
+            const SizedBox(height: 12),
+          const Text(
+            'Cast',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _castText!,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Additional info section
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAdditionalInfoSection() {
+    final rows = <_InfoRow>[];
+
+    if (_countryText != null && _countryText!.isNotEmpty) {
+      rows.add(_InfoRow(Icons.public, 'Country', _countryText!));
+    }
+    if (_releaseDateText != null && _releaseDateText!.isNotEmpty) {
+      rows.add(_InfoRow(Icons.event, 'Release Date', _releaseDateText!));
+    }
+    if (_ratingText != null && _ratingText!.isNotEmpty) {
+      rows.add(_InfoRow(Icons.rate_review, 'Rating', _ratingText!));
+    }
+
+    // YouTube trailer
+    if (_youtubeTrailer != null && _youtubeTrailer!.isNotEmpty) {
+      rows.add(_InfoRow(Icons.ondemand_video, 'Trailer', 'Available'));
+    }
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Details',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...rows.map((row) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(row.icon, color: AppColors.textSecondary, size: 16),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 100,
+                    child: Text(
+                      row.label,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      row.value,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+        // Trailer button
+        if (_youtubeTrailer != null && _youtubeTrailer!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: OutlinedButton.icon(
+              onPressed: () => _launchTrailer(_youtubeTrailer!),
+              icon: const Icon(Icons.play_circle_outline,
+                  color: AppColors.accentPrimary, size: 18),
+              label: const Text(
+                'Watch Trailer',
+                style: TextStyle(
+                  color: AppColors.accentPrimary,
+                  fontSize: 13,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.accentPrimary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _launchTrailer(String trailer) async {
+    // trailer can be a YouTube video ID or a full URL.
+    String url;
+    if (trailer.startsWith('http')) {
+      url = trailer;
+    } else {
+      url = 'https://www.youtube.com/watch?v=$trailer';
+    }
+    final uri = Uri.parse(url);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to launch trailer: $e');
+    }
   }
 
   Widget _buildTypeBadge() {
@@ -638,6 +998,43 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Season grouping
+  // ---------------------------------------------------------------------------
+
+  List<Widget> _buildSeasonGroups() {
+    // Group episodes by season number.
+    final seasonMap = <int, List<_EpisodeItem>>{};
+    for (final ep in _episodes) {
+      seasonMap.putIfAbsent(ep.season, () => []).add(ep);
+    }
+    final seasons = seasonMap.keys.toList()..sort();
+
+    final widgets = <Widget>[];
+    for (final season in seasons) {
+      final eps = seasonMap[season]!;
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 8),
+          child: Text(
+            'Season $season',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+      widgets.addAll(eps.map(_buildEpisodeTile));
+    }
+    return widgets;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Episode tile
+  // ---------------------------------------------------------------------------
+
   Widget _buildEpisodeTile(_EpisodeItem episode) {
     final episodeContentId = 'series_ep_${episode.id}';
     return Card(
@@ -657,70 +1054,92 @@ class _DetailScreenState extends State<DetailScreen> {
           }
           return KeyEventResult.ignored;
         },
-        child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          leading: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: episode.thumbnail != null && episode.thumbnail!.isNotEmpty
-                ? Image.network(
-                    episode.thumbnail!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(
-                      Icons.movie,
-                      color: AppColors.textSecondary,
-                      size: 24,
-                    ),
-                  )
-                : const Icon(
-                    Icons.movie,
-                    color: AppColors.textSecondary,
-                    size: 24,
-                  ),
-          ),
-          title: Text(
-            'S${episode.season}E${episode.episode} - ${episode.title}',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              EpisodeDownloadButton(
-                contentId: episodeContentId,
-                title: 'S${episode.season}E${episode.episode} - ${episode.title}',
-                url: episode.url,
-                thumbnailUrl: episode.thumbnail,
-                onPlayOffline: () => _playContent(
-                  episode.url,
-                  episode.title,
-                  contentId: episodeContentId,
+              // -- Thumbnail -------------------------------------------------
+              Container(
+                width: 80,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child:
+                    episode.thumbnail != null && episode.thumbnail!.isNotEmpty
+                        ? Image.network(
+                            episode.thumbnail!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                              Icons.movie,
+                              color: AppColors.textSecondary,
+                              size: 24,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.movie,
+                            color: AppColors.textSecondary,
+                            size: 24,
+                          ),
+              ),
+              const SizedBox(width: 12),
+
+              // -- Info -------------------------------------------------------
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Episode number + title
+                    Text(
+                      'E${episode.episode} - ${episode.title}',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.play_circle_outline,
-                color: AppColors.accentPrimary,
-                size: 28,
+
+              // -- Actions ----------------------------------------------------
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  EpisodeDownloadButton(
+                    contentId: episodeContentId,
+                    title:
+                        'S${episode.season}E${episode.episode} - ${episode.title}',
+                    url: episode.url,
+                    thumbnailUrl: episode.thumbnail,
+                    onPlayOffline: () => _playContent(
+                      episode.url,
+                      episode.title,
+                      contentId: episodeContentId,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () => _playContent(
+                      episode.url,
+                      episode.title,
+                      contentId: episodeContentId,
+                    ),
+                    child: const Icon(
+                      Icons.play_circle_outline,
+                      color: AppColors.accentPrimary,
+                      size: 28,
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-          onTap: () => _playContent(
-            episode.url,
-            episode.title,
-            contentId: episodeContentId,
           ),
         ),
       ),
@@ -865,4 +1284,12 @@ class _EpisodeItem {
   final String title;
   final String url;
   final String? thumbnail;
+}
+
+/// Lightweight row model for the additional-info section.
+class _InfoRow {
+  const _InfoRow(this.icon, this.label, this.value);
+  final IconData icon;
+  final String label;
+  final String value;
 }

@@ -15,6 +15,7 @@ import '../detail/detail_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../import/import_screen.dart';
 import '../search/search_screen.dart';
+import '../settings/settings_screen.dart';
 import 'widgets/content_row.dart';
 import 'widgets/continue_watching_row.dart';
 
@@ -589,11 +590,11 @@ class HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
-        backgroundColor: AppColors.accentPrimary,
+        backgroundColor: AppColors.bgElevated,
         title: const Text(
           'iFlixify IPTV',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: AppColors.accentPrimary,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -614,6 +615,17 @@ class HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.add, color: AppColors.textPrimary),
             onPressed: _navigateToImport,
             tooltip: 'Import Playlist',
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline, color: AppColors.textPrimary),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Settings',
           ),
         ],
       ),

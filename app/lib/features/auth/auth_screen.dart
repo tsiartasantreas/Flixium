@@ -335,7 +335,7 @@ class _AuthScreenState extends State<AuthScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 32),
             decoration: BoxDecoration(
-              color: AppColors.accentPrimary,
+              color: AppColors.bgElevated,
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Column(
@@ -343,14 +343,14 @@ class _AuthScreenState extends State<AuthScreen> {
                 Icon(
                   Icons.live_tv,
                   size: 64,
-                  color: AppColors.textPrimary,
+                  color: AppColors.accentPrimary,
                 ),
                 SizedBox(height: 16),
                 Text(
                   'iFlixify IPTV',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: AppColors.accentPrimary,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 4,

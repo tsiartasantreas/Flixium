@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/data/database.dart';
+import '../../core/data/import_progress_service.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/favorite_button.dart';
@@ -36,6 +37,7 @@ class BrowseScreen extends StatefulWidget {
 @visibleForTesting
 class BrowseScreenState extends State<BrowseScreen> {
   final _db = AppDatabase();
+  final _importProgress = ImportProgressService.instance;
   List<_BrowseItem> _allItems = [];
   List<_BrowseItem> _filteredItems = [];
   List<String> _groups = [];
@@ -51,6 +53,24 @@ class BrowseScreenState extends State<BrowseScreen> {
     super.initState();
     _loadViewMode();
     _loadItems();
+    // Listen for background import progress changes so we can refresh
+    // when a playlist import completes.
+    _importProgress.progressNotifier.addListener(_onImportProgressChanged);
+  }
+
+  @override
+  void dispose() {
+    _importProgress.progressNotifier.removeListener(_onImportProgressChanged);
+    super.dispose();
+  }
+
+  /// Called whenever the background import progress changes.
+  void _onImportProgressChanged() {
+    if (!mounted) return;
+    final progress = _importProgress.progressNotifier.value;
+    if (progress != null && progress.isComplete && !progress.hasError) {
+      _loadItems();
+    }
   }
 
   // ---------------------------------------------------------------------------
