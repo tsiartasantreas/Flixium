@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../player/tv_player_screen.dart';
 /// Netflix-style "Downloads" screen showing locally stored content.
 ///
 /// Displays a grid of downloaded items with thumbnails, titles, and file sizes.
+/// Shows active and queued downloads with progress indicators.
 /// Supports tap-to-play and long-press-to-delete.
 class OfflineScreen extends StatefulWidget {
   const OfflineScreen({super.key});
@@ -21,9 +23,11 @@ class OfflineScreen extends StatefulWidget {
 }
 
 class _OfflineScreenState extends State<OfflineScreen> {
-  late final OfflineDownloadService _downloadService;
+  final _downloadService = OfflineDownloadService.instance;
   List<DownloadedItem> _items = [];
+  Map<String, DownloadProgress> _activeDownloads = {};
   bool _isLoading = true;
+  StreamSubscription<Map<String, DownloadProgress>>? _progressSub;
 
   bool get _isTv =>
       Platform.isLinux ||
@@ -37,14 +41,30 @@ class _OfflineScreenState extends State<OfflineScreen> {
   @override
   void initState() {
     super.initState();
-    _downloadService = OfflineDownloadService(db: AppDatabase());
     _loadItems();
+    _listenToProgress();
   }
 
-  @override
-  void dispose() {
-    _downloadService.close();
-    super.dispose();
+  void _listenToProgress() {
+    // Load initial state.
+    _activeDownloads = _downloadService.currentProgress;
+
+    _progressSub = _downloadService.progressStream.listen((progressMap) {
+      if (!mounted) return;
+
+      // Check if any download just completed -- refresh the DB list.
+      final hasNewCompleted = progressMap.values.any((p) =>
+          p.state == DownloadState.completed &&
+          (_activeDownloads[p.contentId]?.state != DownloadState.completed));
+
+      setState(() {
+        _activeDownloads = progressMap;
+      });
+
+      if (hasNewCompleted) {
+        _loadItems();
+      }
+    });
   }
 
   Future<void> _loadItems() async {
@@ -111,6 +131,10 @@ class _OfflineScreenState extends State<OfflineScreen> {
     }
   }
 
+  void _cancelActiveDownload(String contentId) {
+    _downloadService.cancelDownload(contentId);
+  }
+
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {
@@ -120,6 +144,16 @@ class _OfflineScreenState extends State<OfflineScreen> {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  /// Returns active downloads (queued or currently downloading), excluding
+  /// completed/failed/cancelled.
+  List<DownloadProgress> get _inProgressDownloads {
+    return _activeDownloads.values
+        .where((p) =>
+            p.state == DownloadState.queued ||
+            p.state == DownloadState.downloading)
+        .toList();
   }
 
   @override
@@ -140,7 +174,7 @@ class _OfflineScreenState extends State<OfflineScreen> {
                 color: AppColors.accentPrimary,
               ),
             )
-          : _items.isEmpty
+          : _items.isEmpty && _inProgressDownloads.isEmpty
               ? _buildEmptyState()
               : _buildContent(),
     );
@@ -200,6 +234,7 @@ class _OfflineScreenState extends State<OfflineScreen> {
 
   Widget _buildContent() {
     final totalSize = _items.fold<int>(0, (sum, item) => sum + item.fileSize);
+    final active = _inProgressDownloads;
 
     return Column(
       children: [
@@ -227,24 +262,112 @@ class _OfflineScreenState extends State<OfflineScreen> {
           ),
         ),
 
-        // -- Downloads grid ------------------------------------------------
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _isTv ? 5 : 3,
-              childAspectRatio: 0.55,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
+        // -- Active downloads section -------------------------------------
+        if (active.isNotEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
+            child: Text(
+              'Downloading (${active.length})',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            itemCount: _items.length,
-            itemBuilder: (context, index) {
-              final item = _items[index];
-              return _buildDownloadCard(item);
-            },
           ),
-        ),
+          ...active.map((p) => _buildActiveDownloadTile(p)),
+        ],
+
+        // -- Completed downloads grid -------------------------------------
+        if (_items.isNotEmpty)
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(12),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: _isTv ? 5 : 3,
+                childAspectRatio: 0.55,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: _items.length,
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                return _buildDownloadCard(item);
+              },
+            ),
+          )
+        else if (active.isNotEmpty)
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Completed downloads will appear here',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+
+  Widget _buildActiveDownloadTile(DownloadProgress progress) {
+    final isQueued = progress.state == DownloadState.queued;
+
+    return ListTile(
+      leading: SizedBox(
+        width: 40,
+        height: 40,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularProgressIndicator(
+              value: isQueued ? null : (progress.progress > 0 ? progress.progress : null),
+              strokeWidth: 3,
+              color: AppColors.accentPrimary,
+              backgroundColor: AppColors.bgSurface,
+            ),
+            if (!isQueued)
+              Text(
+                '${(progress.progress * 100).toInt()}%',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            else
+              const Icon(
+                Icons.hourglass_bottom,
+                color: AppColors.textSecondary,
+                size: 16,
+              ),
+          ],
+        ),
+      ),
+      title: Text(
+        progress.title,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 14,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        isQueued ? 'Queued...' : 'Downloading...',
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 12,
+        ),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
+        onPressed: () => _cancelActiveDownload(progress.contentId),
+      ),
     );
   }
 
@@ -374,5 +497,12 @@ class _OfflineScreenState extends State<OfflineScreen> {
         size: 48,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _progressSub?.cancel();
+    // Do NOT close the download service -- it's a singleton.
+    super.dispose();
   }
 }

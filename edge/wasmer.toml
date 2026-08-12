@@ -1,15 +1,16 @@
 # Wasmer package manifest. The JS service-worker bundler builds from src/.
 [package]
-name = "iflixify-edge"
+name = "iflixify"
 version = "0.1.0"
 description = "iFlixify IPTV edge app: /dl/latest redirect + (later) licensing/admin API"
 license = "Proprietary"
 
 # The runtime is a JS service worker (WinterCG fetch handler).
 [module]
-name = "iflixify-edge"
+name = "iflixify"
 source = "src/index.js"
 description = "iFlixify IPTV edge service worker"
+entrypoint = "default"
 
 [fs]
 "/src" = "./src"

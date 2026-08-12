@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Bump this when you add / remove tables or alter columns.
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +66,17 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(playlists, playlists.userId);
             await m.addColumn(playlists, playlists.username);
             await m.addColumn(playlists, playlists.password);
+          }
+          if (from < 5) {
+            // Add status and progress columns to downloaded_items.
+            await m.addColumn(
+              downloadedItems,
+              downloadedItems.status as GeneratedColumn<Object>,
+            );
+            await m.addColumn(
+              downloadedItems,
+              downloadedItems.progress as GeneratedColumn<Object>,
+            );
           }
         },
       );

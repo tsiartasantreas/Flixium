@@ -390,13 +390,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // -- Account section ----------------------------------------------
           _buildSectionHeader('Account'),
-          _buildNavigationTile(
-            icon: Icons.person_outline,
-            title: 'Sign Out',
-            subtitle: 'Sign out of your account',
-            onTap: _showSignOutDialog,
-            isDestructive: true,
-          ),
+          if (_profileEmail.isNotEmpty) ...[
+            _buildNavigationTile(
+              icon: Icons.person_outline,
+              title: 'Sign Out',
+              subtitle: _profileEmail,
+              onTap: _showSignOutDialog,
+              isDestructive: true,
+            ),
+          ] else ...[
+            _buildNavigationTile(
+              icon: Icons.login,
+              title: 'Sign In / Register',
+              subtitle: 'Sign in to sync your data across devices',
+              onTap: _navigateToAuth,
+            ),
+          ],
 
           const SizedBox(height: 32),
         ],
@@ -651,6 +660,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
 
+  void _navigateToAuth() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+    );
+    // Reload settings when returning — the user may have signed in.
+    _loadSettings();
+  }
+
   void _showSignOutDialog() {
     showDialog(
       context: context,
@@ -680,15 +697,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (SupabaseService.isInitialized) {
                 await AuthService().signOut();
               }
-              // Clear the cached auth flag so the app shows the auth screen
-              // on next launch.
+              // Clear the cached auth flag.
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('auth_user_email');
+              // Reload settings to show the Sign In / Register option.
               if (mounted) {
-                navigator.pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
-                  (route) => false,
-                );
+                setState(() {
+                  _profileEmail = '';
+                  _profileName = 'User';
+                  _tier = 'Free';
+                });
+                _loadSettings();
               }
             },
             child: const Text(

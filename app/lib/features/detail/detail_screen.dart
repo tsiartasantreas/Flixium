@@ -40,7 +40,7 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   final _db = AppDatabase();
-  late final OfflineDownloadService _downloadService;
+  final _downloadService = OfflineDownloadService.instance;
   List<_EpisodeItem> _episodes = [];
   bool _isLoadingEpisodes = false;
   EpgProgramme? _currentProgramme;
@@ -61,19 +61,12 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
-    _downloadService = OfflineDownloadService(db: _db);
     if (_isSeries) {
       _loadEpisodes();
     }
     if (_isLive) {
       _loadEpgData();
     }
-  }
-
-  @override
-  void dispose() {
-    _downloadService.close();
-    super.dispose();
   }
 
   // ---------------------------------------------------------------------------

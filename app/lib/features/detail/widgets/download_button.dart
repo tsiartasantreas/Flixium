@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../../../core/data/database.dart';
 import '../../../core/data/offline_download_service.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -44,16 +45,54 @@ class DownloadButton extends StatefulWidget {
 }
 
 class _DownloadButtonState extends State<DownloadButton> {
-  late final OfflineDownloadService _downloadService;
+  final _downloadService = OfflineDownloadService.instance;
   bool _isDownloaded = false;
   bool _isDownloading = false;
   double _progress = 0.0;
+  StreamSubscription<Map<String, DownloadProgress>>? _progressSub;
 
   @override
   void initState() {
     super.initState();
-    _downloadService = OfflineDownloadService(db: AppDatabase());
     _checkDownloaded();
+    _listenToProgress();
+  }
+
+  void _listenToProgress() {
+    // Check if there's already progress for this content.
+    final existing = _downloadService.currentProgress[widget.contentId];
+    if (existing != null &&
+        (existing.state == DownloadState.downloading ||
+            existing.state == DownloadState.queued)) {
+      _isDownloading = true;
+      _progress = existing.progress;
+    }
+
+    _progressSub = _downloadService.progressStream.listen((progressMap) {
+      if (!mounted) return;
+      final p = progressMap[widget.contentId];
+      if (p == null) return;
+
+      setState(() {
+        switch (p.state) {
+          case DownloadState.queued:
+          case DownloadState.downloading:
+            _isDownloading = true;
+            _progress = p.progress;
+            break;
+          case DownloadState.completed:
+            _isDownloading = false;
+            _isDownloaded = true;
+            _progress = 1.0;
+            break;
+          case DownloadState.failed:
+          case DownloadState.cancelled:
+            _isDownloading = false;
+            _progress = 0;
+            break;
+        }
+      });
+    });
   }
 
   Future<void> _checkDownloaded() async {
@@ -63,38 +102,18 @@ class _DownloadButtonState extends State<DownloadButton> {
     }
   }
 
-  Future<void> _startDownload() async {
+  void _startDownload() {
+    _downloadService.enqueueDownload(
+      contentId: widget.contentId,
+      url: widget.url,
+      title: widget.title,
+      contentType: widget.contentType,
+      thumbnailUrl: widget.thumbnailUrl,
+    );
     setState(() {
       _isDownloading = true;
       _progress = 0;
     });
-
-    try {
-      await _downloadService.downloadContent(
-        contentId: widget.contentId,
-        url: widget.url,
-        title: widget.title,
-        contentType: widget.contentType,
-        thumbnailUrl: widget.thumbnailUrl,
-        onProgress: (p) {
-          if (mounted) {
-            setState(() => _progress = p);
-          }
-        },
-      );
-      if (mounted) {
-        setState(() {
-          _isDownloaded = true;
-          _isDownloading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isDownloading = false;
-        });
-      }
-    }
   }
 
   void _cancelDownload() {
@@ -166,7 +185,9 @@ class _DownloadButtonState extends State<DownloadButton> {
 
   @override
   void dispose() {
-    _downloadService.close();
+    _progressSub?.cancel();
+    // Do NOT close the download service -- it's a singleton that continues
+    // running in the background.
     super.dispose();
   }
 }

@@ -256,9 +256,17 @@ class PlayerController extends ChangeNotifier {
     // ignore: avoid_print
     print('[PlayerController] HTTP headers: $headers');
 
+    // Build per-media MPV options from the config. These are passed as
+    // extras to the Media constructor so mpv applies them for this specific
+    // playback session (e.g. protocol-whitelist for HLS/TS streams).
+    final mpvOptions = _currentConfig.buildMpvOptions();
+    // ignore: avoid_print
+    print('[PlayerController] MPV options: $mpvOptions');
+
     final media = Media(
       url,
       httpHeaders: headers.isNotEmpty ? headers : null,
+      extras: mpvOptions.isNotEmpty ? mpvOptions : null,
     );
 
     try {

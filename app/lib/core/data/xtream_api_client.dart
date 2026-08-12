@@ -47,13 +47,28 @@ class XtreamApiClient {
     // ignore: avoid_print
     print('[XtreamAPI] getVodCategories() response keys: ${json.keys.toList()}, '
         'sample values: ${json.map((k, v) => MapEntry(k, v is List ? 'List(${v.length})' : v.runtimeType))}');
+    // Log raw response body preview (first 500 chars) if _list is present
+    if (json.containsKey('_list')) {
+      final list = json['_list'];
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodCategories() _list type: ${list.runtimeType}, '
+          'length: ${list is List ? list.length : "N/A"}');
+      if (list is List && list.isNotEmpty) {
+        final firstItem = list.first;
+        final preview = firstItem.toString();
+        // ignore: avoid_print
+        print('[XtreamAPI] getVodCategories() first item (first 500 chars): '
+            '${preview.length > 500 ? preview.substring(0, 500) : preview}');
+      }
+    }
     final result = _parseCategoryList(json);
     // ignore: avoid_print
     print('[XtreamAPI] getVodCategories() parsed ${result.length} categories');
     if (result.isEmpty) {
       // ignore: avoid_print
       print('[XtreamAPI] WARNING: getVodCategories() returned 0 categories! '
-          'Raw keys: ${json.keys.toList()}');
+          'Raw keys: ${json.keys.toList()}, value types: '
+          '${json.map((k, v) => MapEntry(k, v.runtimeType))}');
     }
     return result;
   }
@@ -68,6 +83,20 @@ class XtreamApiClient {
     // ignore: avoid_print
     print('[XtreamAPI] getVodStreams($categoryId) response keys: ${json.keys.toList()}, '
         'sample values: ${json.map((k, v) => MapEntry(k, v is List ? 'List(${v.length})' : v.runtimeType))}');
+    // Log raw response body preview (first 500 chars) if _list is present
+    if (json.containsKey('_list')) {
+      final list = json['_list'];
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodStreams($categoryId) _list type: ${list.runtimeType}, '
+          'length: ${list is List ? list.length : "N/A"}');
+      if (list is List && list.isNotEmpty) {
+        final firstItem = list.first;
+        final preview = firstItem.toString();
+        // ignore: avoid_print
+        print('[XtreamAPI] getVodStreams($categoryId) first item (first 500 chars): '
+            '${preview.length > 500 ? preview.substring(0, 500) : preview}');
+      }
+    }
     final result = _parseStreamList(json);
     // ignore: avoid_print
     print('[XtreamAPI] getVodStreams($categoryId) parsed ${result.length} streams');
@@ -208,11 +237,11 @@ class XtreamApiClient {
     }
     try {
       // Log a truncated preview of the raw body for debugging.
-      final bodyPreview = response.body.length > 300
-          ? '${response.body.substring(0, 300)}...'
+      final bodyPreview = response.body.length > 500
+          ? '${response.body.substring(0, 500)}...'
           : response.body;
       // ignore: avoid_print
-      print('[XtreamAPI] Response preview: $bodyPreview');
+      print('[XtreamAPI] Response preview (first 500 chars): $bodyPreview');
 
       final dynamic body = json.decode(response.body);
       if (body is List<dynamic>) {

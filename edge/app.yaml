@@ -2,6 +2,7 @@ name: iflixify
 app_id: da_2OPIqt7U7vBW
 owner: tsiartasantreas
 package: .
+module: iflixify
 env:
   GITHUB_REPO: ${GITHUB_REPO}
 capabilities:

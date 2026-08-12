@@ -1,16 +1,14 @@
-import 'dart:io';
+import 'package:screen_brightness/screen_brightness.dart';
 
-import 'package:flutter/services.dart';
-
-/// Controls screen brightness via a platform MethodChannel.
+/// Controls screen brightness using the `screen_brightness` package.
 ///
-/// On Android this adjusts the current window's `screenBrightness` attribute.
-/// On unsupported platforms the value is tracked locally but not applied to the
-/// display — the visual overlay indicator still works.
+/// Works on Android and iOS without any custom native code.
+/// On unsupported platforms the value is tracked locally but not applied to
+/// the display -- the visual overlay indicator still works.
 class BrightnessService {
   BrightnessService._();
 
-  static const _channel = MethodChannel('iflixify/brightness');
+  static final _screenBrightness = ScreenBrightness();
 
   /// Cached brightness value in the range [0.0, 1.0].
   /// Initialised lazily on first read.
@@ -23,11 +21,10 @@ class BrightnessService {
   /// Set screen brightness. [value] is clamped to [0.0, 1.0].
   static Future<void> setBrightness(double value) async {
     _brightness = value.clamp(0.0, 1.0);
-    if (!Platform.isAndroid) return;
     try {
-      await _channel.invokeMethod('setBrightness', _brightness);
-    } on MissingPluginException {
-      // Plugin not registered — ignore gracefully.
+      await _screenBrightness.setApplicationScreenBrightness(_brightness);
+    } catch (_) {
+      // Platform may not support brightness control (e.g. desktop).
     }
   }
 
@@ -35,14 +32,22 @@ class BrightnessService {
   static Future<double> initialize() async {
     if (_initialized) return _brightness;
     _initialized = true;
-    if (!Platform.isAndroid) return _brightness;
     try {
-      final result = await _channel.invokeMethod<double>('getBrightness');
-      if (result != null) _brightness = result.clamp(0.0, 1.0);
-    } on MissingPluginException {
-      // Plugin not registered — use default.
+      final current = await _screenBrightness.application;
+      _brightness = current.clamp(0.0, 1.0);
+    } catch (_) {
+      // Platform may not support brightness control -- use default.
     }
     return _brightness;
+  }
+
+  /// Reset the system brightness to the user's auto/preference level.
+  static Future<void> resetBrightness() async {
+    try {
+      await _screenBrightness.resetApplicationScreenBrightness();
+    } catch (_) {
+      // Ignore on unsupported platforms.
+    }
   }
 
   /// Adjust brightness by [delta] (positive = brighter, negative = dimmer).

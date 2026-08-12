@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/data/supabase_client.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
-import 'features/auth/auth_screen.dart';
 import 'features/shell/main_shell.dart';
 
 /// Root widget of the iFlixify IPTV app.
@@ -22,7 +20,6 @@ class FlixiumApp extends StatefulWidget {
 
 class _FlixiumAppState extends State<FlixiumApp> {
   bool _initialized = false;
-  bool _hasCachedAuth = false;
 
   @override
   void initState() {
@@ -31,24 +28,13 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Future<void> _bootstrap() async {
-    // Initialize Supabase so auth works on first try.
+    // Initialize Supabase lazily so auth works when the user signs in
+    // from Settings. The app runs fully in guest mode without it.
     try {
       await SupabaseService.initialize();
     } catch (_) {
       // If Supabase fails to initialize (e.g. no network), the app can
       // still run in guest mode.
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final cachedEmail = prefs.getString('auth_user_email');
-
-    // If we have a cached email AND an active Supabase session, the user
-    // is already logged in — skip the auth screen.
-    if (cachedEmail != null && SupabaseService.isInitialized) {
-      final session = SupabaseService.client.auth.currentSession;
-      _hasCachedAuth = session != null;
-    } else {
-      _hasCachedAuth = cachedEmail != null;
     }
 
     if (mounted) {
@@ -73,15 +59,13 @@ class _FlixiumAppState extends State<FlixiumApp> {
       );
     }
 
-    // If the user previously signed in, go straight to MainShell.
-    // Supabase will be lazily initialized on first network action.
-    // Otherwise, show the auth screen where the user can sign in or
-    // continue as guest.
+    // Always go straight to MainShell. The user can sign in/register
+    // from Settings when they want to.
     return MaterialApp(
       title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: NetflixTheme.dark,
-      home: _hasCachedAuth ? const MainShell() : const AuthScreen(),
+      home: const MainShell(),
     );
   }
 }

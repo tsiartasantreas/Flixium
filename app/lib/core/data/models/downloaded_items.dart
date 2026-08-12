@@ -28,4 +28,11 @@ class DownloadedItems extends Table {
 
   /// Optional URL for streaming (stored so we can re-download or share).
   TextColumn get streamUrl => text().nullable()();
+
+  /// Download status: `"pending"`, `"downloading"`, `"completed"`, `"failed"`.
+  /// Defaults to `"completed"` for backward compatibility.
+  TextColumn get status => text().withDefault(const Constant('completed'))();
+
+  /// Download progress fraction (0.0 to 1.0). Defaults to 0.0.
+  RealColumn get progress => real().withDefault(const Constant(0.0))();
 }

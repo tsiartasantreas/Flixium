@@ -9,12 +9,12 @@ void main() {
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    service = OfflineDownloadService(db: db);
+    service = OfflineDownloadService.createForTesting(db: db);
   });
 
   tearDown(() async {
+    OfflineDownloadService.resetInstance();
     await db.close();
-    service.close();
   });
 
   group('isDownloaded', () {

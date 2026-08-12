@@ -66,11 +66,14 @@ class PlayerConfig {
   /// Default config for IPTV streams.
   ///
   /// Includes a common User-Agent string so that IPTV providers that check
-  /// the header do not reject the request.  Also sets a referer-friendly
-  /// protocol whitelist for TS / HLS containers.
+  /// the header do not reject the request. Also sets a comprehensive protocol
+  /// whitelist so TS / HLS / RTMP / UDP streams are not rejected by ffmpeg's
+  /// demuxer.
   static const defaultConfig = PlayerConfig(
     userAgent:
         'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+    protocolWhitelist:
+        'http,https,tcp,tls,crypto,data,file,udp,rtp',
   );
 
   /// Config optimized for live TV streams (hardware decoding enabled).

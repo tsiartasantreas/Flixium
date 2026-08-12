@@ -1,6 +1,9 @@
-// Wasmer Edge entry point — delegates to the router.
+// Wasmer Edge entry point — WinterCG fetch handler.
+// Delegates to the router in handlers/index.js.
 import router from "./handlers/index.js";
 
-addEventListener("fetch", (fetchEvent) => {
-  fetchEvent.respondWith(router.fetch(fetchEvent.request, process.env));
-});
+export default {
+  async fetch(request, env) {
+    return router.fetch(request, env);
+  },
+};
