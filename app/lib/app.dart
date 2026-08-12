@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
 import 'features/auth/auth_screen.dart';
+import 'features/shell/main_shell.dart';
 
 /// Root widget of the iFlixify IPTV app.
 ///
@@ -19,6 +21,7 @@ class FlixiumApp extends StatefulWidget {
 
 class _FlixiumAppState extends State<FlixiumApp> {
   bool _initialized = false;
+  bool _hasCachedAuth = false;
 
   @override
   void initState() {
@@ -27,8 +30,12 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Future<void> _bootstrap() async {
-      // No Supabase init at startup — app launches instantly in guest mode.
+    // No Supabase init at startup — app launches instantly in guest mode.
     // Auth is only triggered when the user explicitly signs in.
+    // Check if the user previously signed in (cached flag from SharedPreferences).
+    final prefs = await SharedPreferences.getInstance();
+    _hasCachedAuth = prefs.getString('auth_user_email') != null;
+
     if (mounted) {
       setState(() {
         _initialized = true;
@@ -51,13 +58,15 @@ class _FlixiumAppState extends State<FlixiumApp> {
       );
     }
 
-    // Default to auth screen. User can choose "Continue as Guest"
-    // to go to MainShell without signing in.
+    // If the user previously signed in, go straight to MainShell.
+    // Supabase will be lazily initialized on first network action.
+    // Otherwise, show the auth screen where the user can sign in or
+    // continue as guest.
     return MaterialApp(
       title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: NetflixTheme.dark,
-      home: const AuthScreen(),
+      home: _hasCachedAuth ? const MainShell() : const AuthScreen(),
     );
   }
 }

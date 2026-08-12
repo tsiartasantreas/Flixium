@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_manager.dart';
@@ -59,6 +60,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadSettings() async {
+    // Lazily initialize Supabase if needed (user may have arrived via cached
+    // auth flag without Supabase being initialized yet).
+    if (!SupabaseService.isInitialized) {
+      try {
+        await SupabaseService.initialize();
+      } catch (_) {
+        // If initialization fails (e.g. no network), keep guest mode.
+      }
+    }
+
     // Load Supabase user info (if signed in).
     if (SupabaseService.isInitialized) {
       final user = SupabaseService.client.auth.currentUser;
@@ -618,6 +629,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (SupabaseService.isInitialized) {
                 await AuthService().signOut();
               }
+              // Clear the cached auth flag so the app shows the auth screen
+              // on next launch.
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('auth_user_email');
               if (mounted) {
                 navigator.pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const AuthScreen()),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/auth/auth_service.dart';
 import '../../core/data/supabase_client.dart';
@@ -106,6 +107,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
 
     if (result.isSuccess) {
+      // Persist the auth flag so the app skips the auth screen on next launch.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_user_email', email);
       _navigateToHome();
     } else {
       setState(() {
