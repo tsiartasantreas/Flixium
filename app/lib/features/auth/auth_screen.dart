@@ -25,6 +25,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _isSignUp = false;
   bool _isLoading = false;
@@ -37,6 +38,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -240,6 +242,27 @@ class _AuthScreenState extends State<AuthScreen> {
             onChanged: (_) => setState(() {}), // Refresh checklist.
             onFieldSubmitted: (_) => _submit(),
           ),
+
+          // Confirm password field (sign-up only).
+          if (_isSignUp) ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: _inputDecoration('Confirm Password'),
+              validator: (value) {
+                if (!_isSignUp) return null;
+                if (value == null || value.isEmpty) {
+                  return 'Please confirm your password';
+                }
+                if (value != _passwordController.text) {
+                  return 'Passwords do not match';
+                }
+                return null;
+              },
+            ),
+          ],
 
           // Password requirements checklist (sign-up only).
           if (_isSignUp) ...[

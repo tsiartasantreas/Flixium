@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
-import 'features/shell/main_shell.dart';
+import 'features/auth/auth_screen.dart';
 
 /// Root widget of the iFlixify IPTV app.
 ///
@@ -27,7 +27,7 @@ class _FlixiumAppState extends State<FlixiumApp> {
   }
 
   Future<void> _bootstrap() async {
-    // No Supabase init at startup — app launches instantly in guest mode.
+      // No Supabase init at startup — app launches instantly in guest mode.
     // Auth is only triggered when the user explicitly signs in.
     if (mounted) {
       setState(() {
@@ -51,12 +51,13 @@ class _FlixiumAppState extends State<FlixiumApp> {
       );
     }
 
-    // Always go to main shell — auth handled in settings/auth screen.
+    // Default to auth screen. User can choose "Continue as Guest"
+    // to go to MainShell without signing in.
     return MaterialApp(
       title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: NetflixTheme.dark,
-      home: const MainShell(),
+      home: const AuthScreen(),
     );
   }
 }

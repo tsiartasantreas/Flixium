@@ -59,23 +59,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadSettings() async {
-    // Load active profile.
-    final activeProfile = await _profileManager.getActiveProfile();
-    if (!mounted) return;
-    if (activeProfile != null) {
-      setState(() {
-        _profileName = activeProfile.displayName;
-      });
-    }
-
-    // Load Supabase user email (if signed in).
+    // Load Supabase user info (if signed in).
     if (SupabaseService.isInitialized) {
       final user = SupabaseService.client.auth.currentUser;
       if (user != null) {
+        final displayName = user.userMetadata?['display_name'] as String?;
         setState(() {
           _profileEmail = user.email ?? '';
+          if (displayName != null && displayName.isNotEmpty) {
+            _profileName = displayName;
+          }
         });
       }
+    }
+
+    // Load active profile (fallback for name if no Supabase user).
+    final activeProfile = await _profileManager.getActiveProfile();
+    if (!mounted) return;
+    if (activeProfile != null && _profileName == 'User') {
+      setState(() {
+        _profileName = activeProfile.displayName;
+      });
     }
 
     // Load tier.
