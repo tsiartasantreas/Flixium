@@ -214,7 +214,8 @@ class _OfflineScreenState extends State<OfflineScreen> {
             SizedBox(
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () =>
+                    Navigator.of(context).popUntil((route) => route.isFirst),
                 icon: const Icon(Icons.explore),
                 label: const Text('Browse Content'),
                 style: ElevatedButton.styleFrom(

@@ -370,7 +370,6 @@ class OfflineDownloadService {
 
         // Skip if cancelled while queued.
         if (_progressMap[task.contentId]?.state == DownloadState.cancelled) {
-          bgService.decrementTaskCount();
           continue;
         }
 
@@ -403,9 +402,16 @@ class OfflineDownloadService {
           );
         }
         _emitProgress();
-        bgService.decrementTaskCount();
       }
     } finally {
+      // Decrement once after the entire queue is drained (not per-download).
+      // The increment was called once before the loop, so the decrement must
+      // also happen exactly once when all downloads are finished.
+      if (taskCount > 0) {
+        await bgService.decrementTaskCount(
+          notificationText: 'Downloads complete.',
+        );
+      }
       _isProcessing = false;
     }
   }

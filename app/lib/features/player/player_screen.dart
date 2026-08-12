@@ -144,6 +144,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _onVerticalDragStart(DragStartDetails details) {
     _isSwiping = false;
     _swipeStartY = details.globalPosition.dy;
+    _startHideTimer(); // Keep controls visible during swipe.
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
@@ -177,11 +178,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     _resetIndicatorTimer();
+    _startHideTimer(); // Reset auto-hide while user is swiping.
   }
 
   void _onVerticalDragEnd(DragEndDetails details) {
     // Start fading the indicator after a short delay.
     _resetIndicatorTimer();
+    _startHideTimer(); // Reset auto-hide after swipe ends.
   }
 
   void _resetIndicatorTimer() {
@@ -518,7 +521,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
             // Play/Pause button
             GestureDetector(
-              onTap: ctrl.togglePlay,
+              onTap: () {
+                ctrl.togglePlay();
+                _startHideTimer(); // Reset auto-hide on interaction.
+              },
               child: Container(
                 width: 64,
                 height: 64,
@@ -548,7 +554,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           durationText: ctrl.durationText,
           seekFraction: ctrl.seekFraction,
           isLive: widget.isLive,
-          onSeek: widget.isLive ? null : ctrl.seekFractionally,
+          onSeek: widget.isLive
+              ? null
+              : (fraction) {
+                  ctrl.seekFractionally(fraction);
+                  _startHideTimer(); // Reset auto-hide on seek.
+                },
         );
       },
     );

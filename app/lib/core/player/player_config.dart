@@ -77,9 +77,16 @@ class PlayerConfig {
     protocolWhitelist: '*',
   );
 
-  /// Config optimized for live TV streams (hardware decoding enabled).
+  /// Config optimized for live TV streams.
+  ///
+  /// Uses `hwdec=auto-safe` for broad hardware decoding, `protocol-whitelist=*`
+  /// so all transport protocols (HLS, TS, RTMP, UDP, etc.) are accepted, and a
+  /// standard User-Agent to avoid being blocked by IPTV providers.
   static const liveTvConfig = PlayerConfig(
     hwdec: 'auto-safe',
+    userAgent:
+        'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+    protocolWhitelist: '*',
   );
 
   /// Merges [userAgent], [referer], and [extraHeaders] into a single map

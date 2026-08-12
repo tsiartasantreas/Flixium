@@ -39,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Update check state.
   bool _isCheckingForUpdates = false;
+  bool _isRefreshing = false;
 
   // Profile.
   String _profileName = 'User';
@@ -112,6 +113,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Refresh user profile
+  // ---------------------------------------------------------------------------
+
+  Future<void> _refreshUserProfile() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+
+    try {
+      // Re-fetch user info from Supabase.
+      if (!SupabaseService.isInitialized) {
+        try {
+          await SupabaseService.initialize();
+        } catch (_) {}
+      }
+
+      if (SupabaseService.isInitialized) {
+        final user = SupabaseService.client.auth.currentUser;
+        if (user != null) {
+          final displayName = user.userMetadata?['display_name'] as String?;
+          if (mounted) {
+            setState(() {
+              _profileEmail = user.email ?? '';
+              if (displayName != null && displayName.isNotEmpty) {
+                _profileName = displayName;
+              }
+            });
+          }
+        }
+      }
+
+      // Reload playlist count and download count via _loadSettings.
+      await _loadSettings();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile refreshed'),
+            backgroundColor: AppColors.bgSurface,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Refresh failed: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -279,6 +339,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(color: AppColors.textPrimary),
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        actions: [
+          if (_isRefreshing)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.accentPrimary,
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+              onPressed: _refreshUserProfile,
+              tooltip: 'Refresh profile',
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -313,7 +393,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.open_in_new,
             title: 'External Player',
             subtitle: _useExternalPlayer
-                ? 'Open streams in VLC, MX Player, etc.'
+                ? 'When enabled, tapping play will open a chooser to select your preferred video player (VLC, MX Player, etc.)'
                 : 'Use the built-in player',
             value: _useExternalPlayer,
             onChanged: (value) async {

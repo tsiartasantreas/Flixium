@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 
 import '../../core/data/database.dart';
+import '../../core/data/favorites_service.dart';
 import '../../core/data/import_progress_service.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/data/watch_progress_service.dart';
@@ -11,6 +12,7 @@ import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
 import '../detail/detail_screen.dart';
+import '../favorites/favorites_screen.dart';
 import '../import/import_screen.dart';
 import '../search/search_screen.dart';
 import 'widgets/content_row.dart';
@@ -31,11 +33,13 @@ class HomeScreen extends StatefulWidget {
 @visibleForTesting
 class HomeScreenState extends State<HomeScreen> {
   final _db = AppDatabase();
+  final _favoritesService = FavoritesService();
   final _watchProgressService = WatchProgressService();
   final _entitlementService = EntitlementService();
   final _importProgress = ImportProgressService.instance;
   List<ContentRow> _rows = [];
   List<ContinueWatchingItem> _continueWatchingItems = [];
+  List<Favorite> _favorites = [];
   bool _isEmpty = true;
   bool _isLoading = true;
   bool get _isTv =>
@@ -89,7 +93,17 @@ class HomeScreenState extends State<HomeScreen> {
   // Data loading
   // ---------------------------------------------------------------------------
 
+  Future<void> _loadFavorites() async {
+    try {
+      final favs = await _favoritesService.getFavorites();
+      if (mounted) setState(() => _favorites = favs);
+    } catch (_) {}
+  }
+
   Future<void> _loadContent() async {
+    // Load favorites in parallel.
+    _loadFavorites();
+
     // Get playlist IDs belonging to the current user.
     final playlistIds = await _getUserPlaylistIds();
     if (playlistIds.isEmpty) {
@@ -534,6 +548,25 @@ class HomeScreenState extends State<HomeScreen> {
         .then((_) => _loadContent());
   }
 
+  void _navigateToDetailFromFavorite(Favorite fav) {
+    // Parse the contentId to extract the numeric id (e.g. "vod:42" -> 42).
+    final parts = fav.contentId.split(':');
+    final id = parts.length == 2 ? int.tryParse(parts[1]) ?? 0 : 0;
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (_) => DetailScreen(
+          id: id,
+          title: fav.title ?? 'Untitled',
+          imageUrl: fav.poster,
+          url: fav.url ?? '',
+          contentType: fav.contentType,
+        ),
+      ),
+    )
+        .then((_) => _loadContent());
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -777,9 +810,13 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildContentRows() {
-    // Total items: 1 optional Continue Watching row + content rows.
+    // Total items: 1 optional Favorites row + 1 optional Continue Watching
+    // row + content rows.
+    final hasFavorites = _favorites.isNotEmpty;
     final hasContinueWatching = _continueWatchingItems.isNotEmpty;
-    final totalItems = _rows.length + (hasContinueWatching ? 1 : 0);
+    final totalItems = _rows.length +
+        (hasFavorites ? 1 : 0) +
+        (hasContinueWatching ? 1 : 0);
 
     return RefreshIndicator(
       color: AppColors.accentPrimary,
@@ -790,8 +827,38 @@ class HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           itemCount: totalItems,
           itemBuilder: (context, index) {
-            // First slot: Continue Watching (if present).
-            if (hasContinueWatching && index == 0) {
+            // First slot: Favorites row (if present).
+            if (hasFavorites && index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: ContentRow(
+                  label: 'Favorites',
+                  isTv: _isTv,
+                  autofocusFirst: _isTv,
+                  items: _favorites.take(20).map((fav) {
+                    return ContentItem(
+                      title: fav.title ?? 'Untitled',
+                      imageUrl: fav.poster,
+                      contentId: fav.contentId,
+                      contentType: fav.contentType,
+                      url: fav.url,
+                      onTap: () => _navigateToDetailFromFavorite(fav),
+                    );
+                  }).toList(),
+                  onSeeAll: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const FavoritesScreen(),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }
+
+            // Second slot: Continue Watching (if present).
+            final cwOffset = hasFavorites ? 1 : 0;
+            if (hasContinueWatching && index == cwOffset) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: ContinueWatchingRow(items: _continueWatchingItems),
@@ -799,7 +866,9 @@ class HomeScreenState extends State<HomeScreen> {
             }
 
             // Remaining slots: standard content rows.
-            final rowIndex = hasContinueWatching ? index - 1 : index;
+            final rowsOffset = (hasFavorites ? 1 : 0) +
+                (hasContinueWatching ? 1 : 0);
+            final rowIndex = index - rowsOffset;
             return Padding(
               padding: const EdgeInsets.only(bottom: 24),
               child: _rows[rowIndex],
