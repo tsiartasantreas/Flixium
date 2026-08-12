@@ -37,11 +37,15 @@ void main() {
   group('PlayerConfig static configs', () {
     test('defaultConfig is a const instance', () {
       expect(PlayerConfig.defaultConfig, isA<PlayerConfig>());
-      expect(PlayerConfig.defaultConfig.hwdec, 'auto');
+      expect(PlayerConfig.defaultConfig.hwdec, 'auto-safe');
+    });
+
+    test('defaultConfig has wildcard protocol whitelist', () {
+      expect(PlayerConfig.defaultConfig.protocolWhitelist, '*');
     });
 
     test('liveTvConfig has hardware decoding', () {
-      expect(PlayerConfig.liveTvConfig.hwdec, 'mediacodec');
+      expect(PlayerConfig.liveTvConfig.hwdec, 'auto-safe');
     });
 
     test('liveTvConfig has no custom headers', () {

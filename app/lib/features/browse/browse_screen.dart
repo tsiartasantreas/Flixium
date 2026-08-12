@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/data/database.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/favorite_button.dart';
 import '../detail/detail_screen.dart';
 import '../search/search_screen.dart';
 
@@ -564,6 +565,17 @@ class BrowseScreenState extends State<BrowseScreen> {
                   ),
                 ),
 
+                // -- Favourite button --------------------------------------
+                FavoriteButton(
+                  contentId: '${item.contentType}:${item.id}',
+                  contentType: item.contentType,
+                  title: item.title,
+                  poster: item.imageUrl,
+                  url: item.url,
+                  size: 22,
+                ),
+                const SizedBox(width: 4),
+
                 // -- Play button --------------------------------------------
                 IconButton(
                   icon: const Icon(
@@ -652,23 +664,47 @@ class BrowseScreenState extends State<BrowseScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -- Poster / thumbnail ----------------------------------------
+            // -- Poster / thumbnail with favourite button ------------------
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                    ? Image.network(
-                        item.imageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            item.imageUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholder(),
+                          )
+                        : _buildPlaceholder(),
+                  ),
+                  // -- Favourite heart (top-right) -------------------------
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgBase.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: FavoriteButton(
+                        contentId: '${item.contentType}:${item.id}',
+                        contentType: item.contentType,
+                        title: item.title,
+                        poster: item.imageUrl,
+                        url: item.url,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 6),

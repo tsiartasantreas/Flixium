@@ -1051,6 +1051,66 @@ class $VodItemsTable extends VodItems with TableInfo<$VodItemsTable, VodItem> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
+  @override
+  late final GeneratedColumn<String> rating = GeneratedColumn<String>(
+    'rating',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _genreMeta = const VerificationMeta('genre');
+  @override
+  late final GeneratedColumn<String> genre = GeneratedColumn<String>(
+    'genre',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _castMeta = const VerificationMeta('cast');
+  @override
+  late final GeneratedColumn<String> cast = GeneratedColumn<String>(
+    'cast',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _directorMeta = const VerificationMeta(
+    'director',
+  );
+  @override
+  late final GeneratedColumn<String> director = GeneratedColumn<String>(
+    'director',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _releaseDateMeta = const VerificationMeta(
+    'releaseDate',
+  );
+  @override
+  late final GeneratedColumn<String> releaseDate = GeneratedColumn<String>(
+    'release_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1059,6 +1119,12 @@ class $VodItemsTable extends VodItems with TableInfo<$VodItemsTable, VodItem> {
     poster,
     url,
     groupTitle,
+    description,
+    rating,
+    genre,
+    cast,
+    director,
+    releaseDate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1111,6 +1177,48 @@ class $VodItemsTable extends VodItems with TableInfo<$VodItemsTable, VodItem> {
         groupTitle.isAcceptableOrUnknown(data['group_title']!, _groupTitleMeta),
       );
     }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rating')) {
+      context.handle(
+        _ratingMeta,
+        rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
+      );
+    }
+    if (data.containsKey('genre')) {
+      context.handle(
+        _genreMeta,
+        genre.isAcceptableOrUnknown(data['genre']!, _genreMeta),
+      );
+    }
+    if (data.containsKey('cast')) {
+      context.handle(
+        _castMeta,
+        cast.isAcceptableOrUnknown(data['cast']!, _castMeta),
+      );
+    }
+    if (data.containsKey('director')) {
+      context.handle(
+        _directorMeta,
+        director.isAcceptableOrUnknown(data['director']!, _directorMeta),
+      );
+    }
+    if (data.containsKey('release_date')) {
+      context.handle(
+        _releaseDateMeta,
+        releaseDate.isAcceptableOrUnknown(
+          data['release_date']!,
+          _releaseDateMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1144,6 +1252,30 @@ class $VodItemsTable extends VodItems with TableInfo<$VodItemsTable, VodItem> {
         DriftSqlType.string,
         data['${effectivePrefix}group_title'],
       ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      rating: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rating'],
+      ),
+      genre: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}genre'],
+      ),
+      cast: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cast'],
+      ),
+      director: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}director'],
+      ),
+      releaseDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}release_date'],
+      ),
     );
   }
 
@@ -1170,6 +1302,24 @@ class VodItem extends DataClass implements Insertable<VodItem> {
 
   /// M3U `group-title` (e.g. "Movies 4K", "Action").
   final String? groupTitle;
+
+  /// Plot / overview description.
+  final String? description;
+
+  /// Rating (e.g. "7.5", "PG-13").
+  final String? rating;
+
+  /// Genre(s) (e.g. "Action, Comedy").
+  final String? genre;
+
+  /// Cast (comma-separated names).
+  final String? cast;
+
+  /// Director name(s).
+  final String? director;
+
+  /// Release date (e.g. "2024-01-15").
+  final String? releaseDate;
   const VodItem({
     required this.id,
     required this.playlistId,
@@ -1177,6 +1327,12 @@ class VodItem extends DataClass implements Insertable<VodItem> {
     this.poster,
     required this.url,
     this.groupTitle,
+    this.description,
+    this.rating,
+    this.genre,
+    this.cast,
+    this.director,
+    this.releaseDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1190,6 +1346,24 @@ class VodItem extends DataClass implements Insertable<VodItem> {
     map['url'] = Variable<String>(url);
     if (!nullToAbsent || groupTitle != null) {
       map['group_title'] = Variable<String>(groupTitle);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || rating != null) {
+      map['rating'] = Variable<String>(rating);
+    }
+    if (!nullToAbsent || genre != null) {
+      map['genre'] = Variable<String>(genre);
+    }
+    if (!nullToAbsent || cast != null) {
+      map['cast'] = Variable<String>(cast);
+    }
+    if (!nullToAbsent || director != null) {
+      map['director'] = Variable<String>(director);
+    }
+    if (!nullToAbsent || releaseDate != null) {
+      map['release_date'] = Variable<String>(releaseDate);
     }
     return map;
   }
@@ -1206,6 +1380,22 @@ class VodItem extends DataClass implements Insertable<VodItem> {
       groupTitle: groupTitle == null && nullToAbsent
           ? const Value.absent()
           : Value(groupTitle),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      rating: rating == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rating),
+      genre: genre == null && nullToAbsent
+          ? const Value.absent()
+          : Value(genre),
+      cast: cast == null && nullToAbsent ? const Value.absent() : Value(cast),
+      director: director == null && nullToAbsent
+          ? const Value.absent()
+          : Value(director),
+      releaseDate: releaseDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(releaseDate),
     );
   }
 
@@ -1221,6 +1411,12 @@ class VodItem extends DataClass implements Insertable<VodItem> {
       poster: serializer.fromJson<String?>(json['poster']),
       url: serializer.fromJson<String>(json['url']),
       groupTitle: serializer.fromJson<String?>(json['groupTitle']),
+      description: serializer.fromJson<String?>(json['description']),
+      rating: serializer.fromJson<String?>(json['rating']),
+      genre: serializer.fromJson<String?>(json['genre']),
+      cast: serializer.fromJson<String?>(json['cast']),
+      director: serializer.fromJson<String?>(json['director']),
+      releaseDate: serializer.fromJson<String?>(json['releaseDate']),
     );
   }
   @override
@@ -1233,6 +1429,12 @@ class VodItem extends DataClass implements Insertable<VodItem> {
       'poster': serializer.toJson<String?>(poster),
       'url': serializer.toJson<String>(url),
       'groupTitle': serializer.toJson<String?>(groupTitle),
+      'description': serializer.toJson<String?>(description),
+      'rating': serializer.toJson<String?>(rating),
+      'genre': serializer.toJson<String?>(genre),
+      'cast': serializer.toJson<String?>(cast),
+      'director': serializer.toJson<String?>(director),
+      'releaseDate': serializer.toJson<String?>(releaseDate),
     };
   }
 
@@ -1243,6 +1445,12 @@ class VodItem extends DataClass implements Insertable<VodItem> {
     Value<String?> poster = const Value.absent(),
     String? url,
     Value<String?> groupTitle = const Value.absent(),
+    Value<String?> description = const Value.absent(),
+    Value<String?> rating = const Value.absent(),
+    Value<String?> genre = const Value.absent(),
+    Value<String?> cast = const Value.absent(),
+    Value<String?> director = const Value.absent(),
+    Value<String?> releaseDate = const Value.absent(),
   }) => VodItem(
     id: id ?? this.id,
     playlistId: playlistId ?? this.playlistId,
@@ -1250,6 +1458,12 @@ class VodItem extends DataClass implements Insertable<VodItem> {
     poster: poster.present ? poster.value : this.poster,
     url: url ?? this.url,
     groupTitle: groupTitle.present ? groupTitle.value : this.groupTitle,
+    description: description.present ? description.value : this.description,
+    rating: rating.present ? rating.value : this.rating,
+    genre: genre.present ? genre.value : this.genre,
+    cast: cast.present ? cast.value : this.cast,
+    director: director.present ? director.value : this.director,
+    releaseDate: releaseDate.present ? releaseDate.value : this.releaseDate,
   );
   VodItem copyWithCompanion(VodItemsCompanion data) {
     return VodItem(
@@ -1263,6 +1477,16 @@ class VodItem extends DataClass implements Insertable<VodItem> {
       groupTitle: data.groupTitle.present
           ? data.groupTitle.value
           : this.groupTitle,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      rating: data.rating.present ? data.rating.value : this.rating,
+      genre: data.genre.present ? data.genre.value : this.genre,
+      cast: data.cast.present ? data.cast.value : this.cast,
+      director: data.director.present ? data.director.value : this.director,
+      releaseDate: data.releaseDate.present
+          ? data.releaseDate.value
+          : this.releaseDate,
     );
   }
 
@@ -1274,14 +1498,32 @@ class VodItem extends DataClass implements Insertable<VodItem> {
           ..write('title: $title, ')
           ..write('poster: $poster, ')
           ..write('url: $url, ')
-          ..write('groupTitle: $groupTitle')
+          ..write('groupTitle: $groupTitle, ')
+          ..write('description: $description, ')
+          ..write('rating: $rating, ')
+          ..write('genre: $genre, ')
+          ..write('cast: $cast, ')
+          ..write('director: $director, ')
+          ..write('releaseDate: $releaseDate')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, playlistId, title, poster, url, groupTitle);
+  int get hashCode => Object.hash(
+    id,
+    playlistId,
+    title,
+    poster,
+    url,
+    groupTitle,
+    description,
+    rating,
+    genre,
+    cast,
+    director,
+    releaseDate,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1291,7 +1533,13 @@ class VodItem extends DataClass implements Insertable<VodItem> {
           other.title == this.title &&
           other.poster == this.poster &&
           other.url == this.url &&
-          other.groupTitle == this.groupTitle);
+          other.groupTitle == this.groupTitle &&
+          other.description == this.description &&
+          other.rating == this.rating &&
+          other.genre == this.genre &&
+          other.cast == this.cast &&
+          other.director == this.director &&
+          other.releaseDate == this.releaseDate);
 }
 
 class VodItemsCompanion extends UpdateCompanion<VodItem> {
@@ -1301,6 +1549,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
   final Value<String?> poster;
   final Value<String> url;
   final Value<String?> groupTitle;
+  final Value<String?> description;
+  final Value<String?> rating;
+  final Value<String?> genre;
+  final Value<String?> cast;
+  final Value<String?> director;
+  final Value<String?> releaseDate;
   const VodItemsCompanion({
     this.id = const Value.absent(),
     this.playlistId = const Value.absent(),
@@ -1308,6 +1562,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
     this.poster = const Value.absent(),
     this.url = const Value.absent(),
     this.groupTitle = const Value.absent(),
+    this.description = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.genre = const Value.absent(),
+    this.cast = const Value.absent(),
+    this.director = const Value.absent(),
+    this.releaseDate = const Value.absent(),
   });
   VodItemsCompanion.insert({
     this.id = const Value.absent(),
@@ -1316,6 +1576,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
     this.poster = const Value.absent(),
     required String url,
     this.groupTitle = const Value.absent(),
+    this.description = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.genre = const Value.absent(),
+    this.cast = const Value.absent(),
+    this.director = const Value.absent(),
+    this.releaseDate = const Value.absent(),
   }) : playlistId = Value(playlistId),
        title = Value(title),
        url = Value(url);
@@ -1326,6 +1592,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
     Expression<String>? poster,
     Expression<String>? url,
     Expression<String>? groupTitle,
+    Expression<String>? description,
+    Expression<String>? rating,
+    Expression<String>? genre,
+    Expression<String>? cast,
+    Expression<String>? director,
+    Expression<String>? releaseDate,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1334,6 +1606,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
       if (poster != null) 'poster': poster,
       if (url != null) 'url': url,
       if (groupTitle != null) 'group_title': groupTitle,
+      if (description != null) 'description': description,
+      if (rating != null) 'rating': rating,
+      if (genre != null) 'genre': genre,
+      if (cast != null) 'cast': cast,
+      if (director != null) 'director': director,
+      if (releaseDate != null) 'release_date': releaseDate,
     });
   }
 
@@ -1344,6 +1622,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
     Value<String?>? poster,
     Value<String>? url,
     Value<String?>? groupTitle,
+    Value<String?>? description,
+    Value<String?>? rating,
+    Value<String?>? genre,
+    Value<String?>? cast,
+    Value<String?>? director,
+    Value<String?>? releaseDate,
   }) {
     return VodItemsCompanion(
       id: id ?? this.id,
@@ -1352,6 +1636,12 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
       poster: poster ?? this.poster,
       url: url ?? this.url,
       groupTitle: groupTitle ?? this.groupTitle,
+      description: description ?? this.description,
+      rating: rating ?? this.rating,
+      genre: genre ?? this.genre,
+      cast: cast ?? this.cast,
+      director: director ?? this.director,
+      releaseDate: releaseDate ?? this.releaseDate,
     );
   }
 
@@ -1376,6 +1666,24 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
     if (groupTitle.present) {
       map['group_title'] = Variable<String>(groupTitle.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (rating.present) {
+      map['rating'] = Variable<String>(rating.value);
+    }
+    if (genre.present) {
+      map['genre'] = Variable<String>(genre.value);
+    }
+    if (cast.present) {
+      map['cast'] = Variable<String>(cast.value);
+    }
+    if (director.present) {
+      map['director'] = Variable<String>(director.value);
+    }
+    if (releaseDate.present) {
+      map['release_date'] = Variable<String>(releaseDate.value);
+    }
     return map;
   }
 
@@ -1387,7 +1695,13 @@ class VodItemsCompanion extends UpdateCompanion<VodItem> {
           ..write('title: $title, ')
           ..write('poster: $poster, ')
           ..write('url: $url, ')
-          ..write('groupTitle: $groupTitle')
+          ..write('groupTitle: $groupTitle, ')
+          ..write('description: $description, ')
+          ..write('rating: $rating, ')
+          ..write('genre: $genre, ')
+          ..write('cast: $cast, ')
+          ..write('director: $director, ')
+          ..write('releaseDate: $releaseDate')
           ..write(')'))
         .toString();
   }
@@ -1443,8 +1757,79 @@ class $TvSeriesTable extends TvSeries with TableInfo<$TvSeriesTable, TvSery> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, playlistId, title, poster];
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
+  @override
+  late final GeneratedColumn<String> rating = GeneratedColumn<String>(
+    'rating',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _genreMeta = const VerificationMeta('genre');
+  @override
+  late final GeneratedColumn<String> genre = GeneratedColumn<String>(
+    'genre',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _castMeta = const VerificationMeta('cast');
+  @override
+  late final GeneratedColumn<String> cast = GeneratedColumn<String>(
+    'cast',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _directorMeta = const VerificationMeta(
+    'director',
+  );
+  @override
+  late final GeneratedColumn<String> director = GeneratedColumn<String>(
+    'director',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _releaseDateMeta = const VerificationMeta(
+    'releaseDate',
+  );
+  @override
+  late final GeneratedColumn<String> releaseDate = GeneratedColumn<String>(
+    'release_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    playlistId,
+    title,
+    poster,
+    description,
+    rating,
+    genre,
+    cast,
+    director,
+    releaseDate,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1482,6 +1867,48 @@ class $TvSeriesTable extends TvSeries with TableInfo<$TvSeriesTable, TvSery> {
         poster.isAcceptableOrUnknown(data['poster']!, _posterMeta),
       );
     }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rating')) {
+      context.handle(
+        _ratingMeta,
+        rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
+      );
+    }
+    if (data.containsKey('genre')) {
+      context.handle(
+        _genreMeta,
+        genre.isAcceptableOrUnknown(data['genre']!, _genreMeta),
+      );
+    }
+    if (data.containsKey('cast')) {
+      context.handle(
+        _castMeta,
+        cast.isAcceptableOrUnknown(data['cast']!, _castMeta),
+      );
+    }
+    if (data.containsKey('director')) {
+      context.handle(
+        _directorMeta,
+        director.isAcceptableOrUnknown(data['director']!, _directorMeta),
+      );
+    }
+    if (data.containsKey('release_date')) {
+      context.handle(
+        _releaseDateMeta,
+        releaseDate.isAcceptableOrUnknown(
+          data['release_date']!,
+          _releaseDateMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1507,6 +1934,30 @@ class $TvSeriesTable extends TvSeries with TableInfo<$TvSeriesTable, TvSery> {
         DriftSqlType.string,
         data['${effectivePrefix}poster'],
       ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      rating: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rating'],
+      ),
+      genre: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}genre'],
+      ),
+      cast: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cast'],
+      ),
+      director: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}director'],
+      ),
+      releaseDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}release_date'],
+      ),
     );
   }
 
@@ -1527,11 +1978,35 @@ class TvSery extends DataClass implements Insertable<TvSery> {
 
   /// Poster image URL (`tvg-logo` from first episode entry).
   final String? poster;
+
+  /// Plot / overview description.
+  final String? description;
+
+  /// Rating (e.g. "8.2", "TV-MA").
+  final String? rating;
+
+  /// Genre(s) (e.g. "Drama, Thriller").
+  final String? genre;
+
+  /// Cast (comma-separated names).
+  final String? cast;
+
+  /// Director / creator name(s).
+  final String? director;
+
+  /// Release date (e.g. "2023-06-15").
+  final String? releaseDate;
   const TvSery({
     required this.id,
     required this.playlistId,
     required this.title,
     this.poster,
+    this.description,
+    this.rating,
+    this.genre,
+    this.cast,
+    this.director,
+    this.releaseDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1541,6 +2016,24 @@ class TvSery extends DataClass implements Insertable<TvSery> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || poster != null) {
       map['poster'] = Variable<String>(poster);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || rating != null) {
+      map['rating'] = Variable<String>(rating);
+    }
+    if (!nullToAbsent || genre != null) {
+      map['genre'] = Variable<String>(genre);
+    }
+    if (!nullToAbsent || cast != null) {
+      map['cast'] = Variable<String>(cast);
+    }
+    if (!nullToAbsent || director != null) {
+      map['director'] = Variable<String>(director);
+    }
+    if (!nullToAbsent || releaseDate != null) {
+      map['release_date'] = Variable<String>(releaseDate);
     }
     return map;
   }
@@ -1553,6 +2046,22 @@ class TvSery extends DataClass implements Insertable<TvSery> {
       poster: poster == null && nullToAbsent
           ? const Value.absent()
           : Value(poster),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      rating: rating == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rating),
+      genre: genre == null && nullToAbsent
+          ? const Value.absent()
+          : Value(genre),
+      cast: cast == null && nullToAbsent ? const Value.absent() : Value(cast),
+      director: director == null && nullToAbsent
+          ? const Value.absent()
+          : Value(director),
+      releaseDate: releaseDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(releaseDate),
     );
   }
 
@@ -1566,6 +2075,12 @@ class TvSery extends DataClass implements Insertable<TvSery> {
       playlistId: serializer.fromJson<int>(json['playlistId']),
       title: serializer.fromJson<String>(json['title']),
       poster: serializer.fromJson<String?>(json['poster']),
+      description: serializer.fromJson<String?>(json['description']),
+      rating: serializer.fromJson<String?>(json['rating']),
+      genre: serializer.fromJson<String?>(json['genre']),
+      cast: serializer.fromJson<String?>(json['cast']),
+      director: serializer.fromJson<String?>(json['director']),
+      releaseDate: serializer.fromJson<String?>(json['releaseDate']),
     );
   }
   @override
@@ -1576,6 +2091,12 @@ class TvSery extends DataClass implements Insertable<TvSery> {
       'playlistId': serializer.toJson<int>(playlistId),
       'title': serializer.toJson<String>(title),
       'poster': serializer.toJson<String?>(poster),
+      'description': serializer.toJson<String?>(description),
+      'rating': serializer.toJson<String?>(rating),
+      'genre': serializer.toJson<String?>(genre),
+      'cast': serializer.toJson<String?>(cast),
+      'director': serializer.toJson<String?>(director),
+      'releaseDate': serializer.toJson<String?>(releaseDate),
     };
   }
 
@@ -1584,11 +2105,23 @@ class TvSery extends DataClass implements Insertable<TvSery> {
     int? playlistId,
     String? title,
     Value<String?> poster = const Value.absent(),
+    Value<String?> description = const Value.absent(),
+    Value<String?> rating = const Value.absent(),
+    Value<String?> genre = const Value.absent(),
+    Value<String?> cast = const Value.absent(),
+    Value<String?> director = const Value.absent(),
+    Value<String?> releaseDate = const Value.absent(),
   }) => TvSery(
     id: id ?? this.id,
     playlistId: playlistId ?? this.playlistId,
     title: title ?? this.title,
     poster: poster.present ? poster.value : this.poster,
+    description: description.present ? description.value : this.description,
+    rating: rating.present ? rating.value : this.rating,
+    genre: genre.present ? genre.value : this.genre,
+    cast: cast.present ? cast.value : this.cast,
+    director: director.present ? director.value : this.director,
+    releaseDate: releaseDate.present ? releaseDate.value : this.releaseDate,
   );
   TvSery copyWithCompanion(TvSeriesCompanion data) {
     return TvSery(
@@ -1598,6 +2131,16 @@ class TvSery extends DataClass implements Insertable<TvSery> {
           : this.playlistId,
       title: data.title.present ? data.title.value : this.title,
       poster: data.poster.present ? data.poster.value : this.poster,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      rating: data.rating.present ? data.rating.value : this.rating,
+      genre: data.genre.present ? data.genre.value : this.genre,
+      cast: data.cast.present ? data.cast.value : this.cast,
+      director: data.director.present ? data.director.value : this.director,
+      releaseDate: data.releaseDate.present
+          ? data.releaseDate.value
+          : this.releaseDate,
     );
   }
 
@@ -1607,13 +2150,30 @@ class TvSery extends DataClass implements Insertable<TvSery> {
           ..write('id: $id, ')
           ..write('playlistId: $playlistId, ')
           ..write('title: $title, ')
-          ..write('poster: $poster')
+          ..write('poster: $poster, ')
+          ..write('description: $description, ')
+          ..write('rating: $rating, ')
+          ..write('genre: $genre, ')
+          ..write('cast: $cast, ')
+          ..write('director: $director, ')
+          ..write('releaseDate: $releaseDate')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, playlistId, title, poster);
+  int get hashCode => Object.hash(
+    id,
+    playlistId,
+    title,
+    poster,
+    description,
+    rating,
+    genre,
+    cast,
+    director,
+    releaseDate,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1621,7 +2181,13 @@ class TvSery extends DataClass implements Insertable<TvSery> {
           other.id == this.id &&
           other.playlistId == this.playlistId &&
           other.title == this.title &&
-          other.poster == this.poster);
+          other.poster == this.poster &&
+          other.description == this.description &&
+          other.rating == this.rating &&
+          other.genre == this.genre &&
+          other.cast == this.cast &&
+          other.director == this.director &&
+          other.releaseDate == this.releaseDate);
 }
 
 class TvSeriesCompanion extends UpdateCompanion<TvSery> {
@@ -1629,17 +2195,35 @@ class TvSeriesCompanion extends UpdateCompanion<TvSery> {
   final Value<int> playlistId;
   final Value<String> title;
   final Value<String?> poster;
+  final Value<String?> description;
+  final Value<String?> rating;
+  final Value<String?> genre;
+  final Value<String?> cast;
+  final Value<String?> director;
+  final Value<String?> releaseDate;
   const TvSeriesCompanion({
     this.id = const Value.absent(),
     this.playlistId = const Value.absent(),
     this.title = const Value.absent(),
     this.poster = const Value.absent(),
+    this.description = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.genre = const Value.absent(),
+    this.cast = const Value.absent(),
+    this.director = const Value.absent(),
+    this.releaseDate = const Value.absent(),
   });
   TvSeriesCompanion.insert({
     this.id = const Value.absent(),
     required int playlistId,
     required String title,
     this.poster = const Value.absent(),
+    this.description = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.genre = const Value.absent(),
+    this.cast = const Value.absent(),
+    this.director = const Value.absent(),
+    this.releaseDate = const Value.absent(),
   }) : playlistId = Value(playlistId),
        title = Value(title);
   static Insertable<TvSery> custom({
@@ -1647,12 +2231,24 @@ class TvSeriesCompanion extends UpdateCompanion<TvSery> {
     Expression<int>? playlistId,
     Expression<String>? title,
     Expression<String>? poster,
+    Expression<String>? description,
+    Expression<String>? rating,
+    Expression<String>? genre,
+    Expression<String>? cast,
+    Expression<String>? director,
+    Expression<String>? releaseDate,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (playlistId != null) 'playlist_id': playlistId,
       if (title != null) 'title': title,
       if (poster != null) 'poster': poster,
+      if (description != null) 'description': description,
+      if (rating != null) 'rating': rating,
+      if (genre != null) 'genre': genre,
+      if (cast != null) 'cast': cast,
+      if (director != null) 'director': director,
+      if (releaseDate != null) 'release_date': releaseDate,
     });
   }
 
@@ -1661,12 +2257,24 @@ class TvSeriesCompanion extends UpdateCompanion<TvSery> {
     Value<int>? playlistId,
     Value<String>? title,
     Value<String?>? poster,
+    Value<String?>? description,
+    Value<String?>? rating,
+    Value<String?>? genre,
+    Value<String?>? cast,
+    Value<String?>? director,
+    Value<String?>? releaseDate,
   }) {
     return TvSeriesCompanion(
       id: id ?? this.id,
       playlistId: playlistId ?? this.playlistId,
       title: title ?? this.title,
       poster: poster ?? this.poster,
+      description: description ?? this.description,
+      rating: rating ?? this.rating,
+      genre: genre ?? this.genre,
+      cast: cast ?? this.cast,
+      director: director ?? this.director,
+      releaseDate: releaseDate ?? this.releaseDate,
     );
   }
 
@@ -1685,6 +2293,24 @@ class TvSeriesCompanion extends UpdateCompanion<TvSery> {
     if (poster.present) {
       map['poster'] = Variable<String>(poster.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (rating.present) {
+      map['rating'] = Variable<String>(rating.value);
+    }
+    if (genre.present) {
+      map['genre'] = Variable<String>(genre.value);
+    }
+    if (cast.present) {
+      map['cast'] = Variable<String>(cast.value);
+    }
+    if (director.present) {
+      map['director'] = Variable<String>(director.value);
+    }
+    if (releaseDate.present) {
+      map['release_date'] = Variable<String>(releaseDate.value);
+    }
     return map;
   }
 
@@ -1694,7 +2320,13 @@ class TvSeriesCompanion extends UpdateCompanion<TvSery> {
           ..write('id: $id, ')
           ..write('playlistId: $playlistId, ')
           ..write('title: $title, ')
-          ..write('poster: $poster')
+          ..write('poster: $poster, ')
+          ..write('description: $description, ')
+          ..write('rating: $rating, ')
+          ..write('genre: $genre, ')
+          ..write('cast: $cast, ')
+          ..write('director: $director, ')
+          ..write('releaseDate: $releaseDate')
           ..write(')'))
         .toString();
   }
@@ -2904,6 +3536,33 @@ class $FavoritesTable extends Favorites
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _posterMeta = const VerificationMeta('poster');
+  @override
+  late final GeneratedColumn<String> poster = GeneratedColumn<String>(
+    'poster',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _addedAtMeta = const VerificationMeta(
     'addedAt',
   );
@@ -2916,7 +3575,14 @@ class $FavoritesTable extends Favorites
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [contentId, contentType, addedAt];
+  List<GeneratedColumn> get $columns => [
+    contentId,
+    contentType,
+    title,
+    poster,
+    url,
+    addedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2948,6 +3614,24 @@ class $FavoritesTable extends Favorites
     } else if (isInserting) {
       context.missing(_contentTypeMeta);
     }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('poster')) {
+      context.handle(
+        _posterMeta,
+        poster.isAcceptableOrUnknown(data['poster']!, _posterMeta),
+      );
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    }
     if (data.containsKey('added_at')) {
       context.handle(
         _addedAtMeta,
@@ -2973,6 +3657,18 @@ class $FavoritesTable extends Favorites
         DriftSqlType.string,
         data['${effectivePrefix}content_type'],
       )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      poster: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}poster'],
+      ),
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      ),
       addedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}added_at'],
@@ -2992,10 +3688,22 @@ class Favorite extends DataClass implements Insertable<Favorite> {
 
   /// Entity type: `"channel"`, `"vod"`, or `"series"`.
   final String contentType;
+
+  /// Display title of the favorited item.
+  final String? title;
+
+  /// Poster / thumbnail image URL.
+  final String? poster;
+
+  /// Stream URL for playback.
+  final String? url;
   final DateTime addedAt;
   const Favorite({
     required this.contentId,
     required this.contentType,
+    this.title,
+    this.poster,
+    this.url,
     required this.addedAt,
   });
   @override
@@ -3003,6 +3711,15 @@ class Favorite extends DataClass implements Insertable<Favorite> {
     final map = <String, Expression>{};
     map['content_id'] = Variable<String>(contentId);
     map['content_type'] = Variable<String>(contentType);
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || poster != null) {
+      map['poster'] = Variable<String>(poster);
+    }
+    if (!nullToAbsent || url != null) {
+      map['url'] = Variable<String>(url);
+    }
     map['added_at'] = Variable<DateTime>(addedAt);
     return map;
   }
@@ -3011,6 +3728,13 @@ class Favorite extends DataClass implements Insertable<Favorite> {
     return FavoritesCompanion(
       contentId: Value(contentId),
       contentType: Value(contentType),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      poster: poster == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poster),
+      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
       addedAt: Value(addedAt),
     );
   }
@@ -3023,6 +3747,9 @@ class Favorite extends DataClass implements Insertable<Favorite> {
     return Favorite(
       contentId: serializer.fromJson<String>(json['contentId']),
       contentType: serializer.fromJson<String>(json['contentType']),
+      title: serializer.fromJson<String?>(json['title']),
+      poster: serializer.fromJson<String?>(json['poster']),
+      url: serializer.fromJson<String?>(json['url']),
       addedAt: serializer.fromJson<DateTime>(json['addedAt']),
     );
   }
@@ -3032,6 +3759,9 @@ class Favorite extends DataClass implements Insertable<Favorite> {
     return <String, dynamic>{
       'contentId': serializer.toJson<String>(contentId),
       'contentType': serializer.toJson<String>(contentType),
+      'title': serializer.toJson<String?>(title),
+      'poster': serializer.toJson<String?>(poster),
+      'url': serializer.toJson<String?>(url),
       'addedAt': serializer.toJson<DateTime>(addedAt),
     };
   }
@@ -3039,10 +3769,16 @@ class Favorite extends DataClass implements Insertable<Favorite> {
   Favorite copyWith({
     String? contentId,
     String? contentType,
+    Value<String?> title = const Value.absent(),
+    Value<String?> poster = const Value.absent(),
+    Value<String?> url = const Value.absent(),
     DateTime? addedAt,
   }) => Favorite(
     contentId: contentId ?? this.contentId,
     contentType: contentType ?? this.contentType,
+    title: title.present ? title.value : this.title,
+    poster: poster.present ? poster.value : this.poster,
+    url: url.present ? url.value : this.url,
     addedAt: addedAt ?? this.addedAt,
   );
   Favorite copyWithCompanion(FavoritesCompanion data) {
@@ -3051,6 +3787,9 @@ class Favorite extends DataClass implements Insertable<Favorite> {
       contentType: data.contentType.present
           ? data.contentType.value
           : this.contentType,
+      title: data.title.present ? data.title.value : this.title,
+      poster: data.poster.present ? data.poster.value : this.poster,
+      url: data.url.present ? data.url.value : this.url,
       addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
     );
   }
@@ -3060,36 +3799,52 @@ class Favorite extends DataClass implements Insertable<Favorite> {
     return (StringBuffer('Favorite(')
           ..write('contentId: $contentId, ')
           ..write('contentType: $contentType, ')
+          ..write('title: $title, ')
+          ..write('poster: $poster, ')
+          ..write('url: $url, ')
           ..write('addedAt: $addedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(contentId, contentType, addedAt);
+  int get hashCode =>
+      Object.hash(contentId, contentType, title, poster, url, addedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Favorite &&
           other.contentId == this.contentId &&
           other.contentType == this.contentType &&
+          other.title == this.title &&
+          other.poster == this.poster &&
+          other.url == this.url &&
           other.addedAt == this.addedAt);
 }
 
 class FavoritesCompanion extends UpdateCompanion<Favorite> {
   final Value<String> contentId;
   final Value<String> contentType;
+  final Value<String?> title;
+  final Value<String?> poster;
+  final Value<String?> url;
   final Value<DateTime> addedAt;
   final Value<int> rowid;
   const FavoritesCompanion({
     this.contentId = const Value.absent(),
     this.contentType = const Value.absent(),
+    this.title = const Value.absent(),
+    this.poster = const Value.absent(),
+    this.url = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FavoritesCompanion.insert({
     required String contentId,
     required String contentType,
+    this.title = const Value.absent(),
+    this.poster = const Value.absent(),
+    this.url = const Value.absent(),
     required DateTime addedAt,
     this.rowid = const Value.absent(),
   }) : contentId = Value(contentId),
@@ -3098,12 +3853,18 @@ class FavoritesCompanion extends UpdateCompanion<Favorite> {
   static Insertable<Favorite> custom({
     Expression<String>? contentId,
     Expression<String>? contentType,
+    Expression<String>? title,
+    Expression<String>? poster,
+    Expression<String>? url,
     Expression<DateTime>? addedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (contentId != null) 'content_id': contentId,
       if (contentType != null) 'content_type': contentType,
+      if (title != null) 'title': title,
+      if (poster != null) 'poster': poster,
+      if (url != null) 'url': url,
       if (addedAt != null) 'added_at': addedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3112,12 +3873,18 @@ class FavoritesCompanion extends UpdateCompanion<Favorite> {
   FavoritesCompanion copyWith({
     Value<String>? contentId,
     Value<String>? contentType,
+    Value<String?>? title,
+    Value<String?>? poster,
+    Value<String?>? url,
     Value<DateTime>? addedAt,
     Value<int>? rowid,
   }) {
     return FavoritesCompanion(
       contentId: contentId ?? this.contentId,
       contentType: contentType ?? this.contentType,
+      title: title ?? this.title,
+      poster: poster ?? this.poster,
+      url: url ?? this.url,
       addedAt: addedAt ?? this.addedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -3131,6 +3898,15 @@ class FavoritesCompanion extends UpdateCompanion<Favorite> {
     }
     if (contentType.present) {
       map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (poster.present) {
+      map['poster'] = Variable<String>(poster.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
     }
     if (addedAt.present) {
       map['added_at'] = Variable<DateTime>(addedAt.value);
@@ -3146,6 +3922,9 @@ class FavoritesCompanion extends UpdateCompanion<Favorite> {
     return (StringBuffer('FavoritesCompanion(')
           ..write('contentId: $contentId, ')
           ..write('contentType: $contentType, ')
+          ..write('title: $title, ')
+          ..write('poster: $poster, ')
+          ..write('url: $url, ')
           ..write('addedAt: $addedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4025,6 +4804,28 @@ class $DownloadedItemsTable extends DownloadedItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('completed'),
+  );
+  static const VerificationMeta _progressMeta = const VerificationMeta(
+    'progress',
+  );
+  @override
+  late final GeneratedColumn<double> progress = GeneratedColumn<double>(
+    'progress',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4036,6 +4837,8 @@ class $DownloadedItemsTable extends DownloadedItems
     contentType,
     thumbnailUrl,
     streamUrl,
+    status,
+    progress,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4121,6 +4924,18 @@ class $DownloadedItemsTable extends DownloadedItems
         streamUrl.isAcceptableOrUnknown(data['stream_url']!, _streamUrlMeta),
       );
     }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('progress')) {
+      context.handle(
+        _progressMeta,
+        progress.isAcceptableOrUnknown(data['progress']!, _progressMeta),
+      );
+    }
     return context;
   }
 
@@ -4166,6 +4981,14 @@ class $DownloadedItemsTable extends DownloadedItems
         DriftSqlType.string,
         data['${effectivePrefix}stream_url'],
       ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      progress: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}progress'],
+      )!,
     );
   }
 
@@ -4201,6 +5024,13 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
 
   /// Optional URL for streaming (stored so we can re-download or share).
   final String? streamUrl;
+
+  /// Download status: `"pending"`, `"downloading"`, `"completed"`, `"failed"`.
+  /// Defaults to `"completed"` for backward compatibility.
+  final String status;
+
+  /// Download progress fraction (0.0 to 1.0). Defaults to 0.0.
+  final double progress;
   const DownloadedItem({
     required this.id,
     required this.contentId,
@@ -4211,6 +5041,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     required this.contentType,
     this.thumbnailUrl,
     this.streamUrl,
+    required this.status,
+    required this.progress,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4228,6 +5060,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     if (!nullToAbsent || streamUrl != null) {
       map['stream_url'] = Variable<String>(streamUrl);
     }
+    map['status'] = Variable<String>(status);
+    map['progress'] = Variable<double>(progress);
     return map;
   }
 
@@ -4246,6 +5080,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       streamUrl: streamUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(streamUrl),
+      status: Value(status),
+      progress: Value(progress),
     );
   }
 
@@ -4264,6 +5100,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       contentType: serializer.fromJson<String>(json['contentType']),
       thumbnailUrl: serializer.fromJson<String?>(json['thumbnailUrl']),
       streamUrl: serializer.fromJson<String?>(json['streamUrl']),
+      status: serializer.fromJson<String>(json['status']),
+      progress: serializer.fromJson<double>(json['progress']),
     );
   }
   @override
@@ -4279,6 +5117,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       'contentType': serializer.toJson<String>(contentType),
       'thumbnailUrl': serializer.toJson<String?>(thumbnailUrl),
       'streamUrl': serializer.toJson<String?>(streamUrl),
+      'status': serializer.toJson<String>(status),
+      'progress': serializer.toJson<double>(progress),
     };
   }
 
@@ -4292,6 +5132,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     String? contentType,
     Value<String?> thumbnailUrl = const Value.absent(),
     Value<String?> streamUrl = const Value.absent(),
+    String? status,
+    double? progress,
   }) => DownloadedItem(
     id: id ?? this.id,
     contentId: contentId ?? this.contentId,
@@ -4302,6 +5144,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     contentType: contentType ?? this.contentType,
     thumbnailUrl: thumbnailUrl.present ? thumbnailUrl.value : this.thumbnailUrl,
     streamUrl: streamUrl.present ? streamUrl.value : this.streamUrl,
+    status: status ?? this.status,
+    progress: progress ?? this.progress,
   );
   DownloadedItem copyWithCompanion(DownloadedItemsCompanion data) {
     return DownloadedItem(
@@ -4320,6 +5164,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
           ? data.thumbnailUrl.value
           : this.thumbnailUrl,
       streamUrl: data.streamUrl.present ? data.streamUrl.value : this.streamUrl,
+      status: data.status.present ? data.status.value : this.status,
+      progress: data.progress.present ? data.progress.value : this.progress,
     );
   }
 
@@ -4334,7 +5180,9 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
           ..write('downloadedAt: $downloadedAt, ')
           ..write('contentType: $contentType, ')
           ..write('thumbnailUrl: $thumbnailUrl, ')
-          ..write('streamUrl: $streamUrl')
+          ..write('streamUrl: $streamUrl, ')
+          ..write('status: $status, ')
+          ..write('progress: $progress')
           ..write(')'))
         .toString();
   }
@@ -4350,6 +5198,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     contentType,
     thumbnailUrl,
     streamUrl,
+    status,
+    progress,
   );
   @override
   bool operator ==(Object other) =>
@@ -4363,7 +5213,9 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
           other.downloadedAt == this.downloadedAt &&
           other.contentType == this.contentType &&
           other.thumbnailUrl == this.thumbnailUrl &&
-          other.streamUrl == this.streamUrl);
+          other.streamUrl == this.streamUrl &&
+          other.status == this.status &&
+          other.progress == this.progress);
 }
 
 class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
@@ -4376,6 +5228,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
   final Value<String> contentType;
   final Value<String?> thumbnailUrl;
   final Value<String?> streamUrl;
+  final Value<String> status;
+  final Value<double> progress;
   const DownloadedItemsCompanion({
     this.id = const Value.absent(),
     this.contentId = const Value.absent(),
@@ -4386,6 +5240,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     this.contentType = const Value.absent(),
     this.thumbnailUrl = const Value.absent(),
     this.streamUrl = const Value.absent(),
+    this.status = const Value.absent(),
+    this.progress = const Value.absent(),
   });
   DownloadedItemsCompanion.insert({
     this.id = const Value.absent(),
@@ -4397,6 +5253,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     required String contentType,
     this.thumbnailUrl = const Value.absent(),
     this.streamUrl = const Value.absent(),
+    this.status = const Value.absent(),
+    this.progress = const Value.absent(),
   }) : contentId = Value(contentId),
        title = Value(title),
        filePath = Value(filePath),
@@ -4413,6 +5271,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     Expression<String>? contentType,
     Expression<String>? thumbnailUrl,
     Expression<String>? streamUrl,
+    Expression<String>? status,
+    Expression<double>? progress,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4424,6 +5284,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
       if (contentType != null) 'content_type': contentType,
       if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
       if (streamUrl != null) 'stream_url': streamUrl,
+      if (status != null) 'status': status,
+      if (progress != null) 'progress': progress,
     });
   }
 
@@ -4437,6 +5299,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     Value<String>? contentType,
     Value<String?>? thumbnailUrl,
     Value<String?>? streamUrl,
+    Value<String>? status,
+    Value<double>? progress,
   }) {
     return DownloadedItemsCompanion(
       id: id ?? this.id,
@@ -4448,6 +5312,8 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
       contentType: contentType ?? this.contentType,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       streamUrl: streamUrl ?? this.streamUrl,
+      status: status ?? this.status,
+      progress: progress ?? this.progress,
     );
   }
 
@@ -4481,6 +5347,12 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     if (streamUrl.present) {
       map['stream_url'] = Variable<String>(streamUrl.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (progress.present) {
+      map['progress'] = Variable<double>(progress.value);
+    }
     return map;
   }
 
@@ -4495,7 +5367,9 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
           ..write('downloadedAt: $downloadedAt, ')
           ..write('contentType: $contentType, ')
           ..write('thumbnailUrl: $thumbnailUrl, ')
-          ..write('streamUrl: $streamUrl')
+          ..write('streamUrl: $streamUrl, ')
+          ..write('status: $status, ')
+          ..write('progress: $progress')
           ..write(')'))
         .toString();
   }
@@ -5543,6 +6417,12 @@ typedef $$VodItemsTableCreateCompanionBuilder =
       Value<String?> poster,
       required String url,
       Value<String?> groupTitle,
+      Value<String?> description,
+      Value<String?> rating,
+      Value<String?> genre,
+      Value<String?> cast,
+      Value<String?> director,
+      Value<String?> releaseDate,
     });
 typedef $$VodItemsTableUpdateCompanionBuilder =
     VodItemsCompanion Function({
@@ -5552,6 +6432,12 @@ typedef $$VodItemsTableUpdateCompanionBuilder =
       Value<String?> poster,
       Value<String> url,
       Value<String?> groupTitle,
+      Value<String?> description,
+      Value<String?> rating,
+      Value<String?> genre,
+      Value<String?> cast,
+      Value<String?> director,
+      Value<String?> releaseDate,
     });
 
 final class $$VodItemsTableReferences
@@ -5607,6 +6493,36 @@ class $$VodItemsTableFilterComposer
 
   ColumnFilters<String> get groupTitle => $composableBuilder(
     column: $table.groupTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get genre => $composableBuilder(
+    column: $table.genre,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cast => $composableBuilder(
+    column: $table.cast,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get director => $composableBuilder(
+    column: $table.director,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5668,6 +6584,36 @@ class $$VodItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get genre => $composableBuilder(
+    column: $table.genre,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cast => $composableBuilder(
+    column: $table.cast,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get director => $composableBuilder(
+    column: $table.director,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$PlaylistsTableOrderingComposer get playlistId {
     final $$PlaylistsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5715,6 +6661,28 @@ class $$VodItemsTableAnnotationComposer
 
   GeneratedColumn<String> get groupTitle => $composableBuilder(
     column: $table.groupTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rating =>
+      $composableBuilder(column: $table.rating, builder: (column) => column);
+
+  GeneratedColumn<String> get genre =>
+      $composableBuilder(column: $table.genre, builder: (column) => column);
+
+  GeneratedColumn<String> get cast =>
+      $composableBuilder(column: $table.cast, builder: (column) => column);
+
+  GeneratedColumn<String> get director =>
+      $composableBuilder(column: $table.director, builder: (column) => column);
+
+  GeneratedColumn<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
     builder: (column) => column,
   );
 
@@ -5776,6 +6744,12 @@ class $$VodItemsTableTableManager
                 Value<String?> poster = const Value.absent(),
                 Value<String> url = const Value.absent(),
                 Value<String?> groupTitle = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> rating = const Value.absent(),
+                Value<String?> genre = const Value.absent(),
+                Value<String?> cast = const Value.absent(),
+                Value<String?> director = const Value.absent(),
+                Value<String?> releaseDate = const Value.absent(),
               }) => VodItemsCompanion(
                 id: id,
                 playlistId: playlistId,
@@ -5783,6 +6757,12 @@ class $$VodItemsTableTableManager
                 poster: poster,
                 url: url,
                 groupTitle: groupTitle,
+                description: description,
+                rating: rating,
+                genre: genre,
+                cast: cast,
+                director: director,
+                releaseDate: releaseDate,
               ),
           createCompanionCallback:
               ({
@@ -5792,6 +6772,12 @@ class $$VodItemsTableTableManager
                 Value<String?> poster = const Value.absent(),
                 required String url,
                 Value<String?> groupTitle = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> rating = const Value.absent(),
+                Value<String?> genre = const Value.absent(),
+                Value<String?> cast = const Value.absent(),
+                Value<String?> director = const Value.absent(),
+                Value<String?> releaseDate = const Value.absent(),
               }) => VodItemsCompanion.insert(
                 id: id,
                 playlistId: playlistId,
@@ -5799,6 +6785,12 @@ class $$VodItemsTableTableManager
                 poster: poster,
                 url: url,
                 groupTitle: groupTitle,
+                description: description,
+                rating: rating,
+                genre: genre,
+                cast: cast,
+                director: director,
+                releaseDate: releaseDate,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -5873,6 +6865,12 @@ typedef $$TvSeriesTableCreateCompanionBuilder =
       required int playlistId,
       required String title,
       Value<String?> poster,
+      Value<String?> description,
+      Value<String?> rating,
+      Value<String?> genre,
+      Value<String?> cast,
+      Value<String?> director,
+      Value<String?> releaseDate,
     });
 typedef $$TvSeriesTableUpdateCompanionBuilder =
     TvSeriesCompanion Function({
@@ -5880,6 +6878,12 @@ typedef $$TvSeriesTableUpdateCompanionBuilder =
       Value<int> playlistId,
       Value<String> title,
       Value<String?> poster,
+      Value<String?> description,
+      Value<String?> rating,
+      Value<String?> genre,
+      Value<String?> cast,
+      Value<String?> director,
+      Value<String?> releaseDate,
     });
 
 final class $$TvSeriesTableReferences
@@ -5944,6 +6948,36 @@ class $$TvSeriesTableFilterComposer
 
   ColumnFilters<String> get poster => $composableBuilder(
     column: $table.poster,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get genre => $composableBuilder(
+    column: $table.genre,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cast => $composableBuilder(
+    column: $table.cast,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get director => $composableBuilder(
+    column: $table.director,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6020,6 +7054,36 @@ class $$TvSeriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get genre => $composableBuilder(
+    column: $table.genre,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cast => $composableBuilder(
+    column: $table.cast,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get director => $composableBuilder(
+    column: $table.director,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$PlaylistsTableOrderingComposer get playlistId {
     final $$PlaylistsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6061,6 +7125,28 @@ class $$TvSeriesTableAnnotationComposer
 
   GeneratedColumn<String> get poster =>
       $composableBuilder(column: $table.poster, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rating =>
+      $composableBuilder(column: $table.rating, builder: (column) => column);
+
+  GeneratedColumn<String> get genre =>
+      $composableBuilder(column: $table.genre, builder: (column) => column);
+
+  GeneratedColumn<String> get cast =>
+      $composableBuilder(column: $table.cast, builder: (column) => column);
+
+  GeneratedColumn<String> get director =>
+      $composableBuilder(column: $table.director, builder: (column) => column);
+
+  GeneratedColumn<String> get releaseDate => $composableBuilder(
+    column: $table.releaseDate,
+    builder: (column) => column,
+  );
 
   $$PlaylistsTableAnnotationComposer get playlistId {
     final $$PlaylistsTableAnnotationComposer composer = $composerBuilder(
@@ -6143,11 +7229,23 @@ class $$TvSeriesTableTableManager
                 Value<int> playlistId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> poster = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> rating = const Value.absent(),
+                Value<String?> genre = const Value.absent(),
+                Value<String?> cast = const Value.absent(),
+                Value<String?> director = const Value.absent(),
+                Value<String?> releaseDate = const Value.absent(),
               }) => TvSeriesCompanion(
                 id: id,
                 playlistId: playlistId,
                 title: title,
                 poster: poster,
+                description: description,
+                rating: rating,
+                genre: genre,
+                cast: cast,
+                director: director,
+                releaseDate: releaseDate,
               ),
           createCompanionCallback:
               ({
@@ -6155,11 +7253,23 @@ class $$TvSeriesTableTableManager
                 required int playlistId,
                 required String title,
                 Value<String?> poster = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> rating = const Value.absent(),
+                Value<String?> genre = const Value.absent(),
+                Value<String?> cast = const Value.absent(),
+                Value<String?> director = const Value.absent(),
+                Value<String?> releaseDate = const Value.absent(),
               }) => TvSeriesCompanion.insert(
                 id: id,
                 playlistId: playlistId,
                 title: title,
                 poster: poster,
+                description: description,
+                rating: rating,
+                genre: genre,
+                cast: cast,
+                director: director,
+                releaseDate: releaseDate,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -7110,6 +8220,9 @@ typedef $$FavoritesTableCreateCompanionBuilder =
     FavoritesCompanion Function({
       required String contentId,
       required String contentType,
+      Value<String?> title,
+      Value<String?> poster,
+      Value<String?> url,
       required DateTime addedAt,
       Value<int> rowid,
     });
@@ -7117,6 +8230,9 @@ typedef $$FavoritesTableUpdateCompanionBuilder =
     FavoritesCompanion Function({
       Value<String> contentId,
       Value<String> contentType,
+      Value<String?> title,
+      Value<String?> poster,
+      Value<String?> url,
       Value<DateTime> addedAt,
       Value<int> rowid,
     });
@@ -7137,6 +8253,21 @@ class $$FavoritesTableFilterComposer
 
   ColumnFilters<String> get contentType => $composableBuilder(
     column: $table.contentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get poster => $composableBuilder(
+    column: $table.poster,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7165,6 +8296,21 @@ class $$FavoritesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get poster => $composableBuilder(
+    column: $table.poster,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get addedAt => $composableBuilder(
     column: $table.addedAt,
     builder: (column) => ColumnOrderings(column),
@@ -7187,6 +8333,15 @@ class $$FavoritesTableAnnotationComposer
     column: $table.contentType,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get poster =>
+      $composableBuilder(column: $table.poster, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
 
   GeneratedColumn<DateTime> get addedAt =>
       $composableBuilder(column: $table.addedAt, builder: (column) => column);
@@ -7222,11 +8377,17 @@ class $$FavoritesTableTableManager
               ({
                 Value<String> contentId = const Value.absent(),
                 Value<String> contentType = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> poster = const Value.absent(),
+                Value<String?> url = const Value.absent(),
                 Value<DateTime> addedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FavoritesCompanion(
                 contentId: contentId,
                 contentType: contentType,
+                title: title,
+                poster: poster,
+                url: url,
                 addedAt: addedAt,
                 rowid: rowid,
               ),
@@ -7234,11 +8395,17 @@ class $$FavoritesTableTableManager
               ({
                 required String contentId,
                 required String contentType,
+                Value<String?> title = const Value.absent(),
+                Value<String?> poster = const Value.absent(),
+                Value<String?> url = const Value.absent(),
                 required DateTime addedAt,
                 Value<int> rowid = const Value.absent(),
               }) => FavoritesCompanion.insert(
                 contentId: contentId,
                 contentType: contentType,
+                title: title,
+                poster: poster,
+                url: url,
                 addedAt: addedAt,
                 rowid: rowid,
               ),
@@ -7692,6 +8859,8 @@ typedef $$DownloadedItemsTableCreateCompanionBuilder =
       required String contentType,
       Value<String?> thumbnailUrl,
       Value<String?> streamUrl,
+      Value<String> status,
+      Value<double> progress,
     });
 typedef $$DownloadedItemsTableUpdateCompanionBuilder =
     DownloadedItemsCompanion Function({
@@ -7704,6 +8873,8 @@ typedef $$DownloadedItemsTableUpdateCompanionBuilder =
       Value<String> contentType,
       Value<String?> thumbnailUrl,
       Value<String?> streamUrl,
+      Value<String> status,
+      Value<double> progress,
     });
 
 class $$DownloadedItemsTableFilterComposer
@@ -7757,6 +8928,16 @@ class $$DownloadedItemsTableFilterComposer
 
   ColumnFilters<String> get streamUrl => $composableBuilder(
     column: $table.streamUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get progress => $composableBuilder(
+    column: $table.progress,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7814,6 +8995,16 @@ class $$DownloadedItemsTableOrderingComposer
     column: $table.streamUrl,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get progress => $composableBuilder(
+    column: $table.progress,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DownloadedItemsTableAnnotationComposer
@@ -7857,6 +9048,12 @@ class $$DownloadedItemsTableAnnotationComposer
 
   GeneratedColumn<String> get streamUrl =>
       $composableBuilder(column: $table.streamUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<double> get progress =>
+      $composableBuilder(column: $table.progress, builder: (column) => column);
 }
 
 class $$DownloadedItemsTableTableManager
@@ -7905,6 +9102,8 @@ class $$DownloadedItemsTableTableManager
                 Value<String> contentType = const Value.absent(),
                 Value<String?> thumbnailUrl = const Value.absent(),
                 Value<String?> streamUrl = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<double> progress = const Value.absent(),
               }) => DownloadedItemsCompanion(
                 id: id,
                 contentId: contentId,
@@ -7915,6 +9114,8 @@ class $$DownloadedItemsTableTableManager
                 contentType: contentType,
                 thumbnailUrl: thumbnailUrl,
                 streamUrl: streamUrl,
+                status: status,
+                progress: progress,
               ),
           createCompanionCallback:
               ({
@@ -7927,6 +9128,8 @@ class $$DownloadedItemsTableTableManager
                 required String contentType,
                 Value<String?> thumbnailUrl = const Value.absent(),
                 Value<String?> streamUrl = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<double> progress = const Value.absent(),
               }) => DownloadedItemsCompanion.insert(
                 id: id,
                 contentId: contentId,
@@ -7937,6 +9140,8 @@ class $$DownloadedItemsTableTableManager
                 contentType: contentType,
                 thumbnailUrl: thumbnailUrl,
                 streamUrl: streamUrl,
+                status: status,
+                progress: progress,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

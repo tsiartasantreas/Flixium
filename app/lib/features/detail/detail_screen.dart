@@ -10,6 +10,7 @@ import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/favorite_button.dart';
 import '../player/player_screen.dart';
 import '../player/tv_player_screen.dart';
 import 'widgets/download_button.dart';
@@ -419,7 +420,7 @@ class _DetailScreenState extends State<DetailScreen> {
                     _buildTypeBadge(),
                     const SizedBox(height: 20),
 
-                    // -- Play + Download buttons --------------------------------
+                    // -- Play + Download + Favorite buttons ----------------------
                     if (widget.url.isNotEmpty)
                       Row(
                         children: [
@@ -468,6 +469,16 @@ class _DetailScreenState extends State<DetailScreen> {
                                 ),
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          FavoriteButton(
+                            contentId:
+                                '${widget.contentType}:${widget.id}',
+                            contentType: widget.contentType,
+                            title: widget.title,
+                            poster: widget.imageUrl,
+                            url: widget.url,
+                            size: 28,
                           ),
                           if (!_isLive) ...[
                             const SizedBox(width: 12),

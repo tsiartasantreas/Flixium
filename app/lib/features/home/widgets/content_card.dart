@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/animated_focus.dart';
+import '../../../core/widgets/favorite_button.dart';
 
 /// Individual content card showing thumbnail/poster and title.
 ///
@@ -17,6 +18,9 @@ class ContentCard extends StatelessWidget {
     this.isTv = false,
     this.onTap,
     this.autofocus = false,
+    this.contentId,
+    this.contentType,
+    this.url,
   });
 
   final String title;
@@ -24,6 +28,15 @@ class ContentCard extends StatelessWidget {
   final bool isTv;
   final VoidCallback? onTap;
   final bool autofocus;
+
+  /// Polymorphic ID for favourites (e.g. `"vod:42"`).
+  final String? contentId;
+
+  /// Content type for favourites (`"live"`, `"vod"`, `"series"`).
+  final String? contentType;
+
+  /// Stream URL for favourites.
+  final String? url;
 
   bool get _isTv =>
       isTv ||
@@ -45,23 +58,49 @@ class ContentCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -- Thumbnail / poster -----------------------------------------
+            // -- Thumbnail / poster with favourite button -------------------
             AspectRatio(
               aspectRatio: 2 / 3,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: imageUrl != null && imageUrl!.isNotEmpty
-                    ? Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: imageUrl != null && imageUrl!.isNotEmpty
+                        ? Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholder(),
+                          )
+                        : _buildPlaceholder(),
+                  ),
+                  // -- Favourite heart (top-right) -------------------------
+                  if (contentId != null && contentType != null)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgBase.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: FavoriteButton(
+                          contentId: contentId!,
+                          contentType: contentType!,
+                          title: title,
+                          poster: imageUrl,
+                          url: url,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 6),

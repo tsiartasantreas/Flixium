@@ -21,6 +21,10 @@ class XtreamApiClient {
   final String password;
   final http.Client _client;
 
+  /// Cached VOD action name that works for this provider.
+  /// Some providers use `get_vod_streams` instead of `get_vod`.
+  String? _cachedVodAction;
+
   // ---------------------------------------------------------------------------
   // Server info
   // ---------------------------------------------------------------------------
@@ -102,68 +106,56 @@ class XtreamApiClient {
   }
 
   /// Fetches VOD streams, optionally filtered by [categoryId].
+  ///
+  /// Some Xtream providers require the action `get_vod_streams` instead of the
+  /// standard `get_vod`.  We try the cached action first (if known), then try
+  /// `get_vod_streams` followed by `get_vod` until we get actual stream data.
   Future<List<XtreamStream>> getVodStreams({int? categoryId}) async {
-    const action = '&action=get_vod';
     final catParam = categoryId != null ? '&category_id=$categoryId' : '';
     // ignore: avoid_print
     print('[XtreamAPI] getVodStreams(categoryId=$categoryId) — calling API...');
-    final json = await _get('$action$catParam');
-    // ignore: avoid_print
-    print('[XtreamAPI] getVodStreams($categoryId) response keys: ${json.keys.toList()}, '
-        'sample values: ${json.map((k, v) => MapEntry(k, v is List ? 'List(${v.length})' : v.runtimeType))}');
 
-    // Find the actual list data (could be under any key).
-    final dynamic rawList = json['_list'] ??
-        json['stream'] ?? json['streams'] ?? json['movies'] ??
-        json['movie'] ?? json['vod'] ?? json['video'] ??
-        json['vod_list'] ?? json['movie_list'] ?? json['data'] ??
-        json['items'] ?? json['list'] ??
-        _findFirstListValue(json);
+    // If we already know which action works for this provider, use it directly.
+    if (_cachedVodAction != null) {
+      final json = await _get('&action=$_cachedVodAction$catParam');
+      final result = _parseStreamList(json);
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodStreams($categoryId) [cached=$_cachedVodAction] '
+          '→ ${result.length} streams');
+      if (result.isNotEmpty) return result;
+      // Cache was wrong (e.g. category is empty), fall through to try both.
+    }
 
-    if (rawList is List && rawList.isNotEmpty) {
-      final firstItem = rawList.first;
-      if (firstItem is Map) {
+    // Try `get_vod_streams` first (required by some providers).
+    final actions = ['get_vod_streams', 'get_vod'];
+    for (final action in actions) {
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodStreams($categoryId) trying action=$action...');
+      final json = await _get('&action=$action$catParam');
+      final result = _parseStreamList(json);
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodStreams($categoryId) action=$action '
+          '→ ${result.length} streams');
+      if (result.isNotEmpty) {
+        _cachedVodAction = action;
         // ignore: avoid_print
-        print('[XtreamAPI] getVodStreams($categoryId) first item keys: '
-            '${firstItem.keys.toList()}');
-        // Log the ID field — critical for VOD URL building.
-        final possibleIdKeys = ['stream_id', 'vod_id', 'movie_id', 'id'];
-        for (final key in possibleIdKeys) {
-          if (firstItem.containsKey(key)) {
-            // ignore: avoid_print
-            print('[XtreamAPI]   → $key = ${firstItem[key]}');
-          }
-        }
-        // Log container extension.
-        if (firstItem.containsKey('container_extension')) {
+        print('[XtreamAPI] getVodStreams: caching working action="$action"');
+        if (result.isNotEmpty) {
+          final first = result.first;
           // ignore: avoid_print
-          print('[XtreamAPI]   → container_extension = ${firstItem['container_extension']}');
+          print('[XtreamAPI] getVodStreams($categoryId) first parsed stream: '
+              'name="${first.name}", streamId=${first.streamId}, '
+              'containerExtension="${first.containerExtension}"');
         }
+        return result;
       }
     }
 
-    final result = _parseStreamList(json);
+    // Neither action returned streams.
     // ignore: avoid_print
-    print('[XtreamAPI] getVodStreams($categoryId) parsed ${result.length} streams');
-    if (result.isNotEmpty) {
-      final first = result.first;
-      // ignore: avoid_print
-      print('[XtreamAPI] getVodStreams($categoryId) first parsed stream: '
-          'name="${first.name}", streamId=${first.streamId}, '
-          'containerExtension="${first.containerExtension}"');
-    }
-    if (result.isEmpty) {
-      // ignore: avoid_print
-      print('[XtreamAPI] WARNING: getVodStreams($categoryId) returned 0 streams! '
-          'Raw keys: ${json.keys.toList()}, body types: ${json.map((k, v) => MapEntry(k, v.runtimeType))}');
-      // Log all values for debugging.
-      for (final entry in json.entries) {
-        // ignore: avoid_print
-        print('[XtreamAPI]   key="${entry.key}" → type=${entry.runtimeType}, '
-            'value=${entry.value is List ? "List(${(entry.value as List).length})" : entry.value.toString().length > 200 ? "${entry.value.toString().substring(0, 200)}..." : entry.value}');
-      }
-    }
-    return result;
+    print('[XtreamAPI] WARNING: getVodStreams($categoryId) returned 0 streams '
+        'from both get_vod_streams and get_vod!');
+    return [];
   }
 
   // ---------------------------------------------------------------------------

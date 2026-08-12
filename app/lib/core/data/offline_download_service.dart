@@ -3,10 +3,12 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/database.dart';
+import 'background_download_service.dart';
 
 /// Callback for tracking download progress.
 typedef DownloadProgressCallback = void Function(double progress);
@@ -351,12 +353,24 @@ class OfflineDownloadService {
     if (_isProcessing) return;
     _isProcessing = true;
 
+    // Keep the process alive via foreground service while downloading.
+    final bgService = BackgroundDownloadService.instance;
+    final taskCount = _queue.length;
+    if (taskCount > 0) {
+      await bgService.incrementTaskCount(
+        notificationText: taskCount == 1
+            ? 'Downloading 1 item...'
+            : 'Downloading $taskCount items...',
+      );
+    }
+
     try {
       while (_queue.isNotEmpty) {
         final task = _queue.removeFirst();
 
         // Skip if cancelled while queued.
         if (_progressMap[task.contentId]?.state == DownloadState.cancelled) {
+          bgService.decrementTaskCount();
           continue;
         }
 
@@ -365,6 +379,14 @@ class OfflineDownloadService {
           progress: 0.0,
         );
         _emitProgress();
+
+        // Update notification with current item title.
+        if (bgService.isRunning) {
+          await FlutterForegroundTask.updateService(
+            notificationTitle: 'iFlixify',
+            notificationText: 'Downloading: ${task.title}',
+          );
+        }
 
         try {
           await _executeDownload(task);
@@ -381,6 +403,7 @@ class OfflineDownloadService {
           );
         }
         _emitProgress();
+        bgService.decrementTaskCount();
       }
     } finally {
       _isProcessing = false;

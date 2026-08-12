@@ -66,19 +66,20 @@ class PlayerConfig {
   /// Default config for IPTV streams.
   ///
   /// Includes a common User-Agent string so that IPTV providers that check
-  /// the header do not reject the request. Also sets a comprehensive protocol
-  /// whitelist so TS / HLS / RTMP / UDP streams are not rejected by ffmpeg's
-  /// demuxer.
+  /// the header do not reject the request. Uses `hwdec=auto-safe` for
+  /// broad hardware decoding support across devices (MKV, AVI, MP4, etc.).
+  /// Sets `protocol-whitelist=*` so all protocols are accepted by ffmpeg's
+  /// demuxer (HLS, TS, RTMP, UDP, file, etc.).
   static const defaultConfig = PlayerConfig(
+    hwdec: 'auto-safe',
     userAgent:
         'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-    protocolWhitelist:
-        'http,https,tcp,tls,crypto,data,file,udp,rtp',
+    protocolWhitelist: '*',
   );
 
   /// Config optimized for live TV streams (hardware decoding enabled).
   static const liveTvConfig = PlayerConfig(
-    hwdec: 'mediacodec',
+    hwdec: 'auto-safe',
   );
 
   /// Merges [userAgent], [referer], and [extraHeaders] into a single map

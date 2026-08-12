@@ -156,6 +156,9 @@ class HomeScreenState extends State<HomeScreen> {
             return ContentItem(
               title: vod.title,
               imageUrl: vod.poster,
+              contentId: 'vod:${vod.id}',
+              contentType: 'vod',
+              url: vod.url,
               onTap: () => _navigateToDetail(
                 id: vod.id,
                 title: vod.title,
@@ -181,6 +184,8 @@ class HomeScreenState extends State<HomeScreen> {
             return ContentItem(
               title: s.title,
               imageUrl: s.poster,
+              contentId: 'series:${s.id}',
+              contentType: 'series',
               onTap: () => _navigateToDetail(
                 id: s.id,
                 title: s.title,
@@ -205,6 +210,9 @@ class HomeScreenState extends State<HomeScreen> {
             return ContentItem(
               title: ch.name,
               imageUrl: ch.logo,
+              contentId: 'channel:${ch.id}',
+              contentType: 'live',
+              url: ch.url,
               onTap: () => _navigateToDetail(
                 id: ch.id,
                 title: ch.name,
@@ -230,6 +238,9 @@ class HomeScreenState extends State<HomeScreen> {
             return ContentItem(
               title: radio.name,
               imageUrl: radio.logo,
+              contentId: 'radio:${radio.id}',
+              contentType: 'radio',
+              url: radio.url,
               onTap: () => _navigateToDetail(
                 id: radio.id,
                 title: radio.name,
@@ -251,6 +262,9 @@ class HomeScreenState extends State<HomeScreen> {
           id: vod.id,
           title: vod.title,
           imageUrl: vod.poster,
+          contentId: 'vod:${vod.id}',
+          contentType: 'vod',
+          url: vod.url,
           navigate: () => _navigateToDetail(
             id: vod.id,
             title: vod.title,
@@ -266,6 +280,8 @@ class HomeScreenState extends State<HomeScreen> {
           id: s.id,
           title: s.title,
           imageUrl: s.poster,
+          contentId: 'series:${s.id}',
+          contentType: 'series',
           navigate: () => _navigateToDetail(
             id: s.id,
             title: s.title,
@@ -280,6 +296,9 @@ class HomeScreenState extends State<HomeScreen> {
           id: ch.id,
           title: ch.name,
           imageUrl: ch.logo,
+          contentId: 'channel:${ch.id}',
+          contentType: 'live',
+          url: ch.url,
           navigate: () => _navigateToDetail(
             id: ch.id,
             title: ch.name,
@@ -302,6 +321,9 @@ class HomeScreenState extends State<HomeScreen> {
             return ContentItem(
               title: item.title,
               imageUrl: item.imageUrl,
+              contentId: item.contentId,
+              contentType: item.contentType,
+              url: item.url,
               onTap: item.navigate,
             );
           }).toList(),
@@ -797,10 +819,16 @@ class _RecentItem {
     required this.title,
     this.imageUrl,
     required this.navigate,
+    this.contentId,
+    this.contentType,
+    this.url,
   });
 
   final int id;
   final String title;
   final String? imageUrl;
   final VoidCallback navigate;
+  final String? contentId;
+  final String? contentType;
+  final String? url;
 }

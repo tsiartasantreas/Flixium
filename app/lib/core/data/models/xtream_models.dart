@@ -84,6 +84,11 @@ class XtreamStream {
     this.categoryId,
     this.containerExtension,
     this.epgChannelId,
+    this.description,
+    this.genre,
+    this.cast,
+    this.director,
+    this.releaseDate,
   });
 
   factory XtreamStream.fromJson(Map<String, dynamic> json) {
@@ -103,6 +108,11 @@ class XtreamStream {
       categoryId: json['category_id'] as String?,
       containerExtension: json['container_extension'] as String?,
       epgChannelId: json['epg_channel_id'] as String?,
+      description: json['plot'] as String? ?? json['description'] as String?,
+      genre: json['genre'] as String?,
+      cast: json['cast'] as String?,
+      director: json['director'] as String?,
+      releaseDate: json['releasedate'] as String? ?? json['releaseDate'] as String?,
     );
   }
 
@@ -116,6 +126,21 @@ class XtreamStream {
   final String? categoryId;
   final String? containerExtension;
   final String? epgChannelId;
+
+  /// Plot / overview description.
+  final String? description;
+
+  /// Genre(s).
+  final String? genre;
+
+  /// Cast (comma-separated names).
+  final String? cast;
+
+  /// Director name(s).
+  final String? director;
+
+  /// Release date.
+  final String? releaseDate;
 }
 
 /// A series item.

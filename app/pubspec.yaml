@@ -64,6 +64,10 @@ dependencies:
   # screen_brightness — native screen brightness control (Android/iOS).
   screen_brightness: ^2.0.0
 
+  # flutter_foreground_task — keeps the app alive for background downloads
+  # and playlist imports via an Android foreground service with notification.
+  flutter_foreground_task: ^8.0.0
+
 
 dev_dependencies:
   flutter_test:

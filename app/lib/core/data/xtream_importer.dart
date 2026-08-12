@@ -180,6 +180,7 @@ class XtreamImporter {
                       poster: drift.Value(stream.streamIcon),
                       url: streamUrl,
                       groupTitle: drift.Value(cat.name),
+                      rating: drift.Value(stream.rating),
                     ),
                   );
               totalVod++;
@@ -223,6 +224,12 @@ class XtreamImporter {
                   playlistId: playlistId,
                   title: s.name,
                   poster: drift.Value(s.cover),
+                  description: drift.Value(s.plot),
+                  rating: drift.Value(s.rating),
+                  genre: drift.Value(s.genre),
+                  cast: drift.Value(s.cast),
+                  director: drift.Value(s.director),
+                  releaseDate: drift.Value(s.releaseDate),
                 ),
               );
 

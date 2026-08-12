@@ -81,6 +81,9 @@ class ContentRow extends StatelessWidget {
                 isTv: isTv,
                 autofocus: autofocusFirst && index == 0,
                 onTap: item.onTap,
+                contentId: item.contentId,
+                contentType: item.contentType,
+                url: item.url,
               );
             },
           ),
@@ -96,9 +99,21 @@ class ContentItem {
     required this.title,
     this.imageUrl,
     required this.onTap,
+    this.contentId,
+    this.contentType,
+    this.url,
   });
 
   final String title;
   final String? imageUrl;
   final VoidCallback onTap;
+
+  /// Polymorphic ID for favourites (e.g. `"vod:42"`).
+  final String? contentId;
+
+  /// Content type for favourites (`"live"`, `"vod"`, `"series"`).
+  final String? contentType;
+
+  /// Stream URL for favourites.
+  final String? url;
 }

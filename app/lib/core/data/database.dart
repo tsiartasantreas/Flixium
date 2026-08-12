@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Bump this when you add / remove tables or alter columns.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -77,6 +77,26 @@ class AppDatabase extends _$AppDatabase {
               downloadedItems,
               downloadedItems.progress as GeneratedColumn<Object>,
             );
+          }
+          if (from < 6) {
+            // Add title, poster, url columns to favorites.
+            await m.addColumn(favorites, favorites.title);
+            await m.addColumn(favorites, favorites.poster);
+            await m.addColumn(favorites, favorites.url);
+            // Add metadata columns to vod_items.
+            await m.addColumn(vodItems, vodItems.description);
+            await m.addColumn(vodItems, vodItems.rating);
+            await m.addColumn(vodItems, vodItems.genre);
+            await m.addColumn(vodItems, vodItems.cast);
+            await m.addColumn(vodItems, vodItems.director);
+            await m.addColumn(vodItems, vodItems.releaseDate);
+            // Add metadata columns to tv_series.
+            await m.addColumn(tvSeries, tvSeries.description);
+            await m.addColumn(tvSeries, tvSeries.rating);
+            await m.addColumn(tvSeries, tvSeries.genre);
+            await m.addColumn(tvSeries, tvSeries.cast);
+            await m.addColumn(tvSeries, tvSeries.director);
+            await m.addColumn(tvSeries, tvSeries.releaseDate);
           }
         },
       );

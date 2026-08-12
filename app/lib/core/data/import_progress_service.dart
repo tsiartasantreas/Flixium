@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'background_download_service.dart';
 import 'database.dart';
 import 'playlist_manager.dart';
 import 'xtream_importer.dart';
@@ -28,6 +29,9 @@ class ImportProgressService {
 
   /// Starts a background Xtream import. The import continues even if the
   /// caller navigates away.
+  ///
+  /// A foreground service is started so the OS keeps the process alive while
+  /// the import runs. The service is stopped once the import completes.
   Future<void> startXtreamImport({
     required AppDatabase db,
     required PlaylistManager playlistManager,
@@ -43,6 +47,11 @@ class ImportProgressService {
       message: 'Starting import...',
       progress: 0.0,
       isComplete: false,
+    );
+
+    final bgService = BackgroundDownloadService.instance;
+    await bgService.incrementTaskCount(
+      notificationText: 'Importing playlist...',
     );
 
     final importer = XtreamImporter(db: db);
@@ -85,6 +94,9 @@ class ImportProgressService {
       );
     } finally {
       importer.close();
+      await bgService.decrementTaskCount(
+        notificationText: 'Import finished.',
+      );
     }
   }
 

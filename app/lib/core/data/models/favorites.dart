@@ -12,6 +12,15 @@ class Favorites extends Table {
   /// Entity type: `"channel"`, `"vod"`, or `"series"`.
   TextColumn get contentType => text()();
 
+  /// Display title of the favorited item.
+  TextColumn get title => text().nullable()();
+
+  /// Poster / thumbnail image URL.
+  TextColumn get poster => text().nullable()();
+
+  /// Stream URL for playback.
+  TextColumn get url => text().nullable()();
+
   DateTimeColumn get addedAt => dateTime()();
 
   @override
