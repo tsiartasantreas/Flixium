@@ -10,9 +10,19 @@ import '../../core/data/playlist_manager.dart';
 import '../../core/data/xtream_importer.dart';
 import '../../core/theme/app_colors.dart';
 
+/// The user-selected import method.
+enum ImportType {
+  /// Standard M3U playlist URL.
+  m3u,
+
+  /// Xtream Codes: base URL + username + password.
+  xtream,
+}
+
 /// Playlist import screen.
 ///
-/// Users can add M3U playlists by URL, view imported playlists, and remove them.
+/// Users can choose between M3U URL or Xtream Codes import, select which
+/// content types to import, view existing playlists, and remove them.
 class ImportScreen extends StatefulWidget {
   const ImportScreen({super.key});
 
@@ -22,60 +32,41 @@ class ImportScreen extends StatefulWidget {
 
 @visibleForTesting
 class ImportScreenState extends State<ImportScreen> {
+  // --- Text controllers -------------------------------------------------------
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // --- State ------------------------------------------------------------------
   final _db = AppDatabase();
   late final PlaylistManager _playlistManager;
   List<Playlist> _playlists = [];
   bool _isLoading = false;
   String? _errorMessage;
-
-  /// Detected URL type (null until the user enters a URL).
-  M3uUrlType? _detectedType;
   String _importProgressMessage = '';
 
-  /// Stream type selection for Xtream imports.
+  /// Which import method the user has selected (defaults to M3U).
+  ImportType _importType = ImportType.m3u;
+
+  /// Stream type selection.
   bool _importLive = true;
   bool _importMovies = true;
   bool _importSeries = true;
-  bool _importRadio = true;
+  bool _importRadio = false;
 
   @override
   void initState() {
     super.initState();
     _playlistManager = PlaylistManager(database: _db);
     _loadPlaylists();
-    _urlController.addListener(_onUrlChanged);
   }
 
   @override
   void dispose() {
-    _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  /// Auto-detect URL type and pre-fill username / password fields.
-  void _onUrlChanged() {
-    final url = _urlController.text.trim();
-    if (url.isEmpty) {
-      if (mounted) setState(() => _detectedType = null);
-      return;
-    }
-
-    final info = M3uUrlParser.parse(url);
-    if (mounted) {
-      setState(() {
-        _detectedType = info.type;
-        if (info.isXtream) {
-          _usernameController.text = info.username ?? '';
-          _passwordController.text = info.password ?? '';
-        }
-      });
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -90,42 +81,41 @@ class ImportScreenState extends State<ImportScreen> {
   }
 
   Future<void> _addPlaylist() async {
-    final url = _urlController.text.trim();
-    if (url.isEmpty) {
-      setState(() => _errorMessage = 'Please enter a URL');
-      return;
-    }
+    // Clear previous error.
+    setState(() => _errorMessage = null);
 
-    var urlInfo = M3uUrlParser.parse(url);
-
-    // If the URL is not auto-detected as Xtream but the user provided
-    // username and password, treat it as an Xtream base URL.
-    if (!urlInfo.isXtream) {
+    // --- Validate inputs based on selected import type ------------------------
+    if (_importType == ImportType.m3u) {
+      final url = _urlController.text.trim();
+      if (url.isEmpty) {
+        setState(() => _errorMessage = 'Please enter an M3U URL');
+        return;
+      }
+    } else {
+      // Xtream Codes validation.
+      final url = _urlController.text.trim();
       final username = _usernameController.text.trim();
       final password = _passwordController.text.trim();
-      if (username.isNotEmpty && password.isNotEmpty) {
-        final uri = Uri.parse(url);
-        final baseUri = Uri(
-          scheme: uri.scheme,
-          host: uri.host,
-          port: uri.hasPort ? uri.port : null,
-        );
-        urlInfo = M3uUrlInfo(
-          type: M3uUrlType.xtream,
-          url: url,
-          baseUrl: baseUri.toString(),
-          username: username,
-          password: password,
-        );
+
+      if (url.isEmpty) {
+        setState(() => _errorMessage = 'Please enter the server URL');
+        return;
+      }
+      if (username.isEmpty) {
+        setState(() => _errorMessage = 'Please enter your username');
+        return;
+      }
+      if (password.isEmpty) {
+        setState(() => _errorMessage = 'Please enter your password');
+        return;
       }
     }
 
-    // Validate Xtream credentials.
-    if (urlInfo.isXtream) {
-      final username = _usernameController.text.trim();
-      final password = _passwordController.text.trim();
-      if (username.isEmpty || password.isEmpty) {
-        setState(() => _errorMessage = 'Username and password are required');
+    // --- Validate content type selection --------------------------------------
+    if (_importType == ImportType.xtream) {
+      if (!_importLive && !_importMovies && !_importSeries) {
+        setState(
+            () => _errorMessage = 'Please select at least one content type');
         return;
       }
     }
@@ -137,25 +127,16 @@ class ImportScreenState extends State<ImportScreen> {
     });
 
     try {
-      if (urlInfo.isXtream) {
-        await _importXtream(urlInfo);
+      if (_importType == ImportType.xtream) {
+        await _importXtream();
       } else {
-        await _importM3u(url);
+        await _importM3u();
       }
 
       _urlController.clear();
       _usernameController.clear();
       _passwordController.clear();
-      if (mounted) {
-        setState(() => _detectedType = null);
-      }
       await _loadPlaylists();
-
-      // Navigate back to home after successful M3U import.
-      // Xtream imports show a summary dialog instead.
-      if (mounted && !urlInfo.isXtream) {
-        Navigator.of(context).pop();
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = 'Import failed: $e');
@@ -170,8 +151,37 @@ class ImportScreenState extends State<ImportScreen> {
     }
   }
 
-  /// Import from an Xtream Codes provider.
-  Future<void> _importXtream(M3uUrlInfo urlInfo) async {
+  // ---------------------------------------------------------------------------
+  // Xtream import
+  // ---------------------------------------------------------------------------
+
+  Future<void> _importXtream() async {
+    final rawUrl = _urlController.text.trim();
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // Extract base URL: strip path/query if the user pasted a full
+    // get.php URL, otherwise use the URL as-is.
+    String baseUrl;
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) {
+      throw const FormatException('Invalid server URL');
+    }
+    // If the URL has query params with username/password (get.php style),
+    // strip everything except scheme/host/port.
+    if (uri.queryParameters.containsKey('username') ||
+        uri.queryParameters.containsKey('password')) {
+      baseUrl = Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+      ).toString();
+    } else {
+      // User entered a clean base URL like http://server.com:8080
+      // Strip trailing slashes.
+      baseUrl = rawUrl.replaceAll(RegExp(r'/+$'), '');
+    }
+
     final importer = XtreamImporter(db: _db);
     try {
       // Build the set of selected content types.
@@ -179,26 +189,20 @@ class ImportScreenState extends State<ImportScreen> {
       if (_importLive) selectedTypes.add(XtreamContentType.live);
       if (_importMovies) selectedTypes.add(XtreamContentType.vod);
       if (_importSeries) selectedTypes.add(XtreamContentType.series);
-      // Radio is not supported by Xtream API, but we track the checkbox state.
-
-      if (selectedTypes.isEmpty) {
-        setState(() => _errorMessage = 'Please select at least one content type');
-        return;
-      }
 
       // Create the playlist record via PlaylistManager (encrypted, with user_id).
       final playlist = await _playlistManager.addPlaylist(
-        '${urlInfo.username}@${urlInfo.baseUrl}',
-        urlInfo.url,
-        username: urlInfo.username,
-        password: urlInfo.password,
+        '$username@$baseUrl',
+        baseUrl,
+        username: username,
+        password: password,
       );
 
       final result = await importer.import(
         playlistId: playlist.id,
-        baseUrl: urlInfo.baseUrl!,
-        username: urlInfo.username!,
-        password: urlInfo.password!,
+        baseUrl: baseUrl,
+        username: username,
+        password: password,
         importTypes: selectedTypes,
         onProgress: (message, progress) {
           if (mounted) {
@@ -208,15 +212,173 @@ class ImportScreenState extends State<ImportScreen> {
       );
 
       if (mounted) {
-        _showImportSummary(result);
+        _showImportSummary(
+          channels: result.channels,
+          vodItems: result.vodItems,
+          series: result.series,
+          radio: result.radio,
+          error: result.error,
+        );
       }
     } finally {
       importer.close();
     }
   }
 
-  /// Shows a dialog summarizing what was imported.
-  void _showImportSummary(XtreamImportResult result) {
+  // ---------------------------------------------------------------------------
+  // M3U import
+  // ---------------------------------------------------------------------------
+
+  Future<void> _importM3u() async {
+    final url = _urlController.text.trim();
+
+    // Auto-detect if the URL is actually an Xtream get.php URL.
+    final urlInfo = M3uUrlParser.parse(url);
+    if (urlInfo.isXtream) {
+      // Switch to Xtream flow using parsed credentials.
+      _usernameController.text = urlInfo.username ?? '';
+      _passwordController.text = urlInfo.password ?? '';
+      if (mounted) {
+        setState(() => _importType = ImportType.xtream);
+      }
+      await _importXtream();
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _importProgressMessage = 'Fetching playlist...');
+    }
+
+    final response = await http.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 30),
+        );
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+
+    if (mounted) {
+      setState(() => _importProgressMessage = 'Parsing playlist...');
+    }
+
+    final result = M3uParser.parse(response.body);
+
+    if (result.totalItems == 0) {
+      throw Exception('No items found in playlist');
+    }
+
+    // Apply content type filter.
+    final channels = _importLive ? result.channels : <M3uChannel>[];
+    final vodItems = _importMovies ? result.vodItems : <M3uVodItem>[];
+    final seriesList = _importSeries ? result.series : <M3uSeries>[];
+    final radioStations = _importRadio ? result.radioStations : <M3uRadioStation>[];
+
+    // Create playlist record via PlaylistManager (encrypted, with user_id).
+    final playlist = await _playlistManager.addPlaylist(
+      'Playlist ${_playlists.length + 1}',
+      url,
+    );
+
+    if (mounted) {
+      setState(() => _importProgressMessage = 'Saving channels...');
+    }
+
+    // Batch insert channels.
+    for (final ch in channels) {
+      await _db.into(_db.channels).insert(
+            ChannelsCompanion.insert(
+              playlistId: playlist.id,
+              name: ch.name,
+              logo: drift.Value(ch.logo),
+              url: ch.url,
+              groupTitle: drift.Value(ch.groupTitle),
+              tvgName: drift.Value(ch.tvgName),
+            ),
+          );
+    }
+
+    if (mounted) {
+      setState(() => _importProgressMessage = 'Saving movies...');
+    }
+
+    // Batch insert VOD items.
+    for (final vod in vodItems) {
+      await _db.into(_db.vodItems).insert(
+            VodItemsCompanion.insert(
+              playlistId: playlist.id,
+              title: vod.title,
+              poster: drift.Value(vod.poster),
+              url: vod.url,
+              groupTitle: drift.Value(vod.groupTitle),
+            ),
+          );
+    }
+
+    if (mounted) {
+      setState(() => _importProgressMessage = 'Saving series...');
+    }
+
+    // Batch insert series + episodes.
+    for (final s in seriesList) {
+      final seriesId = await _db.into(_db.tvSeries).insert(
+            TvSeriesCompanion.insert(
+              playlistId: playlist.id,
+              title: s.title,
+              poster: drift.Value(s.poster),
+            ),
+          );
+      for (final ep in s.episodes) {
+        await _db.into(_db.episodes).insert(
+              EpisodesCompanion.insert(
+                seriesId: seriesId,
+                season: ep.season,
+                episode: ep.episode,
+                title: ep.title,
+                url: ep.url,
+                thumbnail: drift.Value(ep.thumbnail),
+              ),
+            );
+      }
+    }
+
+    if (mounted) {
+      setState(() => _importProgressMessage = 'Saving radio stations...');
+    }
+
+    // Batch insert radio stations.
+    for (final radio in radioStations) {
+      await _db.into(_db.radioStations).insert(
+            RadioStationsCompanion.insert(
+              playlistId: playlist.id,
+              name: radio.name,
+              logo: drift.Value(radio.logo),
+              url: radio.url,
+            ),
+          );
+    }
+
+    if (mounted) {
+      _showImportSummary(
+        channels: channels.length,
+        vodItems: vodItems.length,
+        series: seriesList.length,
+        radio: radioStations.length,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import summary dialog
+  // ---------------------------------------------------------------------------
+
+  void _showImportSummary({
+    required int channels,
+    required int vodItems,
+    required int series,
+    required int radio,
+    String? error,
+  }) {
+    final hasContent = channels + vodItems + series + radio > 0;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -224,12 +386,12 @@ class ImportScreenState extends State<ImportScreen> {
         title: Row(
           children: [
             Icon(
-              result.hasContent ? Icons.check_circle : Icons.info_outline,
-              color: result.hasContent ? Colors.greenAccent : AppColors.accentPrimary,
+              hasContent ? Icons.check_circle : Icons.info_outline,
+              color: hasContent ? Colors.greenAccent : AppColors.accentPrimary,
             ),
             const SizedBox(width: 12),
             Text(
-              result.hasContent ? 'Import Complete' : 'No Content Found',
+              hasContent ? 'Import Complete' : 'No Content Found',
               style: const TextStyle(color: AppColors.textPrimary),
             ),
           ],
@@ -238,20 +400,16 @@ class ImportScreenState extends State<ImportScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (result.channels > 0)
-              _summaryRow(Icons.live_tv, 'Live TV', result.channels),
-            if (result.vodItems > 0)
-              _summaryRow(Icons.movie, 'Movies', result.vodItems),
-            if (result.series > 0)
-              _summaryRow(Icons.tv, 'Series', result.series),
-            if (result.radio > 0)
-              _summaryRow(Icons.radio, 'Radio', result.radio),
-            if (!result.hasContent)
+            if (channels > 0) _summaryRow(Icons.live_tv, 'Live TV', channels),
+            if (vodItems > 0) _summaryRow(Icons.movie, 'Movies', vodItems),
+            if (series > 0) _summaryRow(Icons.tv, 'Series', series),
+            if (radio > 0) _summaryRow(Icons.radio, 'Radio', radio),
+            if (!hasContent)
               const Text(
                 'No items were found for the selected content types.',
                 style: TextStyle(color: AppColors.textSecondary),
               ),
-            if (result.error != null) ...[
+            if (error != null) ...[
               const SizedBox(height: 12),
               Text(
                 'Note: Some categories failed to load.',
@@ -265,7 +423,13 @@ class ImportScreenState extends State<ImportScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              // Navigate back to home after dismissing summary.
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            },
             child: const Text(
               'OK',
               style: TextStyle(color: AppColors.accentPrimary),
@@ -301,104 +465,9 @@ class ImportScreenState extends State<ImportScreen> {
     );
   }
 
-  /// Import from a standard M3U URL.
-  Future<void> _importM3u(String url) async {
-    final response = await http.get(Uri.parse(url)).timeout(
-          const Duration(seconds: 30),
-        );
-    if (response.statusCode != 200) {
-      throw Exception('HTTP ${response.statusCode}');
-    }
-
-    final result = M3uParser.parse(response.body);
-
-    if (result.totalItems == 0) {
-      throw Exception('No items found in playlist');
-    }
-
-    // Create playlist record via PlaylistManager (encrypted, with user_id).
-    final playlist = await _playlistManager.addPlaylist(
-      'Playlist ${_playlists.length + 1}',
-      url,
-    );
-
-    // Batch insert channels.
-    for (final ch in result.channels) {
-      await _db.into(_db.channels).insert(
-            ChannelsCompanion.insert(
-              playlistId: playlist.id,
-              name: ch.name,
-              logo: drift.Value(ch.logo),
-              url: ch.url,
-              groupTitle: drift.Value(ch.groupTitle),
-              tvgName: drift.Value(ch.tvgName),
-            ),
-          );
-    }
-
-    // Batch insert VOD items.
-    for (final vod in result.vodItems) {
-      await _db.into(_db.vodItems).insert(
-            VodItemsCompanion.insert(
-              playlistId: playlist.id,
-              title: vod.title,
-              poster: drift.Value(vod.poster),
-              url: vod.url,
-              groupTitle: drift.Value(vod.groupTitle),
-            ),
-          );
-    }
-
-    // Batch insert series + episodes.
-    for (final s in result.series) {
-      final seriesId = await _db.into(_db.tvSeries).insert(
-            TvSeriesCompanion.insert(
-              playlistId: playlist.id,
-              title: s.title,
-              poster: drift.Value(s.poster),
-            ),
-          );
-      for (final ep in s.episodes) {
-        await _db.into(_db.episodes).insert(
-              EpisodesCompanion.insert(
-                seriesId: seriesId,
-                season: ep.season,
-                episode: ep.episode,
-                title: ep.title,
-                url: ep.url,
-                thumbnail: drift.Value(ep.thumbnail),
-              ),
-            );
-      }
-    }
-
-    // Batch insert radio stations.
-    for (final radio in result.radioStations) {
-      await _db.into(_db.radioStations).insert(
-            RadioStationsCompanion.insert(
-              playlistId: playlist.id,
-              name: radio.name,
-              logo: drift.Value(radio.logo),
-              url: radio.url,
-            ),
-          );
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Imported ${result.totalItems} items '
-            '(${result.channels.length} channels, '
-            '${result.vodItems.length} movies, '
-            '${result.series.length} series, '
-            '${result.radioStations.length} radio)',
-          ),
-          backgroundColor: AppColors.bgSurface,
-        ),
-      );
-    }
-  }
+  // ---------------------------------------------------------------------------
+  // Playlist management
+  // ---------------------------------------------------------------------------
 
   Future<void> _removePlaylist(Playlist playlist) async {
     await _playlistManager.deletePlaylist(playlist.id);
@@ -422,166 +491,25 @@ class ImportScreenState extends State<ImportScreen> {
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: FocusTraversalGroup(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // -- URL input ------------------------------------------------
-              TextField(
-                controller: _urlController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'https://example.com/playlist.m3u',
-                  hintStyle: const TextStyle(color: AppColors.textSecondary),
-                  filled: true,
-                  fillColor: AppColors.bgSurface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: _detectedType != null
-                      ? Icon(
-                          _detectedType == M3uUrlType.xtream
-                              ? Icons.dns
-                              : Icons.link,
-                          color: AppColors.accentPrimary,
-                          size: 20,
-                        )
-                      : null,
-                  suffixIcon: _isLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.accentPrimary,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-                onSubmitted: (_) => _addPlaylist(),
-              ),
+              // -- Import type selector ----------------------------------------
+              _buildImportTypeSelector(),
+              const SizedBox(height: 16),
 
-              // -- URL type badge -------------------------------------------
-              if (_detectedType != null) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentPrimary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _detectedType == M3uUrlType.xtream
-                          ? 'Xtream Codes detected'
-                          : 'Standard M3U playlist',
-                      style: const TextStyle(
-                        color: AppColors.accentPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              // -- Input fields (conditional on import type) -------------------
+              _buildInputFields(),
+              const SizedBox(height: 16),
 
-              // -- Xtream username / password fields -------------------------
-              // Shown whenever a URL is entered so users can provide
-              // Xtream credentials even for plain base URLs.
-              if (_detectedType != null) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _usernameController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    labelText: 'Username',
-                    labelStyle: const TextStyle(color: AppColors.textSecondary),
-                    hintText: 'Enter Xtream username',
-                    hintStyle: const TextStyle(color: AppColors.textSecondary),
-                    filled: true,
-                    fillColor: AppColors.bgSurface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    labelStyle: const TextStyle(color: AppColors.textSecondary),
-                    hintText: 'Enter Xtream password',
-                    hintStyle: const TextStyle(color: AppColors.textSecondary),
-                    filled: true,
-                    fillColor: AppColors.bgSurface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ],
+              // -- Stream type checkboxes --------------------------------------
+              _buildStreamTypeCheckboxes(),
+              const SizedBox(height: 16),
 
-              // -- Stream type selection (Xtream only) ----------------------
-              if (_detectedType == M3uUrlType.xtream) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Content to import',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    _buildContentTypeChip(
-                      label: 'Live TV',
-                      icon: Icons.live_tv,
-                      value: _importLive,
-                      onChanged: (v) => setState(() => _importLive = v),
-                    ),
-                    _buildContentTypeChip(
-                      label: 'Movies',
-                      icon: Icons.movie,
-                      value: _importMovies,
-                      onChanged: (v) => setState(() => _importMovies = v),
-                    ),
-                    _buildContentTypeChip(
-                      label: 'Series',
-                      icon: Icons.tv,
-                      value: _importSeries,
-                      onChanged: (v) => setState(() => _importSeries = v),
-                    ),
-                    _buildContentTypeChip(
-                      label: 'Radio',
-                      icon: Icons.radio,
-                      value: _importRadio,
-                      onChanged: (v) => setState(() => _importRadio = v),
-                    ),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 12),
-
-              // -- Import progress ------------------------------------------
+              // -- Import progress ---------------------------------------------
               if (_isLoading && _importProgressMessage.isNotEmpty) ...[
-                const SizedBox(height: 4),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: const LinearProgressIndicator(
@@ -599,10 +527,10 @@ class ImportScreenState extends State<ImportScreen> {
                     fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 12),
               ],
 
-              // -- Add button -----------------------------------------------
+              // -- Add button -------------------------------------------------
               SizedBox(
                 height: 48,
                 child: ElevatedButton(
@@ -624,7 +552,7 @@ class ImportScreenState extends State<ImportScreen> {
                 ),
               ),
 
-              // -- Error message --------------------------------------------
+              // -- Error message -----------------------------------------------
               if (_errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -635,7 +563,7 @@ class ImportScreenState extends State<ImportScreen> {
 
               const SizedBox(height: 24),
 
-              // -- Imported playlists header ---------------------------------
+              // -- Imported playlists header ------------------------------------
               const Text(
                 'Imported Playlists',
                 style: TextStyle(
@@ -646,36 +574,38 @@ class ImportScreenState extends State<ImportScreen> {
               ),
               const SizedBox(height: 12),
 
-              // -- Playlist list ---------------------------------------------
-              Expanded(
-                child: _playlists.isEmpty
-                    ? const Center(
+              // -- Playlist list ------------------------------------------------
+              _playlists.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
                         child: Text(
-                          'No playlists imported yet.\nAdd a playlist URL above.',
+                          'No playlists imported yet.\nAdd a playlist above.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _playlists.length,
-                        itemBuilder: (context, index) {
-                          final playlist = _playlists[index];
-                          return _buildPlaylistTile(playlist);
-                        },
                       ),
-              ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _playlists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = _playlists[index];
+                        return _buildPlaylistTile(playlist);
+                      },
+                    ),
 
-              // -- Skip button (navigate to home) ---------------------------
               const SizedBox(height: 12),
+
+              // -- Skip button (navigate to home) ------------------------------
               SizedBox(
                 height: 48,
                 child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: () => Navigator.of(context).pop(),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
                     side: const BorderSide(color: AppColors.bgSurface),
@@ -692,6 +622,294 @@ class ImportScreenState extends State<ImportScreen> {
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Import type selector (toggle at the top)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildImportTypeSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildTypeTab(
+              label: 'M3U URL',
+              icon: Icons.link,
+              type: ImportType.m3u,
+            ),
+          ),
+          Expanded(
+            child: _buildTypeTab(
+              label: 'Xtream Codes',
+              icon: Icons.dns,
+              type: ImportType.xtream,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeTab({
+    required String label,
+    required IconData icon,
+    required ImportType type,
+  }) {
+    final isSelected = _importType == type;
+    return GestureDetector(
+      onTap: () {
+        if (_importType != type) {
+          setState(() {
+            _importType = type;
+            _errorMessage = null;
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.accentPrimary.withValues(alpha: 0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected
+              ? Border.all(
+                  color: AppColors.accentPrimary.withValues(alpha: 0.5))
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color:
+                  isSelected ? AppColors.accentPrimary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? AppColors.accentPrimary
+                    : AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Input fields (changes based on import type)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildInputFields() {
+    if (_importType == ImportType.m3u) {
+      return _buildM3UFields();
+    } else {
+      return _buildXtreamFields();
+    }
+  }
+
+  Widget _buildM3UFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _urlController,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            labelText: 'M3U URL',
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
+            hintText: 'https://example.com/playlist.m3u',
+            hintStyle: const TextStyle(color: AppColors.textSecondary),
+            filled: true,
+            fillColor: AppColors.bgSurface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(
+              Icons.link,
+              color: AppColors.accentPrimary,
+              size: 20,
+            ),
+            suffixIcon: _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.accentPrimary,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+          onSubmitted: (_) => _addPlaylist(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildXtreamFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Server URL field.
+        TextField(
+          controller: _urlController,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            labelText: 'Server URL',
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
+            hintText: 'http://server.com:8080',
+            hintStyle: const TextStyle(color: AppColors.textSecondary),
+            filled: true,
+            fillColor: AppColors.bgSurface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(
+              Icons.dns,
+              color: AppColors.accentPrimary,
+              size: 20,
+            ),
+          ),
+          onSubmitted: (_) => _addPlaylist(),
+        ),
+        const SizedBox(height: 8),
+
+        // Username field.
+        TextField(
+          controller: _usernameController,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            labelText: 'Username',
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
+            hintText: 'Enter Xtream username',
+            hintStyle: const TextStyle(color: AppColors.textSecondary),
+            filled: true,
+            fillColor: AppColors.bgSurface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(
+              Icons.person,
+              color: AppColors.accentPrimary,
+              size: 20,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Password field.
+        TextField(
+          controller: _passwordController,
+          obscureText: true,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            labelText: 'Password',
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
+            hintText: 'Enter Xtream password',
+            hintStyle: const TextStyle(color: AppColors.textSecondary),
+            filled: true,
+            fillColor: AppColors.bgSurface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(
+              Icons.lock,
+              color: AppColors.accentPrimary,
+              size: 20,
+            ),
+            suffixIcon: _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.accentPrimary,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+          onSubmitted: (_) => _addPlaylist(),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stream type checkboxes (always visible)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildStreamTypeCheckboxes() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Content to import',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            _buildContentTypeChip(
+              label: 'Live TV',
+              icon: Icons.live_tv,
+              value: _importLive,
+              onChanged: (v) => setState(() => _importLive = v),
+            ),
+            _buildContentTypeChip(
+              label: 'Movies',
+              icon: Icons.movie,
+              value: _importMovies,
+              onChanged: (v) => setState(() => _importMovies = v),
+            ),
+            _buildContentTypeChip(
+              label: 'Series',
+              icon: Icons.tv,
+              value: _importSeries,
+              onChanged: (v) => setState(() => _importSeries = v),
+            ),
+            _buildContentTypeChip(
+              label: 'Radio',
+              icon: Icons.radio,
+              value: _importRadio,
+              onChanged: (v) => setState(() => _importRadio = v),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Playlist tile
+  // ---------------------------------------------------------------------------
 
   Widget _buildPlaylistTile(Playlist playlist) {
     // Decrypt the URL for display.
@@ -739,6 +957,10 @@ class ImportScreenState extends State<ImportScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Content type chip
+  // ---------------------------------------------------------------------------
+
   Widget _buildContentTypeChip({
     required String label,
     required IconData icon,
@@ -779,6 +1001,10 @@ class ImportScreenState extends State<ImportScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Confirm remove dialog
+  // ---------------------------------------------------------------------------
 
   void _confirmRemove(Playlist playlist) {
     showDialog(
