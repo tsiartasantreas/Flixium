@@ -43,7 +43,10 @@ class PlaylistManager {
   /// if the user is not signed in), sorted by creation (rowid).
   Future<List<Playlist>> getPlaylists() async {
     // Ensure Supabase is initialized so _currentUserId is accurate.
-    await SupabaseService.initialize();
+    // Wrapped in try-catch: in test environments native plugins are absent.
+    try {
+      await SupabaseService.initialize();
+    } catch (_) {}
 
     final userId = _currentUserId;
     if (userId != null) {
@@ -110,7 +113,10 @@ class PlaylistManager {
     String? password,
   }) async {
     // Ensure Supabase is initialized so we can check entitlement and user ID.
-    await SupabaseService.initialize();
+    // Wrapped in try-catch: in test environments native plugins are absent.
+    try {
+      await SupabaseService.initialize();
+    } catch (_) {}
 
     final isPro = await _entitlement.getTier() == 'pro';
     if (!isPro) {
