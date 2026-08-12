@@ -331,20 +331,32 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Logo / branding.
-          const Icon(
-            Icons.live_tv,
-            size: 64,
-            color: AppColors.accentPrimary,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'iFlixify IPTV',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 4,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: AppColors.accentPrimary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.live_tv,
+                  size: 64,
+                  color: AppColors.textPrimary,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'iFlixify IPTV',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),

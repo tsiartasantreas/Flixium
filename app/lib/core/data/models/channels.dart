@@ -24,4 +24,13 @@ class Channels extends Table {
 
   /// M3U `tvg-name` (EPG matching key).
   TextColumn get tvgName => text().nullable()();
+
+  /// Whether the channel contains adult content ("0" or "1").
+  TextColumn get isAdult => text().nullable()();
+
+  /// Whether catch-up / TV archive is available (0 or 1).
+  IntColumn get tvArchive => integer().nullable()();
+
+  /// Duration of the TV archive in hours.
+  IntColumn get tvArchiveDuration => integer().nullable()();
 }

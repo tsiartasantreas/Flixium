@@ -34,4 +34,13 @@ class TvSeries extends Table {
 
   /// Release date (e.g. "2023-06-15").
   TextColumn get releaseDate => text().nullable()();
+
+  /// YouTube trailer video ID or URL.
+  TextColumn get youtubeTrailer => text().nullable()();
+
+  /// Average episode run time in minutes (e.g. "44").
+  TextColumn get episodeRunTime => text().nullable()();
+
+  /// Backdrop / fanart image URLs (JSON array of strings).
+  TextColumn get backdropPath => text().nullable()();
 }

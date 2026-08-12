@@ -80,15 +80,22 @@ class XtreamStream {
     required this.streamId,
     this.streamIcon,
     this.rating,
+    this.rating5based = 0,
     this.added,
+    this.isAdult,
     this.categoryId,
     this.containerExtension,
+    this.customSid,
+    this.directSource,
     this.epgChannelId,
     this.description,
     this.genre,
     this.cast,
     this.director,
     this.releaseDate,
+    // Live-stream specific fields.
+    this.tvArchive = 0,
+    this.tvArchiveDuration = 0,
   });
 
   factory XtreamStream.fromJson(Map<String, dynamic> json) {
@@ -104,15 +111,21 @@ class XtreamStream {
       streamId: resolvedStreamId,
       streamIcon: json['stream_icon'] as String?,
       rating: json['rating'] as String?,
+      rating5based: _parseInt(json['rating_5based']),
       added: json['added'] as String?,
+      isAdult: json['is_adult'] as String?,
       categoryId: json['category_id'] as String?,
       containerExtension: json['container_extension'] as String?,
+      customSid: json['custom_sid'] as String?,
+      directSource: json['direct_source'] as String?,
       epgChannelId: json['epg_channel_id'] as String?,
       description: json['plot'] as String? ?? json['description'] as String?,
       genre: json['genre'] as String?,
       cast: json['cast'] as String?,
       director: json['director'] as String?,
       releaseDate: json['releasedate'] as String? ?? json['releaseDate'] as String?,
+      tvArchive: _parseInt(json['tv_archive']),
+      tvArchiveDuration: _parseInt(json['tv_archive_duration']),
     );
   }
 
@@ -122,9 +135,25 @@ class XtreamStream {
   final int streamId;
   final String? streamIcon;
   final String? rating;
+
+  /// Rating on a 0-5 scale (from `rating_5based`).
+  final int rating5based;
+
   final String? added;
+
+  /// Whether the stream contains adult content ("0" or "1").
+  final String? isAdult;
+
   final String? categoryId;
   final String? containerExtension;
+
+  /// Custom session identifier used by some providers for auth.
+  final String? customSid;
+
+  /// Direct source URL override (when non-empty, use this instead of the
+  /// constructed stream URL).
+  final String? directSource;
+
   final String? epgChannelId;
 
   /// Plot / overview description.
@@ -141,6 +170,12 @@ class XtreamStream {
 
   /// Release date.
   final String? releaseDate;
+
+  /// Whether catch-up / TV archive is available (1 = yes).  Live streams only.
+  final int tvArchive;
+
+  /// Duration of the TV archive in hours.  Live streams only.
+  final int tvArchiveDuration;
 }
 
 /// A series item.
@@ -156,7 +191,12 @@ class XtreamSeries {
     this.genre,
     this.releaseDate,
     this.rating,
+    this.rating5based = 0,
     this.backdropPath,
+    this.youtubeTrailer,
+    this.episodeRunTime,
+    this.lastModified,
+    this.categoryId,
   });
 
   factory XtreamSeries.fromJson(Map<String, dynamic> json) {
@@ -171,7 +211,12 @@ class XtreamSeries {
       genre: json['genre'] as String?,
       releaseDate: json['releaseDate'] as String?,
       rating: json['rating'] as String?,
+      rating5based: _parseInt(json['rating_5based']),
       backdropPath: _parseBackdropPath(json['backdrop_path']),
+      youtubeTrailer: json['youtube_trailer'] as String?,
+      episodeRunTime: json['episode_run_time'] as String?,
+      lastModified: json['last_modified'] as String?,
+      categoryId: json['category_id'] as String?,
     );
   }
 
@@ -185,13 +230,33 @@ class XtreamSeries {
   final String? genre;
   final String? releaseDate;
   final String? rating;
+
+  /// Rating on a 0-5 scale (from `rating_5based`).
+  final int rating5based;
+
   final List<String>? backdropPath;
+
+  /// YouTube trailer video ID.
+  final String? youtubeTrailer;
+
+  /// Average episode run time in minutes.
+  final String? episodeRunTime;
+
+  /// Unix timestamp of last modification.
+  final String? lastModified;
+
+  /// Category ID (string).
+  final String? categoryId;
 
   static List<String>? _parseBackdropPath(dynamic value) {
     if (value is List) {
       return value
           .whereType<String>()
           .toList();
+    }
+    // Some providers return a single string URL instead of a list.
+    if (value is String && value.isNotEmpty) {
+      return [value];
     }
     return null;
   }
@@ -202,6 +267,7 @@ class XtreamSeriesInfo {
   const XtreamSeriesInfo({
     required this.seasons,
     required this.episodes,
+    this.info,
   });
 
   factory XtreamSeriesInfo.fromJson(Map<String, dynamic> json) {
@@ -229,11 +295,17 @@ class XtreamSeriesInfo {
     return XtreamSeriesInfo(
       seasons: seasons,
       episodes: episodes,
+      info: json['info'] as Map<String, dynamic>?,
     );
   }
 
   final List<XtreamSeason> seasons;
   final Map<int, List<XtreamEpisode>> episodes;
+
+  /// Raw info object from the series_info response. Contains keys such as
+  /// `rating_5based`, `youtube_trailer`, `episode_run_time`, `last_modified`,
+  /// `category_id`, `backdrop_path`, etc.
+  final Map<String, dynamic>? info;
 }
 
 /// A season entry within series info.
@@ -261,6 +333,10 @@ class XtreamEpisode {
     required this.episodeNum,
     required this.title,
     required this.containerExtension,
+    this.customSid,
+    this.added,
+    this.season = 0,
+    this.directSource,
     this.info,
   });
 
@@ -270,6 +346,10 @@ class XtreamEpisode {
       episodeNum: _parseInt(json['episode_num']),
       title: json['title'] as String? ?? '',
       containerExtension: json['container_extension'] as String? ?? '',
+      customSid: json['custom_sid'] as String?,
+      added: json['added'] as String?,
+      season: _parseInt(json['season']),
+      directSource: json['direct_source'] as String?,
       info: json['info'] as Map<String, dynamic>?,
     );
   }
@@ -278,5 +358,31 @@ class XtreamEpisode {
   final int episodeNum;
   final String title;
   final String containerExtension;
+
+  /// Custom session identifier (provider-specific).
+  final String? customSid;
+
+  /// Unix timestamp when the episode was added.
+  final String? added;
+
+  /// Season number (from the episode object itself, not the map key).
+  final int season;
+
+  /// Direct source URL override.
+  final String? directSource;
+
+  /// Raw info map containing `movie_image`, `plot`, `rating`, `releasedate`.
   final Map<String, dynamic>? info;
+
+  /// Convenience: episode thumbnail from `info['movie_image']`.
+  String? get thumbnail => info?['movie_image'] as String?;
+
+  /// Convenience: episode plot from `info['plot']`.
+  String? get plot => info?['plot'] as String?;
+
+  /// Convenience: episode rating from `info['rating']`.
+  String? get rating => info?['rating'] as String?;
+
+  /// Convenience: episode release date from `info['releasedate']`.
+  String? get releaseDate => info?['releasedate'] as String?;
 }

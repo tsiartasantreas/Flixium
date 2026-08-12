@@ -8,6 +8,24 @@ const ENV = {
   SUPABASE_SERVICE_ROLE_KEY: "test-key",
 };
 
+test("router: GET / returns landing page HTML", async () => {
+  const req = new Request(new URL("/", "http://edge.test"));
+  const res = await handler.fetch(req, ENV);
+  assert.equal(res.status, 200);
+  const ct = res.headers.get("content-type");
+  assert.ok(ct.includes("text/html"), "should return HTML");
+  const body = await res.text();
+  assert.ok(body.includes("iFlixify IPTV"), "should contain branding");
+  assert.ok(body.includes("Download APK"), "should contain download link");
+  assert.ok(body.includes("/dl/latest"), "should link to download endpoint");
+});
+
+test("router: POST / returns 405", async () => {
+  const req = new Request(new URL("/", "http://edge.test"), { method: "POST" });
+  const res = await handler.fetch(req, ENV);
+  assert.equal(res.status, 405);
+});
+
 test("router: 404 for unknown path", async () => {
   const req = new Request(new URL("/nope", "http://edge.test"));
   const res = await handler.fetch(req, ENV);

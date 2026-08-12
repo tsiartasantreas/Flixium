@@ -37,6 +37,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _videoQuality = 'Auto';
   bool _useExternalPlayer = false;
 
+  // Navigation settings.
+  bool _showRadioTab = true;
+
   // Update check state.
   bool _isCheckingForUpdates = false;
   bool _isRefreshing = false;
@@ -112,6 +115,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
+      _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
     });
   }
 
@@ -405,6 +409,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 16),
 
+          // -- Radio section ------------------------------------------------
+          _buildSectionHeader('Radio'),
+          _buildSwitchTile(
+            icon: Icons.radio_outlined,
+            title: 'Show Radio tab in bottom navigation',
+            subtitle: _showRadioTab
+                ? 'Radio tab is visible in the bottom navigation bar'
+                : 'Radio tab is hidden from the bottom navigation bar',
+            value: _showRadioTab,
+            onChanged: (value) async {
+              setState(() => _showRadioTab = value);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('show_radio_tab', value);
+            },
+          ),
+
+          const SizedBox(height: 16),
+
           // -- Data section -------------------------------------------------
           _buildSectionHeader('Data'),
           _buildNavigationTile(
@@ -435,7 +457,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildInfoTile(
             icon: Icons.info_outline,
             title: 'iFlixify IPTV',
-            subtitle: 'Version 4.7.0-alpha (build 1)',
+            subtitle: 'iFlixify IPTV v5.2.0-alpha',
           ),
           _buildNavigationTile(
             icon: Icons.system_update_outlined,
@@ -481,7 +503,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'iFlixify IPTV',
-              applicationVersion: '4.7.0-alpha',
+              applicationVersion: '5.2.0-alpha',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,

@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Bump this when you add / remove tables or alter columns.
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -97,6 +97,27 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(tvSeries, tvSeries.cast);
             await m.addColumn(tvSeries, tvSeries.director);
             await m.addColumn(tvSeries, tvSeries.releaseDate);
+          }
+          if (from < 7) {
+            // VOD: country, trailer, backdrop, tmdb, duration, adult flag.
+            await m.addColumn(vodItems, vodItems.country as GeneratedColumn<Object>);
+            await m.addColumn(vodItems, vodItems.youtubeTrailer as GeneratedColumn<Object>);
+            await m.addColumn(vodItems, vodItems.backdropPath as GeneratedColumn<Object>);
+            await m.addColumn(vodItems, vodItems.tmdbId as GeneratedColumn<Object>);
+            await m.addColumn(vodItems, vodItems.duration as GeneratedColumn<Object>);
+            await m.addColumn(vodItems, vodItems.isAdult as GeneratedColumn<Object>);
+            // Live channels: adult flag, catch-up fields.
+            await m.addColumn(channels, channels.isAdult as GeneratedColumn<Object>);
+            await m.addColumn(channels, channels.tvArchive as GeneratedColumn<Object>);
+            await m.addColumn(channels, channels.tvArchiveDuration as GeneratedColumn<Object>);
+            // Series: trailer, run time, backdrop.
+            await m.addColumn(tvSeries, tvSeries.youtubeTrailer as GeneratedColumn<Object>);
+            await m.addColumn(tvSeries, tvSeries.episodeRunTime as GeneratedColumn<Object>);
+            await m.addColumn(tvSeries, tvSeries.backdropPath as GeneratedColumn<Object>);
+            // Episodes: plot, rating, release date.
+            await m.addColumn(episodes, episodes.plot as GeneratedColumn<Object>);
+            await m.addColumn(episodes, episodes.rating as GeneratedColumn<Object>);
+            await m.addColumn(episodes, episodes.releaseDate as GeneratedColumn<Object>);
           }
         },
       );

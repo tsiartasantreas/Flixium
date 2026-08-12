@@ -158,6 +158,16 @@ class XtreamApiClient {
     return [];
   }
 
+  /// Fetches detailed information for a single VOD item.
+  ///
+  /// Returns the raw `info` map from the API, which contains fields such as
+  /// `country`, `youtube_trailer`, `backdrop_path`, `tmdb_id`, `duration`,
+  /// `actors`, `age`, `rating_mpaa`, etc.
+  Future<Map<String, dynamic>> getVodInfo(int vodId) async {
+    final json = await _get('&action=get_vod_info&vod_id=$vodId');
+    return json['info'] as Map<String, dynamic>? ?? json;
+  }
+
   // ---------------------------------------------------------------------------
   // Series
   // ---------------------------------------------------------------------------

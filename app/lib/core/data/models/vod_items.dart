@@ -39,4 +39,22 @@ class VodItems extends Table {
 
   /// Release date (e.g. "2024-01-15").
   TextColumn get releaseDate => text().nullable()();
+
+  /// Country of origin (e.g. "United States of America").
+  TextColumn get country => text().nullable()();
+
+  /// YouTube trailer video ID or URL.
+  TextColumn get youtubeTrailer => text().nullable()();
+
+  /// Backdrop / fanart image URLs (JSON array of strings).
+  TextColumn get backdropPath => text().nullable()();
+
+  /// TMDB identifier.
+  IntColumn get tmdbId => integer().nullable()();
+
+  /// Duration string (e.g. "01:42:00").
+  TextColumn get duration => text().nullable()();
+
+  /// Whether the content is adult-only ("0" or "1").
+  TextColumn get isAdult => text().nullable()();
 }

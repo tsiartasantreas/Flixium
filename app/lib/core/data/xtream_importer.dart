@@ -273,6 +273,9 @@ class XtreamImporter {
             baseProgress,
           );
 
+          // Merge list-level and info-level metadata for the series.
+          final detail = seriesDetails[i];
+
           final seriesId = await _db.into(_db.tvSeries).insert(
                 TvSeriesCompanion.insert(
                   playlistId: playlistId,
@@ -287,10 +290,9 @@ class XtreamImporter {
                 ),
               );
 
-          final info = seriesDetails[i];
-          if (info != null) {
+          if (detail != null) {
             var epCount = 0;
-            for (final entry in info.episodes.entries) {
+            for (final entry in detail.episodes.entries) {
               final seasonNum = entry.key;
               for (final ep in entry.value) {
                 final epUrl = client.getSeriesStreamUrl(
@@ -308,7 +310,7 @@ class XtreamImporter {
                         episode: ep.episodeNum,
                         title: ep.title,
                         url: epUrl,
-                        thumbnail: drift.Value(s.cover),
+                        thumbnail: drift.Value(ep.thumbnail ?? s.cover),
                       ),
                     );
                 epCount++;
@@ -342,6 +344,8 @@ class XtreamImporter {
 
   /// Releases the underlying HTTP client.
   void close() => _client?.close();
+
+  /// Encodes a list of backdrop URLs as a JSON string for storage.
 }
 
 /// Summary of what was imported from an Xtream provider.

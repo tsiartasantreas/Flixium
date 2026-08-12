@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/data/background_download_service.dart';
 import '../../core/data/database.dart';
 import '../../core/data/import_progress_service.dart';
 import '../../core/data/m3u_parser.dart';
@@ -254,6 +255,13 @@ class ImportScreenState extends State<ImportScreen> {
       isComplete: false,
     );
 
+    // Keep the foreground service alive so the import continues even when
+    // the app is minimised or the screen is off.
+    final bgService = BackgroundDownloadService.instance;
+    await bgService.incrementTaskCount(
+      notificationText: 'Importing playlist...',
+    );
+
     try {
       final response = await http.get(Uri.parse(url)).timeout(
             const Duration(seconds: 30),
@@ -362,6 +370,10 @@ class ImportScreenState extends State<ImportScreen> {
         progress: 0.0,
         isComplete: true,
         error: e.toString(),
+      );
+    } finally {
+      await bgService.decrementTaskCount(
+        notificationText: 'Import finished.',
       );
     }
   }

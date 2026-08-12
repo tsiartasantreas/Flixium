@@ -16,8 +16,7 @@ class AppColors {
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFB3B3B3);
 
-  // The ONE allowed deviation. Netflix uses #E50914; we use a rose-red accent.
-  // Value is provisional — locked at the start of P2 (spec §17).
-  static const Color accentPrimary = Color(0xFFE11D48);
+  // Netflix red — matches the official Netflix brand color.
+  static const Color accentPrimary = Color(0xFFE50914);
   static const Color accentHover = Color(0xFFF43F5E);
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
@@ -29,6 +30,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _mobileIndex = 0;
   int _tvIndex = 0;
+  bool _showRadioTab = true;
 
   bool get _isTv =>
       Platform.isLinux ||
@@ -38,6 +40,21 @@ class _MainShellState extends State<MainShell> {
                   .size
                   .shortestSide >
               600);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShowRadioTab();
+  }
+
+  Future<void> _loadShowRadioTab() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
+      });
+    }
+  }
 
   void _onTabChanged(int index) {
     setState(() {
@@ -54,21 +71,40 @@ class _MainShellState extends State<MainShell> {
   // ---------------------------------------------------------------------------
 
   Widget _buildMobileTab(int index) {
-    switch (index) {
-      case 0: // Home
-        return const HomeScreen();
-      case 1: // Live TV
-        return const BrowseScreen(contentType: 'live', title: 'Live TV');
-      case 2: // Movies
-        return const BrowseScreen(contentType: 'vod', title: 'Movies');
-      case 3: // Series
-        return const BrowseScreen(contentType: 'series', title: 'Series');
-      case 4: // Radio
-        return const BrowseScreen(contentType: 'radio', title: 'Radio');
-      case 5: // Downloads
-        return const OfflineScreen();
-      default:
-        return const HomeScreen();
+    if (_showRadioTab) {
+      // Six tabs: Home, Live TV, Movies, Series, Radio, Downloads.
+      switch (index) {
+        case 0: // Home
+          return const HomeScreen();
+        case 1: // Live TV
+          return const BrowseScreen(contentType: 'live', title: 'Live TV');
+        case 2: // Movies
+          return const BrowseScreen(contentType: 'vod', title: 'Movies');
+        case 3: // Series
+          return const BrowseScreen(contentType: 'series', title: 'Series');
+        case 4: // Radio
+          return const BrowseScreen(contentType: 'radio', title: 'Radio');
+        case 5: // Downloads
+          return const OfflineScreen();
+        default:
+          return const HomeScreen();
+      }
+    } else {
+      // Five tabs: Home, Live TV, Movies, Series, Downloads (Radio hidden).
+      switch (index) {
+        case 0: // Home
+          return const HomeScreen();
+        case 1: // Live TV
+          return const BrowseScreen(contentType: 'live', title: 'Live TV');
+        case 2: // Movies
+          return const BrowseScreen(contentType: 'vod', title: 'Movies');
+        case 3: // Series
+          return const BrowseScreen(contentType: 'series', title: 'Series');
+        case 4: // Downloads
+          return const OfflineScreen();
+        default:
+          return const HomeScreen();
+      }
     }
   }
 
@@ -148,14 +184,22 @@ class _MainShellState extends State<MainShell> {
           Expanded(
             child: IndexedStack(
               index: _mobileIndex,
-              children: [
-                _buildMobileTab(0),
-                _buildMobileTab(1),
-                _buildMobileTab(2),
-                _buildMobileTab(3),
-                _buildMobileTab(4),
-                _buildMobileTab(5),
-              ],
+              children: _showRadioTab
+                  ? [
+                      _buildMobileTab(0),
+                      _buildMobileTab(1),
+                      _buildMobileTab(2),
+                      _buildMobileTab(3),
+                      _buildMobileTab(4),
+                      _buildMobileTab(5),
+                    ]
+                  : [
+                      _buildMobileTab(0),
+                      _buildMobileTab(1),
+                      _buildMobileTab(2),
+                      _buildMobileTab(3),
+                      _buildMobileTab(4),
+                    ],
             ),
           ),
         ],
@@ -163,6 +207,7 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: MobileNav(
         currentIndex: _mobileIndex,
         onTap: _onTabChanged,
+        showRadioTab: _showRadioTab,
       ),
     );
   }

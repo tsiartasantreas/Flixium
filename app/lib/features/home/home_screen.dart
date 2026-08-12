@@ -589,11 +589,11 @@ class HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
-        backgroundColor: AppColors.bgElevated,
+        backgroundColor: AppColors.accentPrimary,
         title: const Text(
           'iFlixify IPTV',
           style: TextStyle(
-            color: AppColors.accentPrimary,
+            color: AppColors.textPrimary,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),

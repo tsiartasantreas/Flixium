@@ -279,7 +279,22 @@ class _DetailScreenState extends State<DetailScreen> {
     final useExternalPlayer = prefs.getBool('use_external_player') ?? false;
 
     if (useExternalPlayer && Platform.isAndroid) {
-      // Launch stream URL in an external video player via ACTION_VIEW.
+      // Try VLC first via its intent scheme, then fall back to the generic
+      // external app chooser so the user can pick another player.
+      final vlcIntentUri = Uri.parse(
+        'intent:$playbackUrl#Intent;scheme=vlc;package=org.videolan.vlc;end',
+      );
+      try {
+        final vlcLaunched = await launchUrl(
+          vlcIntentUri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (vlcLaunched) return;
+      } catch (_) {
+        // VLC not installed or intent failed — fall through to generic.
+      }
+
+      // Fall back to the system app chooser.
       final uri = Uri.parse(playbackUrl);
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);

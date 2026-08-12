@@ -25,4 +25,13 @@ class Episodes extends Table {
 
   /// Thumbnail / still URL.
   TextColumn get thumbnail => text().nullable()();
+
+  /// Episode plot / description.
+  TextColumn get plot => text().nullable()();
+
+  /// Episode rating (e.g. "7.5").
+  TextColumn get rating => text().nullable()();
+
+  /// Episode release date (e.g. "2024-03-15").
+  TextColumn get releaseDate => text().nullable()();
 }
