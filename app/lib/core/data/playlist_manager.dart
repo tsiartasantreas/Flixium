@@ -42,6 +42,9 @@ class PlaylistManager {
   /// Returns all playlists for the current user (or all anonymous playlists
   /// if the user is not signed in), sorted by creation (rowid).
   Future<List<Playlist>> getPlaylists() async {
+    // Ensure Supabase is initialized so _currentUserId is accurate.
+    await SupabaseService.initialize();
+
     final userId = _currentUserId;
     if (userId != null) {
       return (_db.select(_db.playlists)
@@ -106,6 +109,9 @@ class PlaylistManager {
     String? username,
     String? password,
   }) async {
+    // Ensure Supabase is initialized so we can check entitlement and user ID.
+    await SupabaseService.initialize();
+
     final isPro = await _entitlement.getTier() == 'pro';
     if (!isPro) {
       final count = await getPlaylistCount();

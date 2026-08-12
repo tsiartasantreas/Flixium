@@ -85,6 +85,8 @@ class XtreamImporter {
       onProgress?.call('Fetching live TV categories...', 0.0);
       try {
         final liveCategories = await client.getLiveCategories();
+        // ignore: avoid_print
+        print('[XtreamImport] Live categories: ${liveCategories.length}');
         for (var i = 0; i < liveCategories.length; i++) {
           final cat = liveCategories[i];
           final typeProgress = completedTypes / enabledTypes;
@@ -96,6 +98,8 @@ class XtreamImporter {
             final streams = await client.getLiveStreams(
               categoryId: int.tryParse(cat.id),
             );
+            // ignore: avoid_print
+            print('[XtreamImport] Live cat "${cat.name}" → ${streams.length} streams');
             for (final stream in streams) {
               final streamUrl = client.getLiveStreamUrl(stream);
               await _db.into(_db.channels).insert(
@@ -110,12 +114,16 @@ class XtreamImporter {
                   );
               totalChannels++;
             }
-          } catch (_) {
+          } catch (e) {
+            // ignore: avoid_print
+            print('[XtreamImport] Live cat "${cat.name}" FAILED: $e');
             // Skip individual category failures.
           }
         }
         completedTypes++;
       } catch (e) {
+        // ignore: avoid_print
+        print('[XtreamImport] Live TV FAILED: $e');
         lastError = 'Live TV: $e';
       }
     }
@@ -126,6 +134,8 @@ class XtreamImporter {
       onProgress?.call('Fetching movie categories...', typeProgress);
       try {
         final vodCategories = await client.getVodCategories();
+        // ignore: avoid_print
+        print('[XtreamImport] VOD categories: ${vodCategories.length}');
         for (var i = 0; i < vodCategories.length; i++) {
           final cat = vodCategories[i];
           final baseProgress = completedTypes / enabledTypes;
@@ -137,6 +147,8 @@ class XtreamImporter {
             final streams = await client.getVodStreams(
               categoryId: int.tryParse(cat.id),
             );
+            // ignore: avoid_print
+            print('[XtreamImport] VOD cat "${cat.name}" → ${streams.length} streams');
             for (final stream in streams) {
               final streamUrl = client.getVodStreamUrl(stream);
               await _db.into(_db.vodItems).insert(
@@ -150,12 +162,16 @@ class XtreamImporter {
                   );
               totalVod++;
             }
-          } catch (_) {
+          } catch (e) {
+            // ignore: avoid_print
+            print('[XtreamImport] VOD cat "${cat.name}" FAILED: $e');
             // Skip individual category failures.
           }
         }
         completedTypes++;
       } catch (e) {
+        // ignore: avoid_print
+        print('[XtreamImport] VOD FAILED: $e');
         lastError = 'Movies: $e';
       }
     }
@@ -166,6 +182,8 @@ class XtreamImporter {
       onProgress?.call('Fetching series list...', typeProgress);
       try {
         final seriesList = await client.getSeries();
+        // ignore: avoid_print
+        print('[XtreamImport] Series: ${seriesList.length}');
         for (var i = 0; i < seriesList.length; i++) {
           final s = seriesList[i];
           final baseProgress = completedTypes / enabledTypes;
@@ -204,13 +222,17 @@ class XtreamImporter {
                     );
               }
             }
-          } catch (_) {
+          } catch (e) {
+            // ignore: avoid_print
+            print('[XtreamImport] Series "${s.name}" detail FAILED: $e');
             // Some series may fail to load details -- skip individual series.
           }
           totalSeries++;
         }
         completedTypes++;
       } catch (e) {
+        // ignore: avoid_print
+        print('[XtreamImport] Series FAILED: $e');
         lastError = 'Series: $e';
       }
     }

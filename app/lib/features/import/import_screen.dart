@@ -182,6 +182,9 @@ class ImportScreenState extends State<ImportScreen> {
       baseUrl = rawUrl.replaceAll(RegExp(r'/+$'), '');
     }
 
+    // ignore: avoid_print
+    print('[Import] Xtream import: baseUrl=$baseUrl user=$username');
+
     final importer = XtreamImporter(db: _db);
     try {
       // Build the set of selected content types.
@@ -191,13 +194,19 @@ class ImportScreenState extends State<ImportScreen> {
       if (_importSeries) selectedTypes.add(XtreamContentType.series);
 
       // Create the playlist record via PlaylistManager (encrypted, with user_id).
+      // ignore: avoid_print
+      print('[Import] Creating playlist record...');
       final playlist = await _playlistManager.addPlaylist(
         '$username@$baseUrl',
         baseUrl,
         username: username,
         password: password,
       );
+      // ignore: avoid_print
+      print('[Import] Playlist created: id=${playlist.id}');
 
+      // ignore: avoid_print
+      print('[Import] Starting XtreamImporter.import()...');
       final result = await importer.import(
         playlistId: playlist.id,
         baseUrl: baseUrl,
@@ -210,6 +219,10 @@ class ImportScreenState extends State<ImportScreen> {
           }
         },
       );
+
+      // ignore: avoid_print
+      print('[Import] Done: ch=${result.channels} vod=${result.vodItems} '
+          'series=${result.series} error=${result.error}');
 
       if (mounted) {
         _showImportSummary(
