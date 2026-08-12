@@ -12,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
 import '../detail/detail_screen.dart';
 import '../import/import_screen.dart';
+import '../search/search_screen.dart';
 import 'widgets/content_row.dart';
 import 'widgets/continue_watching_row.dart';
 
@@ -544,6 +545,17 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: AppColors.textPrimary),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SearchScreen(),
+                ),
+              );
+            },
+            tooltip: 'Search',
+          ),
           IconButton(
             icon: const Icon(Icons.add, color: AppColors.textPrimary),
             onPressed: _navigateToImport,

@@ -74,6 +74,29 @@ class XtreamApiClient {
   /// Fetches detailed series information including seasons and episodes.
   Future<XtreamSeriesInfo> getSeriesInfo(int seriesId) async {
     final json = await _get('&action=get_series_info&series_id=$seriesId');
+    // ignore: avoid_print
+    print('[XtreamAPI] getSeriesInfo($seriesId) response keys: ${json.keys.toList()}');
+    final episodesRaw = json['episodes'];
+    // ignore: avoid_print
+    print('[XtreamAPI] episodes field type: ${episodesRaw?.runtimeType}, '
+        'isMap: ${episodesRaw is Map}, '
+        'seasons field type: ${json['seasons']?.runtimeType}');
+    if (episodesRaw is Map) {
+      // ignore: avoid_print
+      print('[XtreamAPI] episodes season keys: ${episodesRaw.keys.toList()}');
+      for (final entry in episodesRaw.entries) {
+        final eps = entry.value;
+        // ignore: avoid_print
+        print('[XtreamAPI]   season ${entry.key}: '
+            '${(eps is List) ? eps.length : "not a List"} episodes');
+        if (eps is List && eps.isNotEmpty) {
+          final first = eps.first;
+          // ignore: avoid_print
+          print('[XtreamAPI]     first ep keys: '
+              '${(first is Map) ? first.keys.toList() : first.runtimeType}');
+        }
+      }
+    }
     return XtreamSeriesInfo.fromJson(json);
   }
 
@@ -168,6 +191,8 @@ class XtreamApiClient {
           'Response is ${body.runtimeType}, expected Map or List',
         );
       }
+      // ignore: avoid_print
+      print('[XtreamAPI] Response keys: ${body.keys.toList()}');
       return body;
     } on XtreamApiException {
       rethrow;
@@ -181,14 +206,19 @@ class XtreamApiClient {
   // ---------------------------------------------------------------------------
 
   List<XtreamCategory> _parseCategoryList(Map<String, dynamic> json) {
-    // The key varies: 'categories' for VOD/series, 'available_channels' for
-    // live, or '_list' if the API returned a raw JSON array.
+    // The key varies across Xtream providers: 'categories' for VOD/series,
+    // 'available_channels' for live, 'vod_categories'/'movie_categories' for
+    // VOD-specific responses, or '_list' if the API returned a raw JSON array.
     final list = json['_list'] as List<dynamic>? ??
         json['categories'] as List<dynamic>? ??
         json['available_channels'] as List<dynamic>? ??
+        json['vod_categories'] as List<dynamic>? ??
+        json['movie_categories'] as List<dynamic>? ??
+        json['series_categories'] as List<dynamic>? ??
         [];
     // ignore: avoid_print
-    print('[XtreamAPI] parseCategoryList → ${list.length} items');
+    print('[XtreamAPI] parseCategoryList → ${list.length} items '
+        '(keys: ${json.keys.toList()})');
     return list
         .whereType<Map<String, dynamic>>()
         .map(XtreamCategory.fromJson)
@@ -196,12 +226,20 @@ class XtreamApiClient {
   }
 
   List<XtreamStream> _parseStreamList(Map<String, dynamic> json) {
+    // The key varies across Xtream providers: 'stream'/'streams' for live,
+    // 'movies'/'movie'/'vod'/'video' for VOD, or '_list' if the API returned
+    // a raw JSON array. Try all known variants.
     final list = json['_list'] as List<dynamic>? ??
         json['stream'] as List<dynamic>? ??
         json['streams'] as List<dynamic>? ??
+        json['movies'] as List<dynamic>? ??
+        json['movie'] as List<dynamic>? ??
+        json['vod'] as List<dynamic>? ??
+        json['video'] as List<dynamic>? ??
         [];
     // ignore: avoid_print
-    print('[XtreamAPI] parseStreamList → ${list.length} items');
+    print('[XtreamAPI] parseStreamList → ${list.length} items '
+        '(keys: ${json.keys.toList()})');
     return list
         .whereType<Map<String, dynamic>>()
         .map(XtreamStream.fromJson)
@@ -211,9 +249,11 @@ class XtreamApiClient {
   List<XtreamSeries> _parseSeriesList(Map<String, dynamic> json) {
     final list = json['_list'] as List<dynamic>? ??
         json['series'] as List<dynamic>? ??
+        json['series_list'] as List<dynamic>? ??
         [];
     // ignore: avoid_print
-    print('[XtreamAPI] parseSeriesList → ${list.length} items');
+    print('[XtreamAPI] parseSeriesList → ${list.length} items '
+        '(keys: ${json.keys.toList()})');
     return list
         .whereType<Map<String, dynamic>>()
         .map(XtreamSeries.fromJson)

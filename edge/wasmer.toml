@@ -6,5 +6,10 @@ description = "iFlixify IPTV edge app: /dl/latest redirect + (later) licensing/a
 license = "Proprietary"
 
 # The runtime is a JS service worker (WinterCG fetch handler).
+[module]
+name = "iflixify-edge"
+source = "src/index.js"
+description = "iFlixify IPTV edge service worker"
+
 [fs]
-"./src" = "./src"
+"/src" = "./src"

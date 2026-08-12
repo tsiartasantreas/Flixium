@@ -207,6 +207,11 @@ class XtreamImporter {
           // Fetch detailed info (seasons & episodes).
           try {
             final info = await client.getSeriesInfo(s.seriesId);
+            // ignore: avoid_print
+            print('[XtreamImport] Series "${s.name}" (xid=${s.seriesId}, '
+                'dbId=$seriesId): ${info.seasons.length} seasons, '
+                '${info.episodes.length} season-keys in episodes map');
+            var epCount = 0;
             for (final entry in info.episodes.entries) {
               final seasonNum = entry.key;
               for (final ep in entry.value) {
@@ -215,7 +220,9 @@ class XtreamImporter {
                   ep.containerExtension,
                 );
                 // ignore: avoid_print
-                print('[XtreamImport] SERIES EP "${ep.title}" S${seasonNum}E${ep.episodeNum} → url=$epUrl');
+                print('[XtreamImport] SERIES EP "${ep.title}" '
+                    'S${seasonNum}E${ep.episodeNum} (epId=${ep.id}) '
+                    '→ url=$epUrl');
                 await _db.into(_db.episodes).insert(
                       EpisodesCompanion.insert(
                         seriesId: seriesId,
@@ -226,11 +233,17 @@ class XtreamImporter {
                         thumbnail: drift.Value(s.cover),
                       ),
                     );
+                epCount++;
               }
             }
-          } catch (e) {
             // ignore: avoid_print
-            print('[XtreamImport] Series "${s.name}" detail FAILED: $e');
+            print('[XtreamImport] Series "${s.name}" imported $epCount episodes');
+          } catch (e, st) {
+            // ignore: avoid_print
+            print('[XtreamImport] Series "${s.name}" (xid=${s.seriesId}) '
+                'detail FAILED: $e');
+            // ignore: avoid_print
+            print('[XtreamImport] Stack trace: $st');
             // Some series may fail to load details -- skip individual series.
           }
           totalSeries++;

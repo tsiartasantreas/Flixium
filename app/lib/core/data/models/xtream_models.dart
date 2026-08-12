@@ -1,6 +1,19 @@
 /// Data classes for the Xtream Codes API.
 library;
 
+/// Parses a JSON value that may be an int or a String into an int.
+///
+/// Xtream APIs frequently return numeric fields (ids, episode numbers, etc.)
+/// as quoted strings (e.g. `"id": "123"`). Dart's `json.decode` turns those
+/// into [String] objects, so a hard `as int` cast fails.  This helper accepts
+/// both representations and returns `fallback` when the value is null or
+/// cannot be parsed.
+int _parseInt(dynamic value, [int fallback = 0]) {
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
 /// Server information returned by the Xtream Codes login endpoint.
 class XtreamServerInfo {
   const XtreamServerInfo({
@@ -75,10 +88,10 @@ class XtreamStream {
 
   factory XtreamStream.fromJson(Map<String, dynamic> json) {
     return XtreamStream(
-      num: json['num'] as int? ?? 0,
+      num: _parseInt(json['num']),
       name: json['name'] as String? ?? '',
       streamType: json['stream_type'] as String? ?? '',
-      streamId: json['stream_id'] as int? ?? 0,
+      streamId: _parseInt(json['stream_id']),
       streamIcon: json['stream_icon'] as String?,
       rating: json['rating'] as String?,
       added: json['added'] as String?,
@@ -118,9 +131,9 @@ class XtreamSeries {
 
   factory XtreamSeries.fromJson(Map<String, dynamic> json) {
     return XtreamSeries(
-      num: json['num'] as int? ?? 0,
+      num: _parseInt(json['num']),
       name: json['name'] as String? ?? '',
-      seriesId: json['series_id'] as int? ?? 0,
+      seriesId: _parseInt(json['series_id']),
       cover: json['cover'] as String?,
       plot: json['plot'] as String?,
       cast: json['cast'] as String?,
@@ -202,7 +215,7 @@ class XtreamSeason {
 
   factory XtreamSeason.fromJson(Map<String, dynamic> json) {
     return XtreamSeason(
-      seasonNumber: json['season_number'] as int? ?? 0,
+      seasonNumber: _parseInt(json['season_number']),
       name: json['name'] as String? ?? '',
     );
   }
@@ -223,8 +236,8 @@ class XtreamEpisode {
 
   factory XtreamEpisode.fromJson(Map<String, dynamic> json) {
     return XtreamEpisode(
-      id: json['id'] as int? ?? 0,
-      episodeNum: json['episode_num'] as int? ?? 0,
+      id: _parseInt(json['id']),
+      episodeNum: _parseInt(json['episode_num']),
       title: json['title'] as String? ?? '',
       containerExtension: json['container_extension'] as String? ?? '',
       info: json['info'] as Map<String, dynamic>?,

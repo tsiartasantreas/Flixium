@@ -1,4 +1,4 @@
-name: iflixify-edge
+name: iflixify
 app_id: da_2OPIqt7U7vBW
 owner: tsiartasantreas
 package: .
@@ -8,8 +8,10 @@ capabilities:
   instaboot:
     mode: null
     requests:
+    - path: /
     - path: /dl/latest
     - path: /dl/latest/arm64
+    - path: /reset-password
     - path: /_bootstrap
   cdn_cache:
     enabled: true

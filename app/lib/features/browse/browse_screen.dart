@@ -5,6 +5,7 @@ import '../../core/data/database.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../detail/detail_screen.dart';
+import '../search/search_screen.dart';
 
 /// Category browse screen showing all items in a content type.
 ///
@@ -263,6 +264,20 @@ class BrowseScreenState extends State<BrowseScreen> {
           style: const TextStyle(color: AppColors.textPrimary),
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: AppColors.textPrimary),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      SearchScreen(contentType: widget.contentType),
+                ),
+              );
+            },
+            tooltip: 'Search',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(

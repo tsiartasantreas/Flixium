@@ -8,6 +8,7 @@ import '../browse/browse_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../home/home_screen.dart';
 import '../offline/offline_screen.dart';
+import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
 import 'mobile_nav.dart';
 import 'tv_left_rail.dart';
@@ -86,7 +87,7 @@ class _MainShellState extends State<MainShell> {
       case 5: // My List
         return const FavoritesScreen();
       case 6: // Search
-        return const _SearchPlaceholder();
+        return const SearchScreen();
       case 7: // Downloads
         return const OfflineScreen();
       default:
@@ -198,41 +199,3 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Placeholder widgets for tabs not yet implemented
-// -----------------------------------------------------------------------------
-
-/// Placeholder for "Search" (TV only).
-class _SearchPlaceholder extends StatelessWidget {
-  const _SearchPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search,
-            size: 64,
-            color: AppColors.textSecondary.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Search',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Search functionality coming soon.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-}

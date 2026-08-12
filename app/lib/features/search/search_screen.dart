@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,12 +9,22 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../detail/detail_screen.dart';
 
-/// Search screen that searches across all content (channels, VOD, series).
+/// Search screen that searches across content (channels, VOD, series, radio).
+///
+/// Accepts an optional [contentType] to scope results:
+/// `'live'`, `'vod'`, `'series'`, `'radio'`, or `'all'` (default).
 ///
 /// Mobile: search bar at top with results grid below.
 /// TV: D-pad navigable search bar + results grid.
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({
+    super.key,
+    this.contentType = 'all',
+  });
+
+  /// Limits search to a specific content type.
+  /// One of: `'live'`, `'vod'`, `'series'`, `'radio'`, `'all'`.
+  final String contentType;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -26,16 +38,27 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasSearched = false;
   bool _isLoading = false;
 
+  /// Debounce timer — waits 300 ms after the last keystroke before querying.
+  Timer? _debounceTimer;
+
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
   // ---------------------------------------------------------------------------
-  // Search
+  // Search (with 300 ms debounce)
   // ---------------------------------------------------------------------------
+
+  void _onSearchChanged(String query) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(query);
+    });
+  }
 
   Future<void> _performSearch(String query) async {
     if (query.trim().isEmpty) {
@@ -53,55 +76,80 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final q = query.toLowerCase();
     final results = <_SearchResult>[];
+    final type = widget.contentType;
 
     // Search channels.
-    final channels = await _db.select(_db.channels).get();
-    for (final ch in channels) {
-      if (ch.name.toLowerCase().contains(q) ||
-          (ch.groupTitle != null && ch.groupTitle!.toLowerCase().contains(q))) {
-        results.add(_SearchResult(
-          id: ch.id,
-          title: ch.name,
-          imageUrl: ch.logo,
-          url: ch.url,
-          groupTitle: ch.groupTitle,
-          contentType: 'live',
-          typeLabel: 'Live TV',
-        ));
+    if (type == 'all' || type == 'live') {
+      final channels = await _db.select(_db.channels).get();
+      for (final ch in channels) {
+        if (ch.name.toLowerCase().contains(q) ||
+            (ch.groupTitle != null && ch.groupTitle!.toLowerCase().contains(q))) {
+          results.add(_SearchResult(
+            id: ch.id,
+            title: ch.name,
+            imageUrl: ch.logo,
+            url: ch.url,
+            groupTitle: ch.groupTitle,
+            contentType: 'live',
+            typeLabel: 'Live TV',
+          ));
+        }
       }
     }
 
     // Search VOD.
-    final vodItems = await _db.select(_db.vodItems).get();
-    for (final vod in vodItems) {
-      if (vod.title.toLowerCase().contains(q) ||
-          (vod.groupTitle != null &&
-              vod.groupTitle!.toLowerCase().contains(q))) {
-        results.add(_SearchResult(
-          id: vod.id,
-          title: vod.title,
-          imageUrl: vod.poster,
-          url: vod.url,
-          groupTitle: vod.groupTitle,
-          contentType: 'vod',
-          typeLabel: 'Movie',
-        ));
+    if (type == 'all' || type == 'vod') {
+      final vodItems = await _db.select(_db.vodItems).get();
+      for (final vod in vodItems) {
+        if (vod.title.toLowerCase().contains(q) ||
+            (vod.groupTitle != null &&
+                vod.groupTitle!.toLowerCase().contains(q))) {
+          results.add(_SearchResult(
+            id: vod.id,
+            title: vod.title,
+            imageUrl: vod.poster,
+            url: vod.url,
+            groupTitle: vod.groupTitle,
+            contentType: 'vod',
+            typeLabel: 'Movie',
+          ));
+        }
       }
     }
 
     // Search series.
-    final series = await _db.select(_db.tvSeries).get();
-    for (final s in series) {
-      if (s.title.toLowerCase().contains(q)) {
-        results.add(_SearchResult(
-          id: s.id,
-          title: s.title,
-          imageUrl: s.poster,
-          url: '',
-          groupTitle: null,
-          contentType: 'series',
-          typeLabel: 'Series',
-        ));
+    if (type == 'all' || type == 'series') {
+      final series = await _db.select(_db.tvSeries).get();
+      for (final s in series) {
+        if (s.title.toLowerCase().contains(q)) {
+          results.add(_SearchResult(
+            id: s.id,
+            title: s.title,
+            imageUrl: s.poster,
+            url: '',
+            groupTitle: null,
+            contentType: 'series',
+            typeLabel: 'Series',
+          ));
+        }
+      }
+    }
+
+    // Search radio stations.
+    if (type == 'all' || type == 'radio') {
+      final stations = await _db.select(_db.radioStations).get();
+      for (final r in stations) {
+        if (r.name.toLowerCase().contains(q)) {
+          results.add(_SearchResult(
+            id: r.id,
+            title: r.name,
+            imageUrl: r.logo,
+            url: r.url,
+            groupTitle: null,
+            contentType: 'radio',
+            typeLabel: 'Radio',
+          ));
+        }
       }
     }
 
@@ -204,7 +252,7 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
           decoration: InputDecoration(
-            hintText: 'Search channels, movies, series...',
+            hintText: _hintForContentType(),
             hintStyle: const TextStyle(color: AppColors.textSecondary),
             prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
             suffixIcon: _searchController.text.isNotEmpty
@@ -235,10 +283,26 @@ class _SearchScreenState extends State<SearchScreen> {
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          onChanged: _performSearch,
+          onChanged: _onSearchChanged,
         ),
       ),
     );
+  }
+
+  /// Returns a context-aware hint text based on the content type filter.
+  String _hintForContentType() {
+    switch (widget.contentType) {
+      case 'live':
+        return 'Search live channels...';
+      case 'vod':
+        return 'Search movies...';
+      case 'series':
+        return 'Search series...';
+      case 'radio':
+        return 'Search radio stations...';
+      default:
+        return 'Search channels, movies, series, radio...';
+    }
   }
 
   Widget _buildEmptyState() {
@@ -262,7 +326,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Find live channels, movies, and series.',
+            'Find live channels, movies, series, and radio.',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: AppTheme.bodySize,
