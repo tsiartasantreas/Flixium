@@ -7,14 +7,15 @@ import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../home/home_screen.dart';
+import '../offline/offline_screen.dart';
 import '../settings/settings_screen.dart';
 import 'mobile_nav.dart';
 import 'tv_left_rail.dart';
 
 /// Root navigation shell that switches between mobile and TV layouts.
 ///
-/// Mobile layout: five-tab bottom navigation bar.
-/// TV layout: seven-item left vertical rail.
+/// Mobile layout: six-tab bottom navigation bar.
+/// TV layout: eight-item left vertical rail.
 /// TV mode is detected via screen shortest side exceeding 960 px on Android
 /// or always on Linux.
 class MainShell extends StatefulWidget {
@@ -63,6 +64,8 @@ class _MainShellState extends State<MainShell> {
         return const BrowseScreen(contentType: 'series', title: 'Series');
       case 4: // Radio
         return const BrowseScreen(contentType: 'radio', title: 'Radio');
+      case 5: // Downloads
+        return const OfflineScreen();
       default:
         return const HomeScreen();
     }
@@ -84,6 +87,8 @@ class _MainShellState extends State<MainShell> {
         return const FavoritesScreen();
       case 6: // Search
         return const _SearchPlaceholder();
+      case 7: // Downloads
+        return const OfflineScreen();
       default:
         return const HomeScreen();
     }
@@ -148,6 +153,7 @@ class _MainShellState extends State<MainShell> {
                 _buildMobileTab(2),
                 _buildMobileTab(3),
                 _buildMobileTab(4),
+                _buildMobileTab(5),
               ],
             ),
           ),

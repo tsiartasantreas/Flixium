@@ -245,8 +245,16 @@ class _AuthScreenState extends State<AuthScreen> {
                             }
 
                             try {
+                              // IMPORTANT: The redirectTo URL must also be added
+                              // in the Supabase Dashboard under:
+                              //   Authentication > URL Configuration > Redirect URLs
+                              //   Add: https://iflixify-edge.wasmer.app/reset-password
                               await SupabaseService.client.auth
-                                  .resetPasswordForEmail(email);
+                                  .resetPasswordForEmail(
+                                email,
+                                redirectTo:
+                                    'https://iflixify-edge.wasmer.app/reset-password',
+                              );
                               setDialogState(() {
                                 sent = true;
                                 dialogLoading = false;

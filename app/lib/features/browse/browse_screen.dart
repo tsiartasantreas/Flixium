@@ -59,7 +59,8 @@ class BrowseScreenState extends State<BrowseScreen> {
     // If the user has no playlists, return empty immediately.
     if (playlistIds.isEmpty) {
       // ignore: avoid_print
-      print('[BrowseScreen] No playlists found — showing empty state');
+      print('[BrowseScreen] No playlists found even after fallback — '
+          'showing empty state');
       if (mounted) {
         setState(() {
           _allItems = [];
@@ -142,6 +143,11 @@ class BrowseScreenState extends State<BrowseScreen> {
         break;
     }
 
+    // ignore: avoid_print
+    print('[BrowseScreen] Total items loaded for '
+        '${widget.contentType}: ${items.length} '
+        '(playlists: $playlistIds)');
+
     // Extract unique groups.
     final groupSet = <String>{};
     for (final item in items) {
@@ -164,6 +170,11 @@ class BrowseScreenState extends State<BrowseScreen> {
   ///
   /// If the user is signed in, filters by their Supabase user ID.
   /// If anonymous, returns playlists with no user_id set.
+  ///
+  /// **Fallback**: If the filtered query returns zero results, retries with
+  /// ALL playlists (ignoring userId). This handles auth-state mismatches
+  /// (e.g. playlist imported while authenticated but session expired, or
+  /// vice versa) so content is never hidden due to stale auth context.
   Future<List<int>> _getUserPlaylistIds() async {
     try {
       await SupabaseService.initialize();
@@ -173,6 +184,9 @@ class BrowseScreenState extends State<BrowseScreen> {
     if (SupabaseService.isInitialized) {
       userId = SupabaseService.client.auth.currentUser?.id;
     }
+    // ignore: avoid_print
+    print('[BrowseScreen._getUserPlaylistIds] userId=$userId, '
+        'supabaseInitialized=${SupabaseService.isInitialized}');
 
     List<Playlist> playlists;
     if (userId != null) {
@@ -185,7 +199,21 @@ class BrowseScreenState extends State<BrowseScreen> {
           .get();
     }
 
-    return playlists.map((p) => p.id).toList();
+    // Fallback: if no playlists matched the user filter, try without any
+    // filter. This covers cases where the auth state at query time differs
+    // from the auth state at import time.
+    if (playlists.isEmpty) {
+      // ignore: avoid_print
+      print('[BrowseScreen._getUserPlaylistIds] No playlists matched '
+          'userId filter — falling back to ALL playlists');
+      playlists = await (_db.select(_db.playlists)).get();
+    }
+
+    final ids = playlists.map((p) => p.id).toList();
+    // ignore: avoid_print
+    print('[BrowseScreen._getUserPlaylistIds] Returning ${ids.length} '
+        'playlist IDs: $ids');
+    return ids;
   }
 
   void _filterByGroup(String? group) {

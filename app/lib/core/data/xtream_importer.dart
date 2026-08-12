@@ -102,6 +102,8 @@ class XtreamImporter {
             print('[XtreamImport] Live cat "${cat.name}" → ${streams.length} streams');
             for (final stream in streams) {
               final streamUrl = client.getLiveStreamUrl(stream);
+              // ignore: avoid_print
+              print('[XtreamImport] LIVE "${stream.name}" → url=$streamUrl');
               await _db.into(_db.channels).insert(
                     ChannelsCompanion.insert(
                       playlistId: playlistId,
@@ -151,6 +153,8 @@ class XtreamImporter {
             print('[XtreamImport] VOD cat "${cat.name}" → ${streams.length} streams');
             for (final stream in streams) {
               final streamUrl = client.getVodStreamUrl(stream);
+              // ignore: avoid_print
+              print('[XtreamImport] VOD "${stream.name}" → url=$streamUrl');
               await _db.into(_db.vodItems).insert(
                     VodItemsCompanion.insert(
                       playlistId: playlistId,
@@ -210,6 +214,8 @@ class XtreamImporter {
                   ep,
                   ep.containerExtension,
                 );
+                // ignore: avoid_print
+                print('[XtreamImport] SERIES EP "${ep.title}" S${seasonNum}E${ep.episodeNum} → url=$epUrl');
                 await _db.into(_db.episodes).insert(
                       EpisodesCompanion.insert(
                         seriesId: seriesId,

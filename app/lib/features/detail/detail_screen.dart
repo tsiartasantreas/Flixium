@@ -124,6 +124,9 @@ class _DetailScreenState extends State<DetailScreen> {
     bool isLive = false,
     String? contentId,
   }) async {
+    // ignore: avoid_print
+    print('[DetailScreen] Playing: title="$title", url=$url, isLive=$isLive, contentType=${widget.contentType}');
+
     // If a contentId is provided, check for a local download first.
     String playbackUrl = url;
     if (contentId != null) {
@@ -132,6 +135,9 @@ class _DetailScreenState extends State<DetailScreen> {
         playbackUrl = localPath;
       }
     }
+
+    // ignore: avoid_print
+    print('[DetailScreen] Resolved playback URL: $playbackUrl');
 
     if (!mounted) return;
 

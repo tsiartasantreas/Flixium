@@ -41,6 +41,10 @@ class PlaylistManager {
 
   /// Returns all playlists for the current user (or all anonymous playlists
   /// if the user is not signed in), sorted by creation (rowid).
+  ///
+  /// **Fallback**: If the filtered query returns zero results, retries with
+  /// ALL playlists (ignoring userId). This handles auth-state mismatches
+  /// so playlists are never hidden due to stale auth context.
   Future<List<Playlist>> getPlaylists() async {
     // Ensure Supabase is initialized so _currentUserId is accurate.
     // Wrapped in try-catch: in test environments native plugins are absent.
@@ -49,15 +53,24 @@ class PlaylistManager {
     } catch (_) {}
 
     final userId = _currentUserId;
+    List<Playlist> playlists;
+
     if (userId != null) {
-      return (_db.select(_db.playlists)
+      playlists = await (_db.select(_db.playlists)
             ..where((t) => t.userId.equals(userId)))
           .get();
+    } else {
+      playlists = await (_db.select(_db.playlists)
+            ..where((t) => t.userId.isNull()))
+          .get();
     }
-    // Anonymous: return playlists with no user_id.
-    return (_db.select(_db.playlists)
-          ..where((t) => t.userId.isNull()))
-        .get();
+
+    // Fallback: if no playlists matched the user filter, return all playlists.
+    if (playlists.isEmpty) {
+      playlists = await (_db.select(_db.playlists)).get();
+    }
+
+    return playlists;
   }
 
   /// Returns the count of playlists for the current user.

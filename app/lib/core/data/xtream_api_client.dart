@@ -101,8 +101,13 @@ class XtreamApiClient {
 
   /// Builds the playback URL for a VOD stream.
   String getVodStreamUrl(XtreamStream stream) {
-    final ext = stream.containerExtension ?? 'mp4';
-    return '$baseUrl/movie/$username/$password/${stream.streamId}.$ext';
+    final ext = stream.containerExtension?.isNotEmpty == true
+        ? stream.containerExtension!
+        : 'mp4';
+    final url = '$baseUrl/movie/$username/$password/${stream.streamId}.$ext';
+    // ignore: avoid_print
+    print('[XtreamAPI] VOD URL: $url (containerExtension=${stream.containerExtension})');
+    return url;
   }
 
   /// Builds the playback URL for a series episode.
@@ -110,13 +115,25 @@ class XtreamApiClient {
     XtreamEpisode episode,
     String containerExtension,
   ) {
-    return '$baseUrl/series/$username/$password/${episode.id}.$containerExtension';
+    final ext = containerExtension.isNotEmpty ? containerExtension : 'mp4';
+    final url = '$baseUrl/series/$username/$password/${episode.id}.$ext';
+    // ignore: avoid_print
+    print('[XtreamAPI] Series URL: $url (episodeId=${episode.id}, ext=$ext)');
+    return url;
   }
 
   /// Builds the playback URL for a live stream.
+  ///
+  /// Uses `containerExtension` from the API response when available,
+  /// otherwise defaults to `ts` (the standard Xtream live stream format).
   String getLiveStreamUrl(XtreamStream stream) {
-    final ext = stream.streamType.toLowerCase().contains('ts') ? 'ts' : 'm3u8';
-    return '$baseUrl/live/$username/$password/${stream.streamId}.$ext';
+    final ext = stream.containerExtension?.isNotEmpty == true
+        ? stream.containerExtension!
+        : 'ts';
+    final url = '$baseUrl/live/$username/$password/${stream.streamId}.$ext';
+    // ignore: avoid_print
+    print('[XtreamAPI] Live URL: $url (streamType=${stream.streamType}, containerExtension=${stream.containerExtension})');
+    return url;
   }
 
   // ---------------------------------------------------------------------------

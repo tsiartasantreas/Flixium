@@ -13,9 +13,9 @@ class _RailItem {
 
 /// Netflix-style left vertical nav rail for TV navigation.
 ///
-/// Seven items: Home, Series, Movies, Live TV, Radio, My List, Search.
-/// Supports D-pad up/down navigation between items and left/right to
-/// enter/exit the rail. Collapsed width is ~80 px; expands to ~200 px
+/// Eight items: Home, Series, Movies, Live TV, Radio, My List, Search,
+/// Downloads. Supports D-pad up/down navigation between items and left/right
+/// to enter/exit the rail. Collapsed width is ~80 px; expands to ~200 px
 /// when focused, revealing labels.
 class TvLeftRail extends StatefulWidget {
   const TvLeftRail({
@@ -24,7 +24,7 @@ class TvLeftRail extends StatefulWidget {
     required this.onTap,
   });
 
-  /// The currently selected tab index (0–6).
+  /// The currently selected tab index (0–7).
   final int currentIndex;
 
   /// Called when the user selects a nav item. The new index is passed.
@@ -56,6 +56,7 @@ class _TvLeftRailState extends State<TvLeftRail> {
     _RailItem(icon: Icons.radio, label: 'Radio'),
     _RailItem(icon: Icons.playlist_play, label: 'My List'),
     _RailItem(icon: Icons.search, label: 'Search'),
+    _RailItem(icon: Icons.download_done, label: 'Downloads'),
   ];
 
   // ---------------------------------------------------------------------------
