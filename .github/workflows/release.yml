@@ -19,12 +19,13 @@ jobs:
         working-directory: app
       - run: flutter build apk --release
         working-directory: app
-      - name: Prepare APK
-        working-directory: app
-        run: cp build/app/outputs/flutter-apk/app-release.apk ../iFlixify.apk
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      - name: Prepare APK with version
+        working-directory: app
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk ../iFlixify-${{ steps.version.outputs.VERSION }}.apk
       - uses: softprops/action-gh-release@v2
         with:
           name: "iFlixify IPTV ${{ steps.version.outputs.VERSION }}"
@@ -33,12 +34,26 @@ jobs:
 
             Netflix-style IPTV player for Android phone, Android TV, and Fire TV.
 
+            ### Features
+            - M3U and Xtream Codes playlist import
+            - Live TV with EPG, Movies, Series, Radio
+            - Netflix-clone UI for phone and TV
+            - Offline downloads for movies and episodes
+            - Cross-device profile sync (Pro)
+            - Encrypted playlist storage
+
             ### Installation
-            1. Download `iFlixify.apk` below
-            2. Enable "Install from unknown sources" on your device
+            1. Download `iFlixify-${{ steps.version.outputs.VERSION }}.apk` below
+            2. Enable "Install from unknown sources" on your Android device
             3. Open the APK to install
+            4. Sign up or log in with your account
+            5. Import your IPTV playlist (M3U URL or Xtream Codes)
+
+            ### Requirements
+            - Android 5.0+ (phone, TV, or Fire TV)
+            - Active IPTV subscription from a provider
 
             ### Changes
             See [full changelog](https://github.com/tsiartasantreas/iFlixify-IPTV/compare/${{ steps.version.outputs.VERSION }}...main) for details.
           generate_release_notes: true
-          files: iFlixify.apk
+          files: "iFlixify-${{ steps.version.outputs.VERSION }}.apk"

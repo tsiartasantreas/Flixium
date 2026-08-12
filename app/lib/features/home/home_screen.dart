@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/import_progress_service.dart';
+import '../../core/data/supabase_client.dart';
 import '../../core/data/watch_progress_service.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -15,7 +17,8 @@ import 'widgets/continue_watching_row.dart';
 
 /// Main home screen displaying content organized by type.
 ///
-/// Shows horizontal scrollable rows for Live TV, Movies, Series, and Radio.
+/// Shows horizontal scrollable rows: Movies, Series, Live TV, Radio,
+/// and a "Recently Added" cross-type row.
 /// Displays an empty state with an import button if no playlists exist.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -87,8 +90,9 @@ class HomeScreenState extends State<HomeScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadContent() async {
-    final playlists = await _db.select(_db.playlists).get();
-    if (playlists.isEmpty) {
+    // Get playlist IDs belonging to the current user.
+    final playlistIds = await _getUserPlaylistIds();
+    if (playlistIds.isEmpty) {
       if (mounted) {
         setState(() {
           _isEmpty = true;
@@ -98,10 +102,27 @@ class HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final channels = await _db.select(_db.channels).get();
-    final vodItems = await _db.select(_db.vodItems).get();
-    final series = await _db.select(_db.tvSeries).get();
-    final radioStations = await _db.select(_db.radioStations).get();
+    // Query content tables filtered by user's playlists, ordering by id
+    // descending so the latest items appear first in each row.
+    final channelsQuery = _db.select(_db.channels)
+      ..where((t) => t.playlistId.isIn(playlistIds))
+      ..orderBy([(c) => OrderingTerm.desc(c.id)]);
+    final channels = await channelsQuery.get();
+
+    final vodQuery = _db.select(_db.vodItems)
+      ..where((t) => t.playlistId.isIn(playlistIds))
+      ..orderBy([(v) => OrderingTerm.desc(v.id)]);
+    final vodItems = await vodQuery.get();
+
+    final seriesQuery = _db.select(_db.tvSeries)
+      ..where((t) => t.playlistId.isIn(playlistIds))
+      ..orderBy([(s) => OrderingTerm.desc(s.id)]);
+    final series = await seriesQuery.get();
+
+    final radioQuery = _db.select(_db.radioStations)
+      ..where((t) => t.playlistId.isIn(playlistIds))
+      ..orderBy([(r) => OrderingTerm.desc(r.id)]);
+    final radioStations = await radioQuery.get();
 
     // Load Continue Watching items (Pro only).
     final continueWatchingItems = <ContinueWatchingItem>[];
@@ -118,30 +139,7 @@ class HomeScreenState extends State<HomeScreen> {
       final rows = <ContentRow>[];
       bool isFirstRow = true;
 
-      if (channels.isNotEmpty) {
-        rows.add(ContentRow(
-          label: 'Live TV',
-          isTv: _isTv,
-          autofocusFirst: _isTv && isFirstRow,
-          items: channels.take(20).map((ch) {
-            return ContentItem(
-              title: ch.name,
-              imageUrl: ch.logo,
-              onTap: () => _navigateToDetail(
-                id: ch.id,
-                title: ch.name,
-                imageUrl: ch.logo,
-                url: ch.url,
-                groupTitle: ch.groupTitle,
-                contentType: 'live',
-              ),
-            );
-          }).toList(),
-          onSeeAll: () => _navigateToBrowse('live', 'Live TV'),
-        ));
-        isFirstRow = false;
-      }
-
+      // -- Movies row --------------------------------------------------------
       if (vodItems.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Movies',
@@ -166,6 +164,7 @@ class HomeScreenState extends State<HomeScreen> {
         isFirstRow = false;
       }
 
+      // -- Series row --------------------------------------------------------
       if (series.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Series',
@@ -189,6 +188,32 @@ class HomeScreenState extends State<HomeScreen> {
         isFirstRow = false;
       }
 
+      // -- Live TV row -------------------------------------------------------
+      if (channels.isNotEmpty) {
+        rows.add(ContentRow(
+          label: 'Live TV',
+          isTv: _isTv,
+          autofocusFirst: _isTv && isFirstRow,
+          items: channels.take(20).map((ch) {
+            return ContentItem(
+              title: ch.name,
+              imageUrl: ch.logo,
+              onTap: () => _navigateToDetail(
+                id: ch.id,
+                title: ch.name,
+                imageUrl: ch.logo,
+                url: ch.url,
+                groupTitle: ch.groupTitle,
+                contentType: 'live',
+              ),
+            );
+          }).toList(),
+          onSeeAll: () => _navigateToBrowse('live', 'Live TV'),
+        ));
+        isFirstRow = false;
+      }
+
+      // -- Radio row ---------------------------------------------------------
       if (radioStations.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Radio',
@@ -212,6 +237,71 @@ class HomeScreenState extends State<HomeScreen> {
         isFirstRow = false;
       }
 
+      // -- Recently Added row (newest items across all types) ----------------
+      final recentItems = <_RecentItem>[];
+      for (final vod in vodItems.take(5)) {
+        recentItems.add(_RecentItem(
+          id: vod.id,
+          title: vod.title,
+          imageUrl: vod.poster,
+          navigate: () => _navigateToDetail(
+            id: vod.id,
+            title: vod.title,
+            imageUrl: vod.poster,
+            url: vod.url,
+            groupTitle: vod.groupTitle,
+            contentType: 'vod',
+          ),
+        ));
+      }
+      for (final s in series.take(5)) {
+        recentItems.add(_RecentItem(
+          id: s.id,
+          title: s.title,
+          imageUrl: s.poster,
+          navigate: () => _navigateToDetail(
+            id: s.id,
+            title: s.title,
+            imageUrl: s.poster,
+            url: '',
+            contentType: 'series',
+          ),
+        ));
+      }
+      for (final ch in channels.take(5)) {
+        recentItems.add(_RecentItem(
+          id: ch.id,
+          title: ch.name,
+          imageUrl: ch.logo,
+          navigate: () => _navigateToDetail(
+            id: ch.id,
+            title: ch.name,
+            imageUrl: ch.logo,
+            url: ch.url,
+            groupTitle: ch.groupTitle,
+            contentType: 'live',
+          ),
+        ));
+      }
+      // Sort by id descending so the truly newest items are first.
+      recentItems.sort((a, b) => b.id.compareTo(a.id));
+
+      if (recentItems.isNotEmpty) {
+        rows.add(ContentRow(
+          label: 'Recently Added',
+          isTv: _isTv,
+          autofocusFirst: _isTv && isFirstRow,
+          items: recentItems.take(20).map((item) {
+            return ContentItem(
+              title: item.title,
+              imageUrl: item.imageUrl,
+              onTap: item.navigate,
+            );
+          }).toList(),
+          onSeeAll: () => _navigateToBrowse('vod', 'Recently Added'),
+        ));
+      }
+
       setState(() {
         _rows = rows;
         _continueWatchingItems = continueWatchingItems;
@@ -219,6 +309,38 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // User playlist helpers
+  // ---------------------------------------------------------------------------
+
+  /// Returns the IDs of playlists belonging to the current user.
+  ///
+  /// If the user is signed in, filters by their Supabase user ID.
+  /// If anonymous, returns playlists with no user_id set.
+  Future<List<int>> _getUserPlaylistIds() async {
+    try {
+      await SupabaseService.initialize();
+    } catch (_) {}
+
+    String? userId;
+    if (SupabaseService.isInitialized) {
+      userId = SupabaseService.client.auth.currentUser?.id;
+    }
+
+    List<Playlist> playlists;
+    if (userId != null) {
+      playlists = await (_db.select(_db.playlists)
+            ..where((t) => t.userId.equals(userId!)))
+          .get();
+    } else {
+      playlists = await (_db.select(_db.playlists)
+            ..where((t) => t.userId.isNull()))
+          .get();
+    }
+
+    return playlists.map((p) => p.id).toList();
   }
 
   // ---------------------------------------------------------------------------
@@ -616,4 +738,20 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+/// Lightweight holder used to merge items from different tables for the
+/// "Recently Added" row and sort them by id.
+class _RecentItem {
+  const _RecentItem({
+    required this.id,
+    required this.title,
+    this.imageUrl,
+    required this.navigate,
+  });
+
+  final int id;
+  final String title;
+  final String? imageUrl;
+  final VoidCallback navigate;
 }

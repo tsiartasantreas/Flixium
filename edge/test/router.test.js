@@ -59,3 +59,22 @@ test("router: POST /api/verify-device without body returns 400", async () => {
   const res = await handler.fetch(req, ENV);
   assert.equal(res.status, 400);
 });
+
+test("router: GET /reset-password returns HTML", async () => {
+  const req = new Request(new URL("/reset-password", "http://edge.test"));
+  const res = await handler.fetch(req, ENV);
+  assert.equal(res.status, 200);
+  const ct = res.headers.get("content-type");
+  assert.ok(ct.includes("text/html"), "should return HTML");
+  const body = await res.text();
+  assert.ok(body.includes("iFlixify IPTV"), "should contain branding");
+  assert.ok(body.includes("Reset Password"), "should contain form heading");
+});
+
+test("router: POST /reset-password returns 405", async () => {
+  const req = new Request(new URL("/reset-password", "http://edge.test"), {
+    method: "POST",
+  });
+  const res = await handler.fetch(req, ENV);
+  assert.equal(res.status, 405);
+});

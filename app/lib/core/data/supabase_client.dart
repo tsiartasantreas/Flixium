@@ -16,11 +16,18 @@ class SupabaseService {
   /// Safe to call multiple times -- only the first call has an effect.
   static Future<void> initialize() async {
     if (_initialized) return;
-    await Supabase.initialize(
-      url: Env.supabaseUrl,
-      publishableKey: Env.supabaseAnonKey,
-    );
-    _initialized = true;
+    try {
+      // ignore: deprecated_member_use
+      await Supabase.initialize(
+        url: Env.supabaseUrl,
+        publishableKey: Env.supabaseAnonKey,
+      );
+      _initialized = true;
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[SupabaseService] initialize failed: $e\n$st');
+      rethrow;
+    }
   }
 
   /// The Supabase client instance.

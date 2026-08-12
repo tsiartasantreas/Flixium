@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/data/database.dart';
+import '../../core/data/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../detail/detail_screen.dart';
 
@@ -45,11 +46,38 @@ class BrowseScreenState extends State<BrowseScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadItems() async {
+    // ignore: avoid_print
+    print('[BrowseScreen] _loadItems() called for contentType=${widget.contentType}');
+
     final items = <_BrowseItem>[];
+
+    // Get playlist IDs belonging to the current user.
+    final playlistIds = await _getUserPlaylistIds();
+    // ignore: avoid_print
+    print('[BrowseScreen] Found ${playlistIds.length} playlists for current user');
+
+    // If the user has no playlists, return empty immediately.
+    if (playlistIds.isEmpty) {
+      // ignore: avoid_print
+      print('[BrowseScreen] No playlists found — showing empty state');
+      if (mounted) {
+        setState(() {
+          _allItems = [];
+          _filteredItems = [];
+          _groups = [];
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
     switch (widget.contentType) {
       case 'live':
-        final channels = await _db.select(_db.channels).get();
+        final query = _db.select(_db.channels)
+          ..where((t) => t.playlistId.isIn(playlistIds));
+        final channels = await query.get();
+        // ignore: avoid_print
+        print('[BrowseScreen] Loaded ${channels.length} live channels');
         for (final ch in channels) {
           items.add(_BrowseItem(
             id: ch.id,
@@ -62,7 +90,11 @@ class BrowseScreenState extends State<BrowseScreen> {
         }
         break;
       case 'vod':
-        final vodItems = await _db.select(_db.vodItems).get();
+        final query = _db.select(_db.vodItems)
+          ..where((t) => t.playlistId.isIn(playlistIds));
+        final vodItems = await query.get();
+        // ignore: avoid_print
+        print('[BrowseScreen] Loaded ${vodItems.length} VOD items');
         for (final vod in vodItems) {
           items.add(_BrowseItem(
             id: vod.id,
@@ -75,7 +107,11 @@ class BrowseScreenState extends State<BrowseScreen> {
         }
         break;
       case 'series':
-        final series = await _db.select(_db.tvSeries).get();
+        final query = _db.select(_db.tvSeries)
+          ..where((t) => t.playlistId.isIn(playlistIds));
+        final series = await query.get();
+        // ignore: avoid_print
+        print('[BrowseScreen] Loaded ${series.length} series');
         for (final s in series) {
           items.add(_BrowseItem(
             id: s.id,
@@ -88,7 +124,11 @@ class BrowseScreenState extends State<BrowseScreen> {
         }
         break;
       case 'radio':
-        final stations = await _db.select(_db.radioStations).get();
+        final query = _db.select(_db.radioStations)
+          ..where((t) => t.playlistId.isIn(playlistIds));
+        final stations = await query.get();
+        // ignore: avoid_print
+        print('[BrowseScreen] Loaded ${stations.length} radio stations');
         for (final radio in stations) {
           items.add(_BrowseItem(
             id: radio.id,
@@ -118,6 +158,34 @@ class BrowseScreenState extends State<BrowseScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Returns the IDs of playlists belonging to the current user.
+  ///
+  /// If the user is signed in, filters by their Supabase user ID.
+  /// If anonymous, returns playlists with no user_id set.
+  Future<List<int>> _getUserPlaylistIds() async {
+    try {
+      await SupabaseService.initialize();
+    } catch (_) {}
+
+    String? userId;
+    if (SupabaseService.isInitialized) {
+      userId = SupabaseService.client.auth.currentUser?.id;
+    }
+
+    List<Playlist> playlists;
+    if (userId != null) {
+      playlists = await (_db.select(_db.playlists)
+            ..where((t) => t.userId.equals(userId!)))
+          .get();
+    } else {
+      playlists = await (_db.select(_db.playlists)
+            ..where((t) => t.userId.isNull()))
+          .get();
+    }
+
+    return playlists.map((p) => p.id).toList();
   }
 
   void _filterByGroup(String? group) {

@@ -330,7 +330,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'FLIXIUM',
+            'iFlixify IPTV',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textPrimary,
