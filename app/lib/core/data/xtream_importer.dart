@@ -137,24 +137,42 @@ class XtreamImporter {
       try {
         final vodCategories = await client.getVodCategories();
         // ignore: avoid_print
-        print('[XtreamImport] VOD categories: ${vodCategories.length}');
+        print('[XtreamImport] ====== VOD IMPORT START ======');
+        // ignore: avoid_print
+        print('[XtreamImport] VOD categories returned: ${vodCategories.length}');
         for (var i = 0; i < vodCategories.length; i++) {
           final cat = vodCategories[i];
+          // ignore: avoid_print
+          print('[XtreamImport] VOD cat[$i]: id="${cat.id}", name="${cat.name}"');
           final baseProgress = completedTypes / enabledTypes;
           onProgress?.call(
             'Movies: ${cat.name} (${i + 1}/${vodCategories.length})',
             baseProgress,
           );
           try {
-            final streams = await client.getVodStreams(
-              categoryId: int.tryParse(cat.id),
-            );
+            final catId = int.tryParse(cat.id);
             // ignore: avoid_print
-            print('[XtreamImport] VOD cat "${cat.name}" → ${streams.length} streams');
+            print('[XtreamImport]   Fetching VOD streams for categoryId=$catId '
+                '(raw id="${cat.id}")...');
+            final streams = await client.getVodStreams(categoryId: catId);
+            // ignore: avoid_print
+            print('[XtreamImport]   VOD cat "${cat.name}" → ${streams.length} streams');
+            if (streams.isNotEmpty) {
+              final first = streams.first;
+              // ignore: avoid_print
+              print('[XtreamImport]   First stream: name="${first.name}", '
+                  'streamId=${first.streamId}, '
+                  'containerExtension="${first.containerExtension}", '
+                  'streamType="${first.streamType}", '
+                  'categoryId="${first.categoryId}", '
+                  'streamIcon="${first.streamIcon}"');
+            }
             for (final stream in streams) {
               final streamUrl = client.getVodStreamUrl(stream);
               // ignore: avoid_print
-              print('[XtreamImport] VOD "${stream.name}" → url=$streamUrl');
+              print('[XtreamImport]   VOD "${stream.name}" '
+                  '(streamId=${stream.streamId}, ext="${stream.containerExtension}") '
+                  '→ url=$streamUrl');
               await _db.into(_db.vodItems).insert(
                     VodItemsCompanion.insert(
                       playlistId: playlistId,
@@ -166,12 +184,16 @@ class XtreamImporter {
                   );
               totalVod++;
             }
-          } catch (e) {
+          } catch (e, st) {
             // ignore: avoid_print
             print('[XtreamImport] VOD cat "${cat.name}" FAILED: $e');
+            // ignore: avoid_print
+            print('[XtreamImport] VOD cat stack trace: $st');
             // Skip individual category failures.
           }
         }
+        // ignore: avoid_print
+        print('[XtreamImport] ====== VOD IMPORT DONE: $totalVod movies ======');
         completedTypes++;
       } catch (e) {
         // ignore: avoid_print

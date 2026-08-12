@@ -236,76 +236,87 @@ class _OfflineScreenState extends State<OfflineScreen> {
     final totalSize = _items.fold<int>(0, (sum, item) => sum + item.fileSize);
     final active = _inProgressDownloads;
 
-    return Column(
-      children: [
+    return CustomScrollView(
+      slivers: [
         // -- Storage usage banner ------------------------------------------
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: AppColors.bgElevated,
-          child: Row(
-            children: [
-              const Icon(
-                Icons.storage,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${_items.length} downloads  \u00B7  ${_formatFileSize(totalSize)}',
-                style: const TextStyle(
+        SliverToBoxAdapter(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: AppColors.bgElevated,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.storage,
                   color: AppColors.textSecondary,
-                  fontSize: 13,
+                  size: 20,
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Text(
+                  '${_items.length} downloads  \u00B7  ${_formatFileSize(totalSize)}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
 
         // -- Active downloads section -------------------------------------
         if (active.isNotEmpty) ...[
-          Container(
-            width: double.infinity,
-            padding:
-                const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
-            child: Text(
-              'Downloading (${active.length})',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+          SliverToBoxAdapter(
+            child: Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
+              child: Text(
+                'Downloading (${active.length})',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-          ...active.map((p) => _buildActiveDownloadTile(p)),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildActiveDownloadTile(active[index]),
+              childCount: active.length,
+            ),
+          ),
         ],
 
         // -- Completed downloads grid -------------------------------------
         if (_items.isNotEmpty)
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(12),
+          SliverPadding(
+            padding: const EdgeInsets.all(12),
+            sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: _isTv ? 5 : 3,
                 childAspectRatio: 0.55,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return _buildDownloadCard(item);
-              },
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildDownloadCard(_items[index]),
+                childCount: _items.length,
+              ),
             ),
           )
         else if (active.isNotEmpty)
-          const Expanded(
-            child: Center(
-              child: Text(
-                'Completed downloads will appear here',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(
+                child: Text(
+                  'Completed downloads will appear here',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),

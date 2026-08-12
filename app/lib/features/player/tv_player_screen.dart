@@ -178,7 +178,10 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
               _buildBufferingOverlay(ctrl),
 
               // -- Overlay controls ------------------------------------------
-              if (_controlsVisible) _buildControls(ctrl),
+              IgnorePointer(
+                ignoring: !_controlsVisible,
+                child: _buildControls(ctrl),
+              ),
             ],
           ),
         ),

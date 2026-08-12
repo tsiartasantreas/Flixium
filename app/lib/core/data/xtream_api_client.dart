@@ -47,28 +47,56 @@ class XtreamApiClient {
     // ignore: avoid_print
     print('[XtreamAPI] getVodCategories() response keys: ${json.keys.toList()}, '
         'sample values: ${json.map((k, v) => MapEntry(k, v is List ? 'List(${v.length})' : v.runtimeType))}');
-    // Log raw response body preview (first 500 chars) if _list is present
-    if (json.containsKey('_list')) {
-      final list = json['_list'];
-      // ignore: avoid_print
-      print('[XtreamAPI] getVodCategories() _list type: ${list.runtimeType}, '
-          'length: ${list is List ? list.length : "N/A"}');
-      if (list is List && list.isNotEmpty) {
-        final firstItem = list.first;
-        final preview = firstItem.toString();
+
+    // Find the actual list data and log its first item's keys.
+    final dynamic rawList = json['_list'] ?? json['categories'] ??
+        json['vod_categories'] ?? json['movie_categories'] ??
+        json['movies_categories'] ?? json['data'] ?? json['items'] ??
+        _findFirstListValue(json);
+
+    if (rawList is List && rawList.isNotEmpty) {
+      final firstItem = rawList.first;
+      if (firstItem is Map) {
         // ignore: avoid_print
-        print('[XtreamAPI] getVodCategories() first item (first 500 chars): '
-            '${preview.length > 500 ? preview.substring(0, 500) : preview}');
+        print('[XtreamAPI] getVodCategories() first item keys: '
+            '${firstItem.keys.toList()}');
+        // Log the category ID and name fields.
+        final possibleIdKeys = ['category_id', 'id', 'cat_id', 'CategoryId'];
+        for (final key in possibleIdKeys) {
+          if (firstItem.containsKey(key)) {
+            // ignore: avoid_print
+            print('[XtreamAPI]   → $key = ${firstItem[key]}');
+          }
+        }
+        final possibleNameKeys = ['category_name', 'name', 'cat_name', 'CategoryName'];
+        for (final key in possibleNameKeys) {
+          if (firstItem.containsKey(key)) {
+            // ignore: avoid_print
+            print('[XtreamAPI]   → $key = ${firstItem[key]}');
+          }
+        }
       }
     }
+
     final result = _parseCategoryList(json);
     // ignore: avoid_print
     print('[XtreamAPI] getVodCategories() parsed ${result.length} categories');
+    if (result.isNotEmpty) {
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodCategories() first parsed: id="${result.first.id}", '
+          'name="${result.first.name}"');
+    }
     if (result.isEmpty) {
       // ignore: avoid_print
       print('[XtreamAPI] WARNING: getVodCategories() returned 0 categories! '
           'Raw keys: ${json.keys.toList()}, value types: '
           '${json.map((k, v) => MapEntry(k, v.runtimeType))}');
+      // Log all values for debugging.
+      for (final entry in json.entries) {
+        // ignore: avoid_print
+        print('[XtreamAPI]   key="${entry.key}" → type=${entry.runtimeType}, '
+            'value=${entry.value is List ? "List(${(entry.value as List).length})" : entry.value.toString().length > 200 ? "${entry.value.toString().substring(0, 200)}..." : entry.value}');
+      }
     }
     return result;
   }
@@ -83,27 +111,57 @@ class XtreamApiClient {
     // ignore: avoid_print
     print('[XtreamAPI] getVodStreams($categoryId) response keys: ${json.keys.toList()}, '
         'sample values: ${json.map((k, v) => MapEntry(k, v is List ? 'List(${v.length})' : v.runtimeType))}');
-    // Log raw response body preview (first 500 chars) if _list is present
-    if (json.containsKey('_list')) {
-      final list = json['_list'];
-      // ignore: avoid_print
-      print('[XtreamAPI] getVodStreams($categoryId) _list type: ${list.runtimeType}, '
-          'length: ${list is List ? list.length : "N/A"}');
-      if (list is List && list.isNotEmpty) {
-        final firstItem = list.first;
-        final preview = firstItem.toString();
+
+    // Find the actual list data (could be under any key).
+    final dynamic rawList = json['_list'] ??
+        json['stream'] ?? json['streams'] ?? json['movies'] ??
+        json['movie'] ?? json['vod'] ?? json['video'] ??
+        json['vod_list'] ?? json['movie_list'] ?? json['data'] ??
+        json['items'] ?? json['list'] ??
+        _findFirstListValue(json);
+
+    if (rawList is List && rawList.isNotEmpty) {
+      final firstItem = rawList.first;
+      if (firstItem is Map) {
         // ignore: avoid_print
-        print('[XtreamAPI] getVodStreams($categoryId) first item (first 500 chars): '
-            '${preview.length > 500 ? preview.substring(0, 500) : preview}');
+        print('[XtreamAPI] getVodStreams($categoryId) first item keys: '
+            '${firstItem.keys.toList()}');
+        // Log the ID field — critical for VOD URL building.
+        final possibleIdKeys = ['stream_id', 'vod_id', 'movie_id', 'id'];
+        for (final key in possibleIdKeys) {
+          if (firstItem.containsKey(key)) {
+            // ignore: avoid_print
+            print('[XtreamAPI]   → $key = ${firstItem[key]}');
+          }
+        }
+        // Log container extension.
+        if (firstItem.containsKey('container_extension')) {
+          // ignore: avoid_print
+          print('[XtreamAPI]   → container_extension = ${firstItem['container_extension']}');
+        }
       }
     }
+
     final result = _parseStreamList(json);
     // ignore: avoid_print
     print('[XtreamAPI] getVodStreams($categoryId) parsed ${result.length} streams');
+    if (result.isNotEmpty) {
+      final first = result.first;
+      // ignore: avoid_print
+      print('[XtreamAPI] getVodStreams($categoryId) first parsed stream: '
+          'name="${first.name}", streamId=${first.streamId}, '
+          'containerExtension="${first.containerExtension}"');
+    }
     if (result.isEmpty) {
       // ignore: avoid_print
       print('[XtreamAPI] WARNING: getVodStreams($categoryId) returned 0 streams! '
           'Raw keys: ${json.keys.toList()}, body types: ${json.map((k, v) => MapEntry(k, v.runtimeType))}');
+      // Log all values for debugging.
+      for (final entry in json.entries) {
+        // ignore: avoid_print
+        print('[XtreamAPI]   key="${entry.key}" → type=${entry.runtimeType}, '
+            'value=${entry.value is List ? "List(${(entry.value as List).length})" : entry.value.toString().length > 200 ? "${entry.value.toString().substring(0, 200)}..." : entry.value}');
+      }
     }
     return result;
   }
@@ -282,13 +340,15 @@ class XtreamApiClient {
 
   List<XtreamCategory> _parseCategoryList(Map<String, dynamic> json) {
     // The key varies across Xtream providers: 'categories' for VOD/series,
-    // 'available_channels' for live, 'vod_categories'/'movie_categories' for
-    // VOD-specific responses, or '_list' if the API returned a raw JSON array.
+    // 'available_channels' for live, 'vod_categories'/'movie_categories'/
+    // 'movies_categories' for VOD-specific responses, or '_list' if the API
+    // returned a raw JSON array.
     final list = json['_list'] as List<dynamic>? ??
         json['categories'] as List<dynamic>? ??
         json['available_channels'] as List<dynamic>? ??
         json['vod_categories'] as List<dynamic>? ??
         json['movie_categories'] as List<dynamic>? ??
+        json['movies_categories'] as List<dynamic>? ??
         json['series_categories'] as List<dynamic>? ??
         json['category_list'] as List<dynamic>? ??
         json['data'] as List<dynamic>? ??
@@ -312,8 +372,8 @@ class XtreamApiClient {
 
   List<XtreamStream> _parseStreamList(Map<String, dynamic> json) {
     // The key varies across Xtream providers: 'stream'/'streams' for live,
-    // 'movies'/'movie'/'vod'/'video' for VOD, or '_list' if the API returned
-    // a raw JSON array. Try all known variants.
+    // 'movies'/'movie'/'vod'/'video'/'vod_streams' for VOD, or '_list' if
+    // the API returned a raw JSON array. Try all known variants.
     final list = json['_list'] as List<dynamic>? ??
         json['stream'] as List<dynamic>? ??
         json['streams'] as List<dynamic>? ??
@@ -321,6 +381,7 @@ class XtreamApiClient {
         json['movie'] as List<dynamic>? ??
         json['vod'] as List<dynamic>? ??
         json['video'] as List<dynamic>? ??
+        json['vod_streams'] as List<dynamic>? ??
         json['vod_list'] as List<dynamic>? ??
         json['movie_list'] as List<dynamic>? ??
         json['data'] as List<dynamic>? ??

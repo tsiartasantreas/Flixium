@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
@@ -270,6 +272,35 @@ class _DetailScreenState extends State<DetailScreen> {
 
     // ignore: avoid_print
     print('[DetailScreen] Resolved playback URL: $playbackUrl');
+
+    // Check if external player is preferred.
+    final prefs = await SharedPreferences.getInstance();
+    final useExternalPlayer = prefs.getBool('use_external_player') ?? false;
+
+    if (useExternalPlayer && Platform.isAndroid) {
+      // Launch stream URL in an external video player via ACTION_VIEW.
+      final intent = AndroidIntent(
+        action: 'action_view',
+        data: playbackUrl,
+        type: 'video/*',
+      );
+      try {
+        await intent.launch();
+      } catch (e) {
+        // ignore: avoid_print
+        print('[DetailScreen] Failed to launch external player: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No external video player found.'),
+              backgroundColor: AppColors.bgSurface,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+      return;
+    }
 
     if (!mounted) return;
 

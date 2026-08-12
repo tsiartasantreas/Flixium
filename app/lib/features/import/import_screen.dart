@@ -138,6 +138,7 @@ class ImportScreenState extends State<ImportScreen> {
       _passwordController.clear();
 
       // Navigate back to home immediately after the playlist record is created.
+      // The actual import continues in the background via ImportProgressService.
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -149,6 +150,8 @@ class ImportScreenState extends State<ImportScreen> {
         });
       }
     }
+    // Note: _isLoading is intentionally NOT reset on success because the
+    // screen is popped. It is only reset on error so the user can retry.
   }
 
   // ---------------------------------------------------------------------------

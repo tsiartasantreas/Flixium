@@ -87,11 +87,16 @@ class XtreamStream {
   });
 
   factory XtreamStream.fromJson(Map<String, dynamic> json) {
+    // VOD streams use 'vod_id' while live streams use 'stream_id'.
+    // Try both so the correct ID is always captured.
+    final resolvedStreamId = _parseInt(
+      json['stream_id'] ?? json['vod_id'] ?? json['movie_id'],
+    );
     return XtreamStream(
       num: _parseInt(json['num']),
       name: json['name'] as String? ?? '',
       streamType: json['stream_type'] as String? ?? '',
-      streamId: _parseInt(json['stream_id']),
+      streamId: resolvedStreamId,
       streamIcon: json['stream_icon'] as String?,
       rating: json['rating'] as String?,
       added: json['added'] as String?,

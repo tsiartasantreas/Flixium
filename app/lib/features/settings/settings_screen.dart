@@ -35,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Playback settings.
   bool _autoPlay = true;
   String _videoQuality = 'Auto';
+  bool _useExternalPlayer = false;
 
   // Update check state.
   bool _isCheckingForUpdates = false;
@@ -103,6 +104,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _tier = tier == 'pro' ? 'Pro' : 'Free';
+    });
+
+    // Load player preference.
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
     });
   }
 
@@ -295,6 +303,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Video Quality',
             subtitle: _videoQuality,
             onTap: _showQualityPicker,
+          ),
+
+          const SizedBox(height: 16),
+
+          // -- Player section -----------------------------------------------
+          _buildSectionHeader('Player'),
+          _buildSwitchTile(
+            icon: Icons.open_in_new,
+            title: 'External Player',
+            subtitle: _useExternalPlayer
+                ? 'Open streams in VLC, MX Player, etc.'
+                : 'Use the built-in player',
+            value: _useExternalPlayer,
+            onChanged: (value) async {
+              setState(() => _useExternalPlayer = value);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('use_external_player', value);
+            },
           ),
 
           const SizedBox(height: 16),

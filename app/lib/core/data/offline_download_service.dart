@@ -351,36 +351,40 @@ class OfflineDownloadService {
     if (_isProcessing) return;
     _isProcessing = true;
 
-    while (_queue.isNotEmpty) {
-      final task = _queue.removeFirst();
+    try {
+      while (_queue.isNotEmpty) {
+        final task = _queue.removeFirst();
 
-      // Skip if cancelled while queued.
-      if (_progressMap[task.contentId]?.state == DownloadState.cancelled) {
-        continue;
-      }
+        // Skip if cancelled while queued.
+        if (_progressMap[task.contentId]?.state == DownloadState.cancelled) {
+          continue;
+        }
 
-      _progressMap[task.contentId] = _progressMap[task.contentId]!.copyWith(
-        state: DownloadState.downloading,
-        progress: 0.0,
-      );
-      _emitProgress();
-
-      try {
-        await _executeDownload(task);
         _progressMap[task.contentId] = _progressMap[task.contentId]!.copyWith(
-          state: DownloadState.completed,
-          progress: 1.0,
+          state: DownloadState.downloading,
+          progress: 0.0,
         );
-      } on Exception catch (e) {
-        _progressMap[task.contentId] = _progressMap[task.contentId]!.copyWith(
-          state: DownloadState.failed,
-          error: e.toString(),
-        );
+        _emitProgress();
+
+        try {
+          await _executeDownload(task);
+          _progressMap[task.contentId] =
+              _progressMap[task.contentId]!.copyWith(
+            state: DownloadState.completed,
+            progress: 1.0,
+          );
+        } catch (e) {
+          _progressMap[task.contentId] =
+              _progressMap[task.contentId]!.copyWith(
+            state: DownloadState.failed,
+            error: e.toString(),
+          );
+        }
+        _emitProgress();
       }
-      _emitProgress();
+    } finally {
+      _isProcessing = false;
     }
-
-    _isProcessing = false;
   }
 
   Future<void> _executeDownload(_DownloadTask task) async {

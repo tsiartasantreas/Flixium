@@ -64,6 +64,9 @@ dependencies:
   # screen_brightness — native screen brightness control (Android/iOS).
   screen_brightness: ^2.0.0
 
+  # android_intent_plus — launch Android intents (external player).
+  android_intent_plus: ^4.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
