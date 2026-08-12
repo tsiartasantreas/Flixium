@@ -1,45 +1,28 @@
-"name": "Release"
+name: Build and Release
 
-"on":
+on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
-  build-release:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
-
-      - name: Install dependencies
+      - run: flutter pub get
         working-directory: app
-        run: flutter pub get
-
-      - name: Build universal APK
+      - run: flutter build apk --release
         working-directory: app
-        run: flutter build apk --release
-
-      - name: Prepare APK for release
+      - name: Prepare APK
         working-directory: app
-        run: |
-          mv build/app/outputs/flutter-apk/app-release.apk iFlixify.apk
-          cp iFlixify.apk ../iFlixify.apk
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        run: cp build/app/outputs/flutter-apk/app-release.apk ../iFlixify.apk
+      - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: app/iFlixify.apk
+          files: iFlixify.apk
