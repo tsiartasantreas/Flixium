@@ -34,6 +34,9 @@ enum XtreamContentType {
 /// );
 /// ```
 class XtreamImporter {
+
+  /// Maximum number of parallel requests to avoid overwhelming the provider.
+  static const int _maxConcurrency = 5;
   XtreamImporter({
     required this._db,
     this._client,
@@ -41,6 +44,44 @@ class XtreamImporter {
 
   final AppDatabase _db;
   XtreamApiClient? _client;
+
+  /// Runs futures in batches of [batchSize] to avoid overwhelming the provider.
+  ///
+  /// Unlike [Future.wait] which fires all requests at once, this processes
+  /// them in controlled batches. Each individual future is wrapped in
+  /// try/catch so one failure doesn't cancel the others.
+  Future<List<T>> _batchedWait<T>(
+    Iterable<Future<T> Function()> taskFactories, {
+    int batchSize = _maxConcurrency,
+  }) async {
+    final results = <T>[];
+    final factories = taskFactories.toList();
+
+    for (var i = 0; i < factories.length; i += batchSize) {
+      final end = (i + batchSize < factories.length) ? i + batchSize : factories.length;
+      final batch = factories.sublist(i, end);
+
+      final batchResults = await Future.wait(
+        batch.map((factory) async {
+          try {
+            return await factory();
+          } catch (e) {
+            // ignore: avoid_print
+            print('[XtreamImport] Batch request failed: $e');
+            // Return a default value based on T
+            if (T == List<XtreamStream>) {
+              return <XtreamStream>[] as T;
+            }
+            return null as T;
+          }
+        }),
+      );
+
+      results.addAll(batchResults);
+    }
+
+    return results;
+  }
 
   /// Imports content from the Xtream provider under the given [playlistId].
   ///
@@ -89,13 +130,13 @@ class XtreamImporter {
         // ignore: avoid_print
         print('[XtreamImport] Live categories: ${liveCategories.length}');
 
-        // Fetch streams for all categories in parallel to speed up import.
+        // Fetch streams for all categories in batches to avoid overwhelming the provider.
         onProgress?.call(
           'Fetching live TV streams (${liveCategories.length} categories)...',
           completedTypes / enabledTypes,
         );
-        final categoryStreams = await Future.wait(
-          liveCategories.map((cat) async {
+        final categoryStreams = await _batchedWait<List<XtreamStream>>(
+          liveCategories.map((cat) => () async {
             try {
               final streams = await client.getLiveStreams(
                 categoryId: int.tryParse(cat.id),
@@ -156,13 +197,13 @@ class XtreamImporter {
         // ignore: avoid_print
         print('[XtreamImport] VOD categories returned: ${vodCategories.length}');
 
-        // Fetch streams for all VOD categories in parallel to speed up import.
+        // Fetch streams for all VOD categories in batches to avoid overwhelming the provider.
         onProgress?.call(
           'Fetching movie streams (${vodCategories.length} categories)...',
           typeProgress,
         );
-        final categoryStreams = await Future.wait(
-          vodCategories.map((cat) async {
+        final categoryStreams = await _batchedWait<List<XtreamStream>>(
+          vodCategories.map((cat) => () async {
             try {
               final catId = int.tryParse(cat.id);
               // ignore: avoid_print
@@ -215,6 +256,11 @@ class XtreamImporter {
                     url: streamUrl,
                     groupTitle: drift.Value(cat.name),
                     rating: drift.Value(stream.rating),
+                    description: drift.Value(stream.description),
+                    genre: drift.Value(stream.genre),
+                    cast: drift.Value(stream.cast),
+                    director: drift.Value(stream.director),
+                    releaseDate: drift.Value(stream.releaseDate),
                   ),
                 );
             totalVod++;
@@ -239,13 +285,13 @@ class XtreamImporter {
         // ignore: avoid_print
         print('[XtreamImport] Series: ${seriesList.length}');
 
-        // Fetch detailed info for all series in parallel to speed up import.
+        // Fetch detailed info for all series in batches to avoid overwhelming the provider.
         onProgress?.call(
           'Fetching series details (${seriesList.length} series)...',
           typeProgress,
         );
-        final seriesDetails = await Future.wait(
-          seriesList.map((s) async {
+        final seriesDetails = await _batchedWait<XtreamSeriesInfo?>(
+          seriesList.map((s) => () async {
             try {
               final info = await client.getSeriesInfo(s.seriesId);
               // ignore: avoid_print

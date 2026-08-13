@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
+import '../../core/data/playlist_manager.dart';
+import '../../core/data/xtream_api_client.dart';
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/favorite_button.dart';
@@ -209,10 +211,89 @@ class _DetailScreenState extends State<DetailScreen> {
           .getSingleOrNull();
       if (mounted && item != null) {
         setState(() => _vodItem = item);
+        // If description is empty, try fetching detailed info from the API.
+        if (item.description == null || item.description!.isEmpty) {
+          _fetchVodDetailFromApi(item);
+        }
       }
     } catch (e) {
       // ignore: avoid_print
       print('[DetailScreen] Failed to load VOD metadata: $e');
+    }
+  }
+
+  /// Fetch detailed VOD info from the Xtream API and update the database.
+  Future<void> _fetchVodDetailFromApi(VodItem item) async {
+    try {
+      // Extract streamId from the URL (format: .../movie/user/pass/STREAM_ID.ext)
+      final uri = Uri.parse(item.url);
+      final segments = uri.pathSegments;
+      if (segments.length < 2) return;
+      final idStr = segments.last.split('.').first;
+      final streamId = int.tryParse(idStr);
+      if (streamId == null || streamId == 0) return;
+
+      // Initialize Xtream client
+      final playlists = await (_db.select(_db.playlists)).get();
+      if (playlists.isEmpty) return;
+
+      // Find the playlist for this item
+      final playlist = playlists.firstWhere(
+        (p) => p.id == item.playlistId,
+        orElse: () => playlists.first,
+      );
+
+      // Decrypt credentials
+      final pm = PlaylistManager(database: _db);
+      final baseUrl = pm.getDecryptedUrl(playlist);
+      final username = pm.getDecryptedUsername(playlist);
+      final password = pm.getDecryptedPassword(playlist);
+      if (username == null || password == null) return;
+
+      final client = XtreamApiClient(
+        baseUrl: baseUrl,
+        username: username,
+        password: password,
+      );
+
+      // ignore: avoid_print
+      print('[DetailScreen] Fetching VOD detail for streamId=$streamId');
+      final info = await client.getVodInfo(streamId);
+      client.close();
+
+      if (mounted) {
+        setState(() {
+          _vodItem = VodItem(
+            id: item.id,
+            playlistId: item.playlistId,
+            title: item.title,
+            poster: item.poster,
+            url: item.url,
+            groupTitle: item.groupTitle,
+            description: info['plot'] as String? ?? item.description,
+            rating: (info['rating'] as String?) ?? item.rating,
+            genre: info['genre'] as String? ?? item.genre,
+            cast: info['cast'] as String? ?? item.cast,
+            director: info['director'] as String? ?? item.director,
+            releaseDate: info['releasedate'] as String? ?? item.releaseDate,
+          );
+        });
+
+        // Update the database with the fetched metadata.
+        await (_db.update(_db.vodItems)
+              ..where((t) => t.id.equals(item.id)))
+            .write(VodItemsCompanion(
+          description: drift.Value(_vodItem!.description),
+          rating: drift.Value(_vodItem!.rating),
+          genre: drift.Value(_vodItem!.genre),
+          cast: drift.Value(_vodItem!.cast),
+          director: drift.Value(_vodItem!.director),
+          releaseDate: drift.Value(_vodItem!.releaseDate),
+        ));
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to fetch VOD detail from API: $e');
     }
   }
 
@@ -851,7 +932,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
     // YouTube trailer
     if (_youtubeTrailer != null && _youtubeTrailer!.isNotEmpty) {
-      rows.add(_InfoRow(Icons.ondemand_video, 'Trailer', 'Available'));
+      rows.add(const _InfoRow(Icons.ondemand_video, 'Trailer', 'Available'));
     }
 
     if (rows.isEmpty) return const SizedBox.shrink();
