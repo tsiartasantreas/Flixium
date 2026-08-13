@@ -5,10 +5,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_manager.dart';
 import '../../core/data/database.dart';
+import '../../core/data/parental_control_service.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/pin_dialog.dart';
 import '../auth/auth_screen.dart';
 import '../offline/offline_screen.dart';
 import '../profiles/profile_switcher_screen.dart';
@@ -39,6 +41,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Navigation settings.
   bool _showRadioTab = true;
+
+  // Parental controls.
+  bool _parentalPinSet = false;
 
   // Update check state.
   bool _isCheckingForUpdates = false;
@@ -110,12 +115,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _tier = tier == 'pro' ? 'Pro' : 'Free';
     });
 
-    // Load player preference.
+    // Load player preference and parental control state.
     final prefs = await SharedPreferences.getInstance();
+    final pinSet = await ParentalControlService.instance.isPinSet();
     if (!mounted) return;
     setState(() {
       _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
       _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
+      _parentalPinSet = pinSet;
     });
   }
 
@@ -424,6 +431,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await prefs.setBool('show_radio_tab', value);
             },
           ),
+
+          const SizedBox(height: 16),
+
+          // -- Parental Controls section ------------------------------------
+          _buildSectionHeader('Parental Controls'),
+          if (_parentalPinSet) ...[
+            _buildNavigationTile(
+              icon: Icons.lock_outline,
+              title: 'Change PIN',
+              subtitle: 'Update your parental control PIN',
+              onTap: _changeParentalPin,
+            ),
+            _buildNavigationTile(
+              icon: Icons.lock_open,
+              title: 'Remove PIN',
+              subtitle: 'Disable parental controls',
+              onTap: _removeParentalPin,
+            ),
+          ] else ...[
+            _buildNavigationTile(
+              icon: Icons.shield_outlined,
+              title: 'Set PIN',
+              subtitle: 'Restrict adult content with a 4-digit PIN',
+              onTap: _setParentalPin,
+            ),
+          ],
 
           const SizedBox(height: 16),
 
@@ -846,6 +879,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parental controls
+  // ---------------------------------------------------------------------------
+
+  Future<void> _setParentalPin() async {
+    final saved = await showPinSetDialog(context);
+    if (saved && mounted) {
+      setState(() => _parentalPinSet = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Parental PIN set. Adult content is now locked.'),
+          backgroundColor: AppColors.bgSurface,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _changeParentalPin() async {
+    final saved = await showPinSetDialog(context, isChanging: true);
+    if (saved && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Parental PIN changed.'),
+          backgroundColor: AppColors.bgSurface,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _removeParentalPin() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: const Text(
+          'Remove Parental PIN',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: const Text(
+          'This will unlock all content, including adult content. '
+          'Are you sure?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Remove',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ParentalControlService.instance.removePin();
+      setState(() => _parentalPinSet = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Parental PIN removed. All content is unlocked.'),
+            backgroundColor: AppColors.bgSurface,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

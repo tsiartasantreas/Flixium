@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import '../../core/data/database.dart';
 import '../../core/data/favorites_service.dart';
 import '../../core/data/import_progress_service.dart';
+import '../../core/data/parental_control_service.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/data/watch_progress_service.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/pin_dialog.dart';
 import '../browse/browse_screen.dart';
 import '../detail/detail_screen.dart';
 import '../favorites/favorites_screen.dart';
@@ -43,6 +45,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<Favorite> _favorites = [];
   bool _isEmpty = true;
   bool _isLoading = true;
+  bool _parentalLocked = false;
   bool get _isTv =>
       Platform.isLinux ||
       (Platform.isAndroid &&
@@ -105,6 +108,10 @@ class HomeScreenState extends State<HomeScreen> {
     // Load favorites in parallel.
     _loadFavorites();
 
+    // Check if parental controls are active.
+    final parentalLocked =
+        await ParentalControlService.instance.isAdultContentLocked();
+
     // Get playlist IDs belonging to the current user.
     final playlistIds = await _getUserPlaylistIds();
     if (playlistIds.isEmpty) {
@@ -139,11 +146,32 @@ class HomeScreenState extends State<HomeScreen> {
       ..orderBy([(r) => OrderingTerm.desc(r.id)]);
     final radioStations = await radioQuery.get();
 
+    // Filter out adult content when parental controls are active.
+    final filteredChannels = parentalLocked
+        ? channels
+            .where((ch) =>
+                !ParentalControlService.isAdultContent(title: ch.name))
+            .toList()
+        : channels;
+    final filteredVod = parentalLocked
+        ? vodItems
+            .where((vod) =>
+                !ParentalControlService.isAdultContent(
+                    title: vod.title, rating: vod.rating))
+            .toList()
+        : vodItems;
+    final filteredSeries = parentalLocked
+        ? series
+            .where((s) =>
+                !ParentalControlService.isAdultContent(title: s.title))
+            .toList()
+        : series;
+
     // ignore: avoid_print
     print('[HomeScreen._loadContent] playlistIds=$playlistIds');
     // ignore: avoid_print
-    print('[HomeScreen._loadContent] channels=${channels.length}, '
-        'vodItems=${vodItems.length}, series=${series.length}, '
+    print('[HomeScreen._loadContent] channels=${filteredChannels.length}, '
+        'vodItems=${filteredVod.length}, series=${filteredSeries.length}, '
         'radio=${radioStations.length}');
 
     // Load Continue Watching items (Pro only).
@@ -162,12 +190,12 @@ class HomeScreenState extends State<HomeScreen> {
       bool isFirstRow = true;
 
       // -- Movies row --------------------------------------------------------
-      if (vodItems.isNotEmpty) {
+      if (filteredVod.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Movies',
           isTv: _isTv,
           autofocusFirst: _isTv && isFirstRow,
-          items: vodItems.take(20).map((vod) {
+          items: filteredVod.take(20).map((vod) {
             return ContentItem(
               title: vod.title,
               imageUrl: vod.poster,
@@ -190,12 +218,12 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       // -- Series row --------------------------------------------------------
-      if (series.isNotEmpty) {
+      if (filteredSeries.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Series',
           isTv: _isTv,
           autofocusFirst: _isTv && isFirstRow,
-          items: series.take(20).map((s) {
+          items: filteredSeries.take(20).map((s) {
             return ContentItem(
               title: s.title,
               imageUrl: s.poster,
@@ -216,12 +244,12 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       // -- Live TV row -------------------------------------------------------
-      if (channels.isNotEmpty) {
+      if (filteredChannels.isNotEmpty) {
         rows.add(ContentRow(
           label: 'Live TV',
           isTv: _isTv,
           autofocusFirst: _isTv && isFirstRow,
-          items: channels.take(20).map((ch) {
+          items: filteredChannels.take(20).map((ch) {
             return ContentItem(
               title: ch.name,
               imageUrl: ch.logo,
@@ -272,7 +300,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       // -- Recently Added row (newest items across all types) ----------------
       final recentItems = <_RecentItem>[];
-      for (final vod in vodItems.take(5)) {
+      for (final vod in filteredVod.take(5)) {
         recentItems.add(_RecentItem(
           id: vod.id,
           title: vod.title,
@@ -290,7 +318,7 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ));
       }
-      for (final s in series.take(5)) {
+      for (final s in filteredSeries.take(5)) {
         recentItems.add(_RecentItem(
           id: s.id,
           title: s.title,
@@ -306,7 +334,7 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ));
       }
-      for (final ch in channels.take(5)) {
+      for (final ch in filteredChannels.take(5)) {
         recentItems.add(_RecentItem(
           id: ch.id,
           title: ch.name,
@@ -349,6 +377,7 @@ class HomeScreenState extends State<HomeScreen> {
       setState(() {
         _rows = rows;
         _continueWatchingItems = continueWatchingItems;
+        _parentalLocked = parentalLocked;
         _isEmpty = rows.isEmpty;
         _isLoading = false;
       });
@@ -407,6 +436,21 @@ class HomeScreenState extends State<HomeScreen> {
     print('[HomeScreen._getUserPlaylistIds] Returning ${ids.length} '
         'playlist IDs: $ids');
     return ids;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parental controls
+  // ---------------------------------------------------------------------------
+
+  /// Shows the PIN verification dialog and reloads content if the PIN is
+  /// correct, so that adult content becomes visible.
+  Future<void> _unlockAdultContent() async {
+    final unlocked = await showPinVerifyDialog(context);
+    if (unlocked && mounted) {
+      // Temporarily override the lock so _loadContent includes adult items.
+      setState(() => _parentalLocked = false);
+      await _loadContent();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -600,6 +644,13 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          // Unlock adult content button (shown when parental controls are on).
+          if (_parentalLocked)
+            IconButton(
+              icon: const Icon(Icons.lock_outline, color: AppColors.accentPrimary),
+              onPressed: _unlockAdultContent,
+              tooltip: 'Unlock adult content',
+            ),
           IconButton(
             icon: const Icon(Icons.search, color: AppColors.textPrimary),
             onPressed: () {

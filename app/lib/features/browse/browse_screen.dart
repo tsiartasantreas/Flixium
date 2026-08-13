@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/import_progress_service.dart';
+import '../../core/data/parental_control_service.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/favorite_button.dart';
+import '../../core/widgets/pin_dialog.dart';
 import '../detail/detail_screen.dart';
 import '../search/search_screen.dart';
 
@@ -44,6 +46,9 @@ class BrowseScreenState extends State<BrowseScreen> {
   String? _selectedGroup;
   bool _isLoading = true;
   ViewMode _viewMode = ViewMode.grid;
+
+  /// Whether parental controls are active (adult content hidden).
+  bool _parentalLocked = false;
 
   /// Map from EPG channelId to the current programme title.
   Map<String, String> _epgCurrentTitles = {};
@@ -131,6 +136,10 @@ class BrowseScreenState extends State<BrowseScreen> {
       return;
     }
 
+    // Check if parental controls are active.
+    final parentalLocked =
+        await ParentalControlService.instance.isAdultContentLocked();
+
     switch (widget.contentType) {
       case 'live':
         final query = _db.select(_db.channels)
@@ -164,6 +173,7 @@ class BrowseScreenState extends State<BrowseScreen> {
             url: vod.url,
             groupTitle: vod.groupTitle,
             contentType: 'vod',
+            rating: vod.rating,
           ));
         }
         break;
@@ -208,6 +218,15 @@ class BrowseScreenState extends State<BrowseScreen> {
         '${widget.contentType}: ${items.length} '
         '(playlists: $playlistIds)');
 
+    // Filter out adult content when parental controls are active.
+    if (parentalLocked) {
+      items.removeWhere((item) =>
+          ParentalControlService.isAdultContent(
+            title: item.title,
+            rating: item.rating,
+          ));
+    }
+
     // Extract unique groups.
     final groupSet = <String>{};
     for (final item in items) {
@@ -228,6 +247,7 @@ class BrowseScreenState extends State<BrowseScreen> {
         _filteredItems = items;
         _groups = groupSet.toList()..sort();
         _epgCurrentTitles = epgTitles;
+        _parentalLocked = parentalLocked;
         _isLoading = false;
       });
     }
@@ -335,6 +355,21 @@ class BrowseScreenState extends State<BrowseScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // Parental controls
+  // ---------------------------------------------------------------------------
+
+  /// Shows the PIN verification dialog and reloads items if the PIN is
+  /// correct, so that adult content becomes visible.
+  Future<void> _unlockAdultContent() async {
+    final unlocked = await showPinVerifyDialog(context);
+    if (unlocked && mounted) {
+      // Temporarily override the lock so _loadItems includes adult content.
+      setState(() => _parentalLocked = false);
+      await _loadItems();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Navigation
   // ---------------------------------------------------------------------------
 
@@ -371,6 +406,13 @@ class BrowseScreenState extends State<BrowseScreen> {
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
+          // Unlock adult content button (shown when parental controls are on).
+          if (_parentalLocked)
+            IconButton(
+              icon: const Icon(Icons.lock_outline, color: AppColors.accentPrimary),
+              onPressed: _unlockAdultContent,
+              tooltip: 'Unlock adult content',
+            ),
           // View toggle button.
           IconButton(
             icon: Icon(
@@ -802,6 +844,7 @@ class _BrowseItem {
     this.groupTitle,
     required this.contentType,
     this.tvgName,
+    this.rating,
   });
 
   final int id;
@@ -813,4 +856,7 @@ class _BrowseItem {
 
   /// M3U `tvg-name` — used to match EPG data to live channels.
   final String? tvgName;
+
+  /// Content rating (e.g. "18+", "R18").
+  final String? rating;
 }

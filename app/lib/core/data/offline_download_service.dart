@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -238,18 +239,28 @@ class OfflineDownloadService {
     final fileSize = await file.length();
 
     // Insert record into database.
-    await _db.into(_db.downloadedItems).insert(
-          DownloadedItemsCompanion.insert(
-            contentId: contentId,
-            title: title,
-            filePath: file.path,
-            fileSize: fileSize,
-            downloadedAt: DateTime.now(),
-            contentType: contentType,
-            thumbnailUrl: drift.Value(thumbnailUrl),
-            streamUrl: drift.Value(url),
-          ),
-        );
+    debugPrint('[OfflineDownloadService] downloadContent: inserting record into DB '
+        'contentId=$contentId, title=$title, filePath=${file.path}, '
+        'fileSize=$fileSize, contentType=$contentType');
+    try {
+      await _db.into(_db.downloadedItems).insert(
+            DownloadedItemsCompanion.insert(
+              contentId: contentId,
+              title: title,
+              filePath: file.path,
+              fileSize: fileSize,
+              downloadedAt: DateTime.now(),
+              contentType: contentType,
+              thumbnailUrl: drift.Value(thumbnailUrl),
+              streamUrl: drift.Value(url),
+            ),
+          );
+      debugPrint('[OfflineDownloadService] downloadContent: DB insert SUCCESS for contentId=$contentId');
+    } catch (e, st) {
+      debugPrint('[OfflineDownloadService] downloadContent: DB insert FAILED for contentId=$contentId: $e');
+      debugPrint('[OfflineDownloadService] stack trace: $st');
+      rethrow;
+    }
   }
 
   /// Cancels an in-progress or queued download.
@@ -275,9 +286,15 @@ class OfflineDownloadService {
 
   /// Returns all downloaded items, newest first.
   Future<List<DownloadedItem>> getDownloadedItems() async {
+    debugPrint('[OfflineDownloadService] getDownloadedItems: querying DB...');
     final items = await (_db.select(_db.downloadedItems)
           ..orderBy([(t) => drift.OrderingTerm.desc(t.downloadedAt)]))
         .get();
+    debugPrint('[OfflineDownloadService] getDownloadedItems: found ${items.length} items');
+    for (final item in items) {
+      debugPrint('[OfflineDownloadService]   -> id=${item.id}, contentId=${item.contentId}, '
+          'title=${item.title}, filePath=${item.filePath}, fileSize=${item.fileSize}');
+    }
     return items;
   }
 
@@ -388,13 +405,16 @@ class OfflineDownloadService {
         }
 
         try {
+          debugPrint('[OfflineDownloadService] _processQueue: starting download for contentId=${task.contentId}, title=${task.title}');
           await _executeDownload(task);
           _progressMap[task.contentId] =
               _progressMap[task.contentId]!.copyWith(
             state: DownloadState.completed,
             progress: 1.0,
           );
+          debugPrint('[OfflineDownloadService] _processQueue: download COMPLETED for contentId=${task.contentId}');
         } catch (e) {
+          debugPrint('[OfflineDownloadService] _processQueue: download FAILED for contentId=${task.contentId}: $e');
           _progressMap[task.contentId] =
               _progressMap[task.contentId]!.copyWith(
             state: DownloadState.failed,
@@ -468,18 +488,36 @@ class OfflineDownloadService {
     final fileSize = await file.length();
 
     // Insert record into database.
-    await _db.into(_db.downloadedItems).insert(
-          DownloadedItemsCompanion.insert(
-            contentId: task.contentId,
-            title: task.title,
-            filePath: file.path,
-            fileSize: fileSize,
-            downloadedAt: DateTime.now(),
-            contentType: task.contentType,
-            thumbnailUrl: drift.Value(task.thumbnailUrl),
-            streamUrl: drift.Value(task.url),
-          ),
-        );
+    debugPrint('[OfflineDownloadService] _executeDownload: inserting record into DB '
+        'contentId=${task.contentId}, title=${task.title}, filePath=${file.path}, '
+        'fileSize=$fileSize, contentType=${task.contentType}');
+    try {
+      await _db.into(_db.downloadedItems).insert(
+            DownloadedItemsCompanion.insert(
+              contentId: task.contentId,
+              title: task.title,
+              filePath: file.path,
+              fileSize: fileSize,
+              downloadedAt: DateTime.now(),
+              contentType: task.contentType,
+              thumbnailUrl: drift.Value(task.thumbnailUrl),
+              streamUrl: drift.Value(task.url),
+            ),
+          );
+      debugPrint('[OfflineDownloadService] _executeDownload: DB insert SUCCESS for contentId=${task.contentId}');
+    } catch (e, st) {
+      debugPrint('[OfflineDownloadService] _executeDownload: DB insert FAILED for contentId=${task.contentId}: $e');
+      debugPrint('[OfflineDownloadService] stack trace: $st');
+      rethrow;
+    }
+
+    // Verify the record was actually persisted.
+    final verifyItem = await (_db.select(_db.downloadedItems)
+          ..where((t) => t.contentId.equals(task.contentId))
+          ..limit(1))
+        .getSingleOrNull();
+    debugPrint('[OfflineDownloadService] _executeDownload: post-insert verification '
+        'contentId=${task.contentId} -> ${verifyItem != null ? "FOUND (id=${verifyItem.id}, path=${verifyItem.filePath})" : "NOT FOUND"}');
   }
 
   // ---------------------------------------------------------------------------

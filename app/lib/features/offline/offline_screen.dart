@@ -41,6 +41,7 @@ class _OfflineScreenState extends State<OfflineScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[OfflineScreen] initState: loading downloaded items from DB');
     _loadItems();
     _listenToProgress();
   }
@@ -62,18 +63,32 @@ class _OfflineScreenState extends State<OfflineScreen> {
       });
 
       if (hasNewCompleted) {
+        debugPrint('[OfflineScreen] new download completed, refreshing DB list');
         _loadItems();
       }
     });
   }
 
   Future<void> _loadItems() async {
-    final items = await _downloadService.getDownloadedItems();
-    if (mounted) {
-      setState(() {
-        _items = items;
-        _isLoading = false;
-      });
+    debugPrint('[OfflineScreen] _loadItems: querying downloaded items...');
+    try {
+      final items = await _downloadService.getDownloadedItems();
+      debugPrint('[OfflineScreen] _loadItems: got ${items.length} items from DB');
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _isLoading = false;
+        });
+      }
+    } catch (e, st) {
+      debugPrint('[OfflineScreen] _loadItems: ERROR querying DB: $e');
+      debugPrint('[OfflineScreen] _loadItems: stack trace: $st');
+      if (mounted) {
+        setState(() {
+          _items = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
