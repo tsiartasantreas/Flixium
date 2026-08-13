@@ -113,6 +113,7 @@ class PlayerConfig {
   Map<String, String> buildMpvOptions() {
     final options = <String, String>{
       'hwdec': hwdec,
+      'vo': 'gpu',
     };
     if (protocolWhitelist != null) {
       options['protocol-whitelist'] = protocolWhitelist!;

@@ -35,8 +35,6 @@ enum XtreamContentType {
 /// ```
 class XtreamImporter {
 
-  /// Maximum number of parallel requests to avoid overwhelming the provider.
-  static const int _maxConcurrency = 5;
   XtreamImporter({
     required this._db,
     this._client,
@@ -44,44 +42,6 @@ class XtreamImporter {
 
   final AppDatabase _db;
   XtreamApiClient? _client;
-
-  /// Runs futures in batches of [batchSize] to avoid overwhelming the provider.
-  ///
-  /// Unlike [Future.wait] which fires all requests at once, this processes
-  /// them in controlled batches. Each individual future is wrapped in
-  /// try/catch so one failure doesn't cancel the others.
-  Future<List<T>> _batchedWait<T>(
-    Iterable<Future<T> Function()> taskFactories, {
-    int batchSize = _maxConcurrency,
-  }) async {
-    final results = <T>[];
-    final factories = taskFactories.toList();
-
-    for (var i = 0; i < factories.length; i += batchSize) {
-      final end = (i + batchSize < factories.length) ? i + batchSize : factories.length;
-      final batch = factories.sublist(i, end);
-
-      final batchResults = await Future.wait(
-        batch.map((factory) async {
-          try {
-            return await factory();
-          } catch (e) {
-            // ignore: avoid_print
-            print('[XtreamImport] Batch request failed: $e');
-            // Return a default value based on T
-            if (T == List<XtreamStream>) {
-              return <XtreamStream>[] as T;
-            }
-            return null as T;
-          }
-        }),
-      );
-
-      results.addAll(batchResults);
-    }
-
-    return results;
-  }
 
   /// Imports content from the Xtream provider under the given [playlistId].
   ///
@@ -128,39 +88,32 @@ class XtreamImporter {
       try {
         final liveCategories = await client.getLiveCategories();
         // ignore: avoid_print
-        print('[XtreamImport] Live categories: ${liveCategories.length}');
+        print('[XtreamImport] Live categories fetched: ${liveCategories.length}');
+        var liveCategoriesFetched = 0;
 
-        // Fetch streams for all categories in batches to avoid overwhelming the provider.
-        onProgress?.call(
-          'Fetching live TV streams (${liveCategories.length} categories)...',
-          completedTypes / enabledTypes,
-        );
-        final categoryStreams = await _batchedWait<List<XtreamStream>>(
-          liveCategories.map((cat) => () async {
-            try {
-              final streams = await client.getLiveStreams(
-                categoryId: int.tryParse(cat.id),
-              );
-              // ignore: avoid_print
-              print('[XtreamImport] Live cat "${cat.name}" → ${streams.length} streams');
-              return streams;
-            } catch (e) {
-              // ignore: avoid_print
-              print('[XtreamImport] Live cat "${cat.name}" FAILED: $e');
-              return <XtreamStream>[];
-            }
-          }),
-        );
-
-        // Insert streams into the database sequentially.
+        // Fetch streams sequentially — one category at a time.
         for (var i = 0; i < liveCategories.length; i++) {
           final cat = liveCategories[i];
-          final streams = categoryStreams[i];
           final typeProgress = completedTypes / enabledTypes;
           onProgress?.call(
             'Live: ${cat.name} (${i + 1}/${liveCategories.length})',
             typeProgress,
           );
+
+          List<XtreamStream> streams;
+          try {
+            streams = await client.getLiveStreams(
+              categoryId: int.tryParse(cat.id),
+            );
+            // ignore: avoid_print
+            print('[XtreamImport] Live cat "${cat.name}" → ${streams.length} streams');
+            liveCategoriesFetched++;
+          } catch (e) {
+            // ignore: avoid_print
+            print('[XtreamImport] Live cat "${cat.name}" FAILED: $e');
+            streams = <XtreamStream>[];
+          }
+
           for (final stream in streams) {
             final streamUrl = client.getLiveStreamUrl(stream);
             // ignore: avoid_print
@@ -178,6 +131,8 @@ class XtreamImporter {
             totalChannels++;
           }
         }
+        // ignore: avoid_print
+        print('[XtreamImport] LIVE SUMMARY: $liveCategoriesFetched/${liveCategories.length} categories fetched, $totalChannels channels imported');
         completedTypes++;
       } catch (e) {
         // ignore: avoid_print
@@ -193,59 +148,40 @@ class XtreamImporter {
       try {
         final vodCategories = await client.getVodCategories();
         // ignore: avoid_print
-        print('[XtreamImport] ====== VOD IMPORT START ======');
-        // ignore: avoid_print
-        print('[XtreamImport] VOD categories returned: ${vodCategories.length}');
+        print('[XtreamImport] VOD categories fetched: ${vodCategories.length}');
+        var vodCategoriesFetched = 0;
 
-        // Fetch streams for all VOD categories in batches to avoid overwhelming the provider.
-        onProgress?.call(
-          'Fetching movie streams (${vodCategories.length} categories)...',
-          typeProgress,
-        );
-        final categoryStreams = await _batchedWait<List<XtreamStream>>(
-          vodCategories.map((cat) => () async {
-            try {
-              final catId = int.tryParse(cat.id);
-              // ignore: avoid_print
-              print('[XtreamImport]   Fetching VOD streams for categoryId=$catId '
-                  '(raw id="${cat.id}")...');
-              final streams = await client.getVodStreams(categoryId: catId);
-              // ignore: avoid_print
-              print('[XtreamImport]   VOD cat "${cat.name}" → ${streams.length} streams');
-              if (streams.isNotEmpty) {
-                final first = streams.first;
-                // ignore: avoid_print
-                print('[XtreamImport]   First stream: name="${first.name}", '
-                    'streamId=${first.streamId}, '
-                    'containerExtension="${first.containerExtension}", '
-                    'streamType="${first.streamType}", '
-                    'categoryId="${first.categoryId}", '
-                    'streamIcon="${first.streamIcon}"');
-              }
-              return streams;
-            } catch (e, st) {
-              // ignore: avoid_print
-              print('[XtreamImport] VOD cat "${cat.name}" FAILED: $e');
-              // ignore: avoid_print
-              print('[XtreamImport] VOD cat stack trace: $st');
-              return <XtreamStream>[];
-            }
-          }),
-        );
-
-        // Insert streams into the database sequentially.
+        // Fetch streams sequentially — one category at a time.
         for (var i = 0; i < vodCategories.length; i++) {
           final cat = vodCategories[i];
-          final streams = categoryStreams[i];
           final baseProgress = completedTypes / enabledTypes;
           onProgress?.call(
             'Movies: ${cat.name} (${i + 1}/${vodCategories.length})',
             baseProgress,
           );
+
+          List<XtreamStream> streams;
+          try {
+            final catId = int.tryParse(cat.id);
+            // ignore: avoid_print
+            print('[XtreamImport] Fetching VOD streams for categoryId=$catId '
+                '(raw id="${cat.id}")...');
+            streams = await client.getVodStreams(categoryId: catId);
+            // ignore: avoid_print
+            print('[XtreamImport] VOD cat "${cat.name}" → ${streams.length} streams');
+            vodCategoriesFetched++;
+          } catch (e, st) {
+            // ignore: avoid_print
+            print('[XtreamImport] VOD cat "${cat.name}" FAILED: $e');
+            // ignore: avoid_print
+            print('[XtreamImport] VOD cat stack trace: $st');
+            streams = <XtreamStream>[];
+          }
+
           for (final stream in streams) {
             final streamUrl = client.getVodStreamUrl(stream);
             // ignore: avoid_print
-            print('[XtreamImport]   VOD "${stream.name}" '
+            print('[XtreamImport] VOD "${stream.name}" '
                 '(streamId=${stream.streamId}, ext="${stream.containerExtension}") '
                 '→ url=$streamUrl');
             await _db.into(_db.vodItems).insert(
@@ -267,7 +203,7 @@ class XtreamImporter {
           }
         }
         // ignore: avoid_print
-        print('[XtreamImport] ====== VOD IMPORT DONE: $totalVod movies ======');
+        print('[XtreamImport] VOD SUMMARY: $vodCategoriesFetched/${vodCategories.length} categories fetched, $totalVod movies imported');
         completedTypes++;
       } catch (e) {
         // ignore: avoid_print
@@ -283,34 +219,11 @@ class XtreamImporter {
       try {
         final seriesList = await client.getSeries();
         // ignore: avoid_print
-        print('[XtreamImport] Series: ${seriesList.length}');
+        print('[XtreamImport] Series fetched: ${seriesList.length}');
+        var seriesDetailsFetched = 0;
+        var totalEpisodesImported = 0;
 
-        // Fetch detailed info for all series in batches to avoid overwhelming the provider.
-        onProgress?.call(
-          'Fetching series details (${seriesList.length} series)...',
-          typeProgress,
-        );
-        final seriesDetails = await _batchedWait<XtreamSeriesInfo?>(
-          seriesList.map((s) => () async {
-            try {
-              final info = await client.getSeriesInfo(s.seriesId);
-              // ignore: avoid_print
-              print('[XtreamImport] Series "${s.name}" (xid=${s.seriesId}): '
-                  '${info.seasons.length} seasons, '
-                  '${info.episodes.length} season-keys in episodes map');
-              return info;
-            } catch (e, st) {
-              // ignore: avoid_print
-              print('[XtreamImport] Series "${s.name}" (xid=${s.seriesId}) '
-                  'detail FAILED: $e');
-              // ignore: avoid_print
-              print('[XtreamImport] Stack trace: $st');
-              return null;
-            }
-          }),
-        );
-
-        // Insert series and episodes into the database sequentially.
+        // Fetch series details sequentially — one series at a time.
         for (var i = 0; i < seriesList.length; i++) {
           final s = seriesList[i];
           final baseProgress = completedTypes / enabledTypes;
@@ -319,8 +232,22 @@ class XtreamImporter {
             baseProgress,
           );
 
-          // Merge list-level and info-level metadata for the series.
-          final detail = seriesDetails[i];
+          XtreamSeriesInfo? detail;
+          try {
+            detail = await client.getSeriesInfo(s.seriesId);
+            // ignore: avoid_print
+            print('[XtreamImport] Series "${s.name}" (xid=${s.seriesId}): '
+                '${detail.seasons.length} seasons, '
+                '${detail.episodes.length} season-keys in episodes map');
+            seriesDetailsFetched++;
+          } catch (e, st) {
+            // ignore: avoid_print
+            print('[XtreamImport] Series "${s.name}" (xid=${s.seriesId}) '
+                'detail FAILED: $e');
+            // ignore: avoid_print
+            print('[XtreamImport] Stack trace: $st');
+            detail = null;
+          }
 
           final seriesId = await _db.into(_db.tvSeries).insert(
                 TvSeriesCompanion.insert(
@@ -337,7 +264,6 @@ class XtreamImporter {
               );
 
           if (detail != null) {
-            var epCount = 0;
             for (final entry in detail.episodes.entries) {
               final seasonNum = entry.key;
               for (final ep in entry.value) {
@@ -359,14 +285,16 @@ class XtreamImporter {
                         thumbnail: drift.Value(ep.thumbnail ?? s.cover),
                       ),
                     );
-                epCount++;
+                totalEpisodesImported++;
               }
             }
             // ignore: avoid_print
-            print('[XtreamImport] Series "${s.name}" imported $epCount episodes');
+            print('[XtreamImport] Series "${s.name}" imported ${detail.episodes.values.fold<int>(0, (sum, eps) => sum + eps.length)} episodes');
           }
           totalSeries++;
         }
+        // ignore: avoid_print
+        print('[XtreamImport] SERIES SUMMARY: $seriesDetailsFetched/${seriesList.length} series details fetched, $totalSeries series imported, $totalEpisodesImported episodes imported');
         completedTypes++;
       } catch (e) {
         // ignore: avoid_print

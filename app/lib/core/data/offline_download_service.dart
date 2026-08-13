@@ -493,8 +493,17 @@ class OfflineDownloadService {
   }
 
   Future<Directory> _getDownloadDirectory() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final dlDir = Directory('${appDir.path}/flixium_downloads');
+    final downloads = await getDownloadsDirectory();
+    if (downloads == null) {
+      // Fallback to app documents if system Downloads is unavailable.
+      final appDir = await getApplicationDocumentsDirectory();
+      final dlDir = Directory('${appDir.path}/iFlixify Downloads');
+      if (!await dlDir.exists()) {
+        await dlDir.create(recursive: true);
+      }
+      return dlDir;
+    }
+    final dlDir = Directory('${downloads.path}/iFlixify Downloads');
     if (!await dlDir.exists()) {
       await dlDir.create(recursive: true);
     }

@@ -406,20 +406,10 @@ class _DetailScreenState extends State<DetailScreen> {
     final useExternalPlayer = prefs.getBool('use_external_player') ?? false;
 
     if (useExternalPlayer) {
-      // Try VLC first via its custom URL scheme, then fall back to the
-      // device's default video player.
-      final encodedUrl = Uri.encodeFull(playbackUrl);
-      final vlcUri = Uri.parse('vlc://$encodedUrl');
-      try {
-        if (await canLaunchUrl(vlcUri)) {
-          await launchUrl(vlcUri);
-          return;
-        }
-      } catch (_) {
-        // VLC not installed — fall through to generic external player.
-      }
-
-      // Fall back to the system's default external video player.
+      // Launch the URL with the system's external application chooser.
+      // This avoids the unreliable canLaunchUrl(vlc://) check that fails
+      // because VLC does not always register the vlc:// scheme.
+      // Android will show an app chooser if multiple video players exist.
       final uri = Uri.parse(playbackUrl);
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
