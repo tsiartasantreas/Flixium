@@ -278,9 +278,35 @@ class PlayerController extends ChangeNotifier {
       print('[PlayerController] _player.open() FAILED: $e');
       // ignore: avoid_print
       print('[PlayerController] stack: $st');
-      _error = 'Failed to open stream: $e';
-      notifyListeners();
-      return;
+
+      // Fallback: retry with software decoding (fixes AVI / legacy codec
+      // playback where the hardware decoder cannot handle the stream but
+      // audio still plays).
+      // ignore: avoid_print
+      print('[PlayerController] Retrying with software decoding fallback…');
+      final fallbackMedia = Media(
+        url,
+        httpHeaders: headers.isNotEmpty ? headers : null,
+        extras: {
+          'hwdec': 'no',
+          'vo': 'gpu',
+          'vd': 'lavc',
+        },
+      );
+
+      try {
+        await _player.open(fallbackMedia);
+        // ignore: avoid_print
+        print('[PlayerController] Fallback open() succeeded');
+      } catch (e2, st2) {
+        // ignore: avoid_print
+        print('[PlayerController] Fallback open() also FAILED: $e2');
+        // ignore: avoid_print
+        print('[PlayerController] fallback stack: $st2');
+        _error = 'Failed to open stream: $e2';
+        notifyListeners();
+        return;
+      }
     }
 
     // Start a timeout -- if playback never begins, surface an error.

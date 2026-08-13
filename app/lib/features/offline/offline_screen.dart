@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
@@ -109,6 +111,170 @@ class _OfflineScreenState extends State<OfflineScreen> {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => playerScreen))
         .then((_) => controller.dispose());
+  }
+
+  void _showItemContextMenu(DownloadedItem item, Offset position) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      color: AppColors.bgElevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'play',
+          child: Row(
+            children: [
+              Icon(Icons.play_arrow, color: AppColors.accentPrimary, size: 20),
+              SizedBox(width: 12),
+              Text(
+                'Play',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'open_location',
+          child: Row(
+            children: [
+              Icon(Icons.folder_open, color: AppColors.textSecondary, size: 20),
+              SizedBox(width: 12),
+              Text(
+                'Open File Location',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'share',
+          child: Row(
+            children: [
+              Icon(Icons.share, color: AppColors.textSecondary, size: 20),
+              SizedBox(width: 12),
+              Text(
+                'Share',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+              SizedBox(width: 12),
+              Text(
+                'Delete',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'play':
+          _playItem(item);
+          break;
+        case 'open_location':
+          _openFileLocation(item);
+          break;
+        case 'share':
+          _shareItem(item);
+          break;
+        case 'delete':
+          _deleteItem(item);
+          break;
+      }
+    });
+  }
+
+  Future<void> _openFileLocation(DownloadedItem item) async {
+    try {
+      final file = File(item.filePath);
+      if (!await file.exists()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('File not found on disk'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      // Open the file itself with the system default handler. On Android this
+      // will open the file manager at the containing folder when no suitable
+      // app is found, or show the file in the Downloads UI.
+      final result = await OpenFilex.open(
+        item.filePath,
+        type: _getMimeType(item.contentType),
+      );
+
+      if (result.type != ResultType.done && mounted) {
+        // Fallback: try opening the parent directory.
+        final parentDir = file.parent.path;
+        await OpenFilex.open(parentDir);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open file location: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  String? _getMimeType(String contentType) {
+    switch (contentType) {
+      case 'movie':
+      case 'series':
+        return 'video/mp4';
+      case 'radio':
+        return 'audio/mpeg';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _shareItem(DownloadedItem item) async {
+    try {
+      final file = File(item.filePath);
+      if (!await file.exists()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('File not found on disk'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      await Share.shareXFiles(
+        [XFile(item.filePath)],
+        text: item.title,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not share file: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   Future<void> _deleteItem(DownloadedItem item) async {
@@ -401,7 +567,8 @@ class _OfflineScreenState extends State<OfflineScreen> {
   Widget _buildDownloadCard(DownloadedItem item) {
     return GestureDetector(
       onTap: () => _playItem(item),
-      onLongPress: () => _deleteItem(item),
+      onLongPressStart: (details) =>
+          _showItemContextMenu(item, details.globalPosition),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

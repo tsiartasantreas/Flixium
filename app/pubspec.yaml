@@ -68,6 +68,12 @@ dependencies:
   # and playlist imports via an Android foreground service with notification.
   flutter_foreground_task: ^8.0.0
 
+  # open_filex — open files with the default app / file manager.
+  open_filex: ^4.7.0
+
+  # share_plus — share files and text via platform share sheet.
+  share_plus: ^10.1.4
+
 
 dev_dependencies:
   flutter_test:

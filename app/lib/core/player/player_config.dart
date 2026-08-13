@@ -114,6 +114,7 @@ class PlayerConfig {
     final options = <String, String>{
       'hwdec': hwdec,
       'vo': 'gpu',
+      'vd': 'lavc',
     };
     if (protocolWhitelist != null) {
       options['protocol-whitelist'] = protocolWhitelist!;

@@ -443,11 +443,12 @@ class HomeScreenState extends State<HomeScreen> {
   // ---------------------------------------------------------------------------
 
   /// Shows the PIN verification dialog and reloads content if the PIN is
-  /// correct, so that adult content becomes visible.
+  /// correct, so that adult content becomes visible for this session.
   Future<void> _unlockAdultContent() async {
     final unlocked = await showPinVerifyDialog(context);
     if (unlocked && mounted) {
-      // Temporarily override the lock so _loadContent includes adult items.
+      // Unlock adult content for the rest of this app session.
+      ParentalControlService.instance.unlockTemporarily();
       setState(() => _parentalLocked = false);
       await _loadContent();
     }

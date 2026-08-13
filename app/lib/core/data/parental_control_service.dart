@@ -61,8 +61,33 @@ class ParentalControlService {
     await prefs.remove(_pinHashKey);
   }
 
-  /// Returns `true` if adult content should be hidden (i.e. a PIN is set).
-  Future<bool> isAdultContentLocked() => isPinSet();
+  /// Returns `true` if adult content should be hidden (i.e. a PIN is set
+  /// and the user has not temporarily unlocked the session).
+  Future<bool> isAdultContentLocked() async {
+    if (_temporarilyUnlocked) return false;
+    return isPinSet();
+  }
+
+  /// Whether the user has temporarily unlocked adult content for this
+  /// app session. The flag resets when the app is killed.
+  bool _temporarilyUnlocked = false;
+
+  /// Returns `true` if the user has entered their PIN to temporarily
+  /// show adult content during this app session.
+  bool get isUnlocked => _temporarilyUnlocked;
+
+  /// Unlocks adult content for the rest of the current app session.
+  ///
+  /// Call this after verifying the user's PIN. The unlock is lost when the
+  /// process terminates (i.e. the app is fully closed, not just backgrounded).
+  void unlockTemporarily() {
+    _temporarilyUnlocked = true;
+  }
+
+  /// Re-locks adult content (e.g. user taps the lock button again).
+  void lockAgain() {
+    _temporarilyUnlocked = false;
+  }
 
   // ---------------------------------------------------------------------------
   // Adult content detection

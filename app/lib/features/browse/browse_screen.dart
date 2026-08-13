@@ -359,11 +359,12 @@ class BrowseScreenState extends State<BrowseScreen> {
   // ---------------------------------------------------------------------------
 
   /// Shows the PIN verification dialog and reloads items if the PIN is
-  /// correct, so that adult content becomes visible.
+  /// correct, so that adult content becomes visible for this session.
   Future<void> _unlockAdultContent() async {
     final unlocked = await showPinVerifyDialog(context);
     if (unlocked && mounted) {
-      // Temporarily override the lock so _loadItems includes adult content.
+      // Unlock adult content for the rest of this app session.
+      ParentalControlService.instance.unlockTemporarily();
       setState(() => _parentalLocked = false);
       await _loadItems();
     }
