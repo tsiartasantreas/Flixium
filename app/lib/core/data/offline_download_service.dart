@@ -138,6 +138,13 @@ class OfflineDownloadService {
   // Public API
   // ---------------------------------------------------------------------------
 
+  /// Returns the absolute path to the download directory (`Downloads/iFlixify
+  /// Downloads/`). Useful for file-manager navigation.
+  Future<String> get downloadDirectoryPath async {
+    final dir = await _getDownloadDirectory();
+    return dir.path;
+  }
+
   /// Enqueues a download. Returns immediately; the download will start when
   /// the queue reaches it.
   ///

@@ -406,20 +406,27 @@ class _DetailScreenState extends State<DetailScreen> {
     final useExternalPlayer = prefs.getBool('use_external_player') ?? false;
 
     if (useExternalPlayer) {
-      // Launch the URL with the system's external application chooser.
-      // This avoids the unreliable canLaunchUrl(vlc://) check that fails
-      // because VLC does not always register the vlc:// scheme.
-      // Android will show an app chooser if multiple video players exist.
+      // Launch with Android's app chooser for video players.
+      // Use intent: URI with video/* MIME type to show all capable players.
       final uri = Uri.parse(playbackUrl);
       try {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        // Try launching with external application mode first.
+        // This shows Android's app chooser if multiple players exist.
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalNonBrowserApplication,
+        );
+        if (!launched && mounted) {
+          // Fallback: try with platform default mode
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+        }
       } catch (e) {
         // ignore: avoid_print
         print('[DetailScreen] Failed to launch external player: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('No external video player found.'),
+              content: Text('No external video player found. Install VLC or MX Player.'),
               backgroundColor: AppColors.bgSurface,
               behavior: SnackBarBehavior.floating,
             ),

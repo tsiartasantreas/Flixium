@@ -329,7 +329,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       animation: ctrl,
       builder: (context, _) {
         // -- Error state -------------------------------------------------
-        if (ctrl.hasError) {
+        // Suppress error overlay if the video is actually playing
+        // (codec warnings can fire while playback continues fine).
+        if (ctrl.hasError && !ctrl.isPlaying) {
           return Container(
             color: Colors.black87,
             child: Center(

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_manager.dart';
 import '../../core/data/database.dart';
+import '../../core/data/offline_download_service.dart';
 import '../../core/data/parental_control_service.dart';
 import '../../core/data/supabase_client.dart';
 import '../../core/entitlement/entitlement_service.dart';
@@ -44,6 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Parental controls.
   bool _parentalPinSet = false;
+  bool _hideAdultContent = true; // Default: hidden when PIN is set.
 
   // Update check state.
   bool _isCheckingForUpdates = false;
@@ -118,11 +121,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Load player preference and parental control state.
     final prefs = await SharedPreferences.getInstance();
     final pinSet = await ParentalControlService.instance.isPinSet();
+    final adultVisible =
+        await ParentalControlService.instance.isAdultContentVisible();
     if (!mounted) return;
     setState(() {
       _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
       _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
       _parentalPinSet = pinSet;
+      _hideAdultContent = !adultVisible;
     });
   }
 
@@ -457,6 +463,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _setParentalPin,
             ),
           ],
+          _buildSwitchTile(
+            icon: _hideAdultContent
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+            title: _hideAdultContent
+                ? 'Adult Content Hidden'
+                : 'Adult Content Visible',
+            subtitle: _hideAdultContent
+                ? 'Adult content is filtered from browse and home screens'
+                : 'All content is visible, including adult content',
+            value: !_hideAdultContent,
+            onChanged: _onAdultContentToggle,
+          ),
 
           const SizedBox(height: 16),
 
@@ -469,6 +488,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const OfflineScreen()),
             ),
+          ),
+          _buildNavigationTile(
+            icon: Icons.folder_open_outlined,
+            title: 'Open Download Folder',
+            subtitle: 'Open the iFlixify Downloads folder in your file manager',
+            onTap: _openDownloadFolder,
           ),
           _buildNavigationTile(
             icon: Icons.delete_outline,
@@ -992,6 +1017,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) {
         setState(() => _isCheckingForUpdates = false);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adult content toggle
+  // ---------------------------------------------------------------------------
+
+  Future<void> _onAdultContentToggle(bool showAdult) async {
+    if (showAdult && _parentalPinSet) {
+      // Require PIN verification to show adult content.
+      final unlocked = await showPinVerifyDialog(context);
+      if (!unlocked) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Incorrect PIN'),
+              backgroundColor: AppColors.bgSurface,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    await ParentalControlService.instance.setAdultContentVisible(showAdult);
+    if (mounted) {
+      setState(() => _hideAdultContent = !showAdult);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open download folder
+  // ---------------------------------------------------------------------------
+
+  Future<void> _openDownloadFolder() async {
+    try {
+      final downloadPath = await OfflineDownloadService.instance.downloadDirectoryPath;
+      if (downloadPath.isNotEmpty) {
+        await OpenFilex.open(downloadPath);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Download folder not found'),
+              backgroundColor: AppColors.bgSurface,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Settings] Failed to open download folder: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open download folder'),
+            backgroundColor: AppColors.bgSurface,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }

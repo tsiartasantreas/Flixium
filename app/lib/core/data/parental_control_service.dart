@@ -20,6 +20,9 @@ class ParentalControlService {
   /// SharedPreferences key for the hashed PIN.
   static const _pinHashKey = 'parental_pin_hash';
 
+  /// SharedPreferences key for the hide-adult-content preference.
+  static const _hideAdultContentKey = 'hide_adult_content';
+
   /// Set of rating strings considered adult-only.
   static const _adultRatings = {
     '18+',
@@ -87,6 +90,53 @@ class ParentalControlService {
   /// Re-locks adult content (e.g. user taps the lock button again).
   void lockAgain() {
     _temporarilyUnlocked = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adult content visibility preference
+  // ---------------------------------------------------------------------------
+
+  /// Returns `true` if adult content should be visible.
+  ///
+  /// - If no PIN is set, adult content is always visible (returns `true`).
+  /// - If a PIN is set, returns the stored preference (default: `false` / hidden).
+  Future<bool> isAdultContentVisible() async {
+    final pinSet = await isPinSet();
+    if (!pinSet) return true; // No PIN => always visible.
+    final prefs = await SharedPreferences.getInstance();
+    // Default: hide adult content when PIN is set.
+    final hidden = prefs.getBool(_hideAdultContentKey) ?? true;
+    return !hidden;
+  }
+
+  /// Sets whether adult content should be visible.
+  ///
+  /// When [visible] is `true` and a PIN is set, the caller must verify the PIN
+  /// *before* calling this method. Returns `true` if the preference was saved.
+  /// Returns `false` if PIN verification is required but was not provided
+  /// (i.e. the caller should prompt for the PIN first).
+  Future<bool> setAdultContentVisible(bool visible) async {
+    final pinSet = await isPinSet();
+
+    // If hiding adult content, no PIN verification needed.
+    if (!visible) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_hideAdultContentKey, true);
+      return true;
+    }
+
+    // If showing adult content and PIN is set, the caller must have already
+    // verified the PIN. We check the session unlock flag as a guard.
+    if (pinSet && !_temporarilyUnlocked) {
+      // Caller should have verified PIN before calling this. Return false
+      // to signal that PIN verification is still required.
+      return false;
+    }
+
+    // No PIN set, or PIN already verified => save the preference.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hideAdultContentKey, false);
+    return true;
   }
 
   // ---------------------------------------------------------------------------

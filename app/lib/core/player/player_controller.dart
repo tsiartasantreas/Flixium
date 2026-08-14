@@ -36,8 +36,12 @@ class PlayerController extends ChangeNotifier {
     _playingSub = _player.stream.playing.listen((p) {
       _isPlaying = p;
       if (p) {
-        // Playback started -- cancel the startup timeout.
+        // Playback started -- cancel the startup timeout and clear any
+        // stale error / buffering state that may have been set by a
+        // non-fatal codec warning before the first frame decoded.
         _timeoutTimer?.cancel();
+        _error = null;
+        _isBuffering = false;
       }
       notifyListeners();
     });
@@ -46,9 +50,18 @@ class PlayerController extends ChangeNotifier {
       notifyListeners();
     });
     _errorSub = _player.stream.error.listen((msg) {
-      _error = msg;
-      _timeoutTimer?.cancel();
-      notifyListeners();
+      // Only treat as a fatal error when the player is NOT playing.
+      // Some codecs (e.g. AVI / DivX) emit non-fatal warnings during
+      // hardware-decode fallback while playback continues fine in the
+      // background.  In that case the error is a benign codec warning
+      // and should not surface to the UI.
+      if (!_player.state.playing) {
+        _error = msg;
+        _isBuffering = false;
+        _timeoutTimer?.cancel();
+        notifyListeners();
+      }
+      // If the player IS playing, silently ignore the warning.
     });
 
     // -- Track streams (audio / subtitle / video) ----------------------------
