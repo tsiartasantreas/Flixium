@@ -538,9 +538,20 @@ class OfflineDownloadService {
   }
 
   Future<Directory> _getDownloadDirectory() async {
+    // On Android, use the public Downloads folder at
+    // /storage/emulated/0/Download/iFlixify Downloads/
+    // This is visible in file managers and persists across app reinstalls.
+    if (Platform.isAndroid) {
+      final dlDir = Directory('/storage/emulated/0/Download/iFlixify Downloads');
+      if (!await dlDir.exists()) {
+        await dlDir.create(recursive: true);
+      }
+      return dlDir;
+    }
+
+    // Fallback for other platforms.
     final downloads = await getDownloadsDirectory();
     if (downloads == null) {
-      // Fallback to app documents if system Downloads is unavailable.
       final appDir = await getApplicationDocumentsDirectory();
       final dlDir = Directory('${appDir.path}/iFlixify Downloads');
       if (!await dlDir.exists()) {
