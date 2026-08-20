@@ -147,11 +147,13 @@ class AuthService {
           .eq('id', userId)
           .maybeSingle();
       if (existing != null) return; // Trigger already handled it.
+      // Insert only identity fields — NEVER include 'tier' so we cannot
+      // accidentally overwrite a Pro tier that was set manually or by a
+      // previous signup. The DB default for tier is 'free'.
       await client.from('profiles').upsert({
         'id': userId,
         'email': email,
         'display_name': displayName,
-        'tier': 'free',
       });
     } catch (_) {
       // Ignore — RLS may deny the write or the trigger may have raced us.

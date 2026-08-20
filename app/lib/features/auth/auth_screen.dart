@@ -110,7 +110,15 @@ class _AuthScreenState extends State<AuthScreen> {
       // Persist the auth flag so the app skips the auth screen on next launch.
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_user_email', email);
-      _navigateToHome();
+      if (!mounted) return;
+      // Pop back to the caller (Settings) which reloads user state.
+      // If the auth screen was launched standalone (not pushed from
+      // Settings), fall back to replacing with MainShell.
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      } else {
+        _navigateToHome();
+      }
     } else {
       final rawError = result.error ?? 'Authentication failed. Please try again.';
       // Provide a clearer message for common Supabase auth errors.
@@ -631,9 +639,17 @@ class _AuthScreenState extends State<AuthScreen> {
         lower.contains('user not found')) {
       return 'Invalid email or password. Please check your credentials or sign up.';
     }
+    if (lower.contains('email not confirmed') ||
+        lower.contains('not confirmed')) {
+      return 'Please confirm your email address first. Check your inbox for a confirmation link.';
+    }
     if (lower.contains('user already registered') ||
-        lower.contains('already been registered')) {
+        lower.contains('already been registered') ||
+        lower.contains('already registered')) {
       return 'An account with this email already exists. Try signing in instead.';
+    }
+    if (lower.contains('signup') || lower.contains('sign up')) {
+      return 'Registration failed. Please check your details and try again.';
     }
     if (lower.contains('weak password') || lower.contains('password')) {
       return 'Password is too weak. Please use a stronger password.';
@@ -643,6 +659,9 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     if (lower.contains('network') || lower.contains('connection')) {
       return 'Network error. Please check your internet connection.';
+    }
+    if (lower.contains('too many') || lower.contains('rate limit')) {
+      return 'Too many attempts. Please wait a moment and try again.';
     }
     // Return the original message if we don't have a friendlier version.
     return raw;
