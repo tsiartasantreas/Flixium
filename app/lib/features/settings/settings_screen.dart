@@ -40,9 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final ProfileManager _profileManager;
   late final EntitlementService _entitlementService;
 
-  // Playback settings.
-  bool _autoPlay = true;
-  String _videoQuality = 'Auto';
+  // Player settings.
   bool _useExternalPlayer = false;
 
   // Navigation settings.
@@ -66,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// True for the Pro tier and admins; false for anonymous / free users.
   bool _proFeaturesUnlocked = false;
 
-  static const _qualityOptions = ['Auto', '1080p', '720p', '480p', '360p'];
 
   @override
   void initState() {
@@ -324,57 +321,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _showQualityPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Video Quality',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ..._qualityOptions.map((quality) {
-              final isSelected = quality == _videoQuality;
-              return ListTile(
-                title: Text(
-                  quality,
-                  style: TextStyle(
-                    color: isSelected
-                        ? AppColors.accentPrimary
-                        : AppColors.textPrimary,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-                trailing: isSelected
-                    ? const Icon(Icons.check, color: AppColors.accentPrimary)
-                    : null,
-                onTap: () {
-                  setState(() => _videoQuality = quality);
-                  Navigator.of(context).pop();
-                },
-              );
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -414,63 +360,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // -- Profile section ----------------------------------------------
-          _buildSectionHeader('Profile'),
-          _buildProfileTile(),
-
-          const SizedBox(height: 16),
-
-          // -- Playback section ---------------------------------------------
-          _buildSectionHeader('Playback'),
-          _buildSwitchTile(
-            icon: Icons.play_circle_outline,
-            title: 'Auto-play',
-            subtitle: 'Automatically play next item',
-            value: _autoPlay,
-            onChanged: (value) => setState(() => _autoPlay = value),
-          ),
-          _buildNavigationTile(
-            icon: Icons.high_quality,
-            title: 'Video Quality',
-            subtitle: _videoQuality,
-            onTap: _showQualityPicker,
-          ),
-
-          const SizedBox(height: 16),
-
-          // -- Player section -----------------------------------------------
-          _buildSectionHeader('Player'),
-          _buildSwitchTile(
-            icon: Icons.open_in_new,
-            title: 'External Player',
-            subtitle: _useExternalPlayer
-                ? 'Opens streams in VLC or your default video player'
-                : 'Use the built-in player',
-            value: _useExternalPlayer,
-            onChanged: (value) async {
-              setState(() => _useExternalPlayer = value);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('use_external_player', value);
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          // -- Radio section ------------------------------------------------
-          _buildSectionHeader('Radio'),
-          _buildSwitchTile(
-            icon: Icons.radio_outlined,
-            title: 'Show Radio tab in bottom navigation',
-            subtitle: _showRadioTab
-                ? 'Radio tab is visible in the bottom navigation bar'
-                : 'Radio tab is hidden from the bottom navigation bar',
-            value: _showRadioTab,
-            onChanged: (value) async {
-              setState(() => _showRadioTab = value);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('show_radio_tab', value);
-            },
-          ),
+          // -- Auth / Profile section (prominent, top of screen) ------------
+          if (_profileEmail.isEmpty)
+            _buildHeroAuthBanner()
+          else
+            _buildProfileCard(),
 
           const SizedBox(height: 16),
 
@@ -544,12 +438,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 16),
 
+          // -- Player section -----------------------------------------------
+          _buildSectionHeader('Player'),
+          _buildSwitchTile(
+            icon: Icons.open_in_new,
+            title: 'External Player',
+            subtitle: _useExternalPlayer
+                ? 'Opens streams in VLC or your default video player'
+                : 'Use the built-in player',
+            value: _useExternalPlayer,
+            onChanged: (value) async {
+              setState(() => _useExternalPlayer = value);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('use_external_player', value);
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // -- Radio section ------------------------------------------------
+          _buildSectionHeader('Radio'),
+          _buildSwitchTile(
+            icon: Icons.radio_outlined,
+            title: 'Show Radio tab in bottom navigation',
+            subtitle: _showRadioTab
+                ? 'Radio tab is visible in the bottom navigation bar'
+                : 'Radio tab is hidden from the bottom navigation bar',
+            value: _showRadioTab,
+            onChanged: (value) async {
+              setState(() => _showRadioTab = value);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('show_radio_tab', value);
+            },
+          ),
+
+          const SizedBox(height: 16),
+
           // -- About section ------------------------------------------------
           _buildSectionHeader('About'),
           _buildInfoTile(
             icon: Icons.info_outline,
             title: 'iFlixify IPTV',
-            subtitle: 'iFlixify IPTV v5.2.0-alpha',
+            subtitle: 'iFlixify IPTV v6.0.1-alpha',
           ),
           _buildNavigationTile(
             icon: Icons.system_update_outlined,
@@ -595,7 +525,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'iFlixify IPTV',
-              applicationVersion: '5.2.0-alpha',
+              applicationVersion: '6.0.1-alpha',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,
@@ -606,32 +536,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // -- Account section ----------------------------------------------
-          _buildSectionHeader('Account'),
-          if (!_proFeaturesUnlocked)
-            _buildNavigationTile(
-              icon: Icons.workspace_premium,
-              title: 'Upgrade to Pro',
-              subtitle:
-                  'Unlimited playlists, profiles & sync — \$8.99 lifetime',
-              onTap: _navigateToActivatePro,
-            ),
+          // -- Account section (signed-in only, at the bottom) -------------
           if (_profileEmail.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildSectionHeader('Account'),
+            if (!_proFeaturesUnlocked) ...[
+              _buildNavigationTile(
+                icon: Icons.workspace_premium,
+                title: 'Upgrade to Pro',
+                subtitle:
+                    'Unlimited playlists, profiles & sync — \$8.99 lifetime',
+                onTap: _navigateToActivatePro,
+              ),
+            ] else ...[
+              _buildInfoTile(
+                icon: Icons.check_circle_outline,
+                title: 'iFlixify Pro — Active',
+                subtitle: 'All Pro features are unlocked',
+              ),
+            ],
             _buildNavigationTile(
-              icon: Icons.person_outline,
+              icon: Icons.logout,
               title: 'Sign Out',
               subtitle: _profileEmail,
               onTap: _showSignOutDialog,
               isDestructive: true,
-            ),
-          ] else ...[
-            _buildNavigationTile(
-              icon: Icons.login,
-              title: 'Sign In / Register',
-              subtitle: 'Sign in to sync your data across devices',
-              onTap: _navigateToAuth,
             ),
           ],
 
@@ -666,22 +595,143 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Profile tile
+  // Hero auth banner (logged-out state)
   // ---------------------------------------------------------------------------
 
-  Widget _buildProfileTile() {
+  Widget _buildHeroAuthBanner() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppTheme.horizontalPadding),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       decoration: BoxDecoration(
         color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Large sign-in icon.
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppColors.accentPrimary.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.login,
+              color: AppColors.accentPrimary,
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title.
+          const Text(
+            'Sign In to iFlixify IPTV',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Subtitle.
+          const Text(
+            'Sync playlists, favorites & watch progress across devices',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Buttons side by side.
+          Row(
+            children: [
+              // Sign In button (primary).
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () => _navigateToAuth(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentPrimary,
+                      foregroundColor: AppColors.textPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Sign In',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Create Account button (outlined).
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton(
+                    onPressed: () => _navigateToAuth(initialSignUp: true),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.bgSurface),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Create Account',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Profile card (signed-in state)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildProfileCard() {
+    // Generate initials from the display name.
+    final initials = _profileName.isNotEmpty
+        ? _profileName
+            .trim()
+            .split(RegExp(r'\s+'))
+            .take(2)
+            .map((w) => w[0].toUpperCase())
+            .join()
+        : 'U';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppTheme.horizontalPadding),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              // Avatar.
+              // Circle avatar with initials.
               Container(
                 width: 56,
                 height: 56,
@@ -689,15 +739,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: AppColors.accentPrimary.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.person,
-                  color: AppColors.accentPrimary,
-                  size: 32,
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      color: AppColors.accentPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
 
-              // Name, email, and tier.
+              // Name, email, and tier badge.
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,54 +765,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (_profileEmail.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        _profileEmail,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
+                    const SizedBox(height: 2),
+                    Text(
+                      _profileEmail,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _tier == 'Pro'
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : AppColors.bgSurface,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _tier,
+                            style: TextStyle(
+                              color: _tier == 'Pro'
+                                  ? Colors.greenAccent
+                                  : AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _tier == 'Pro'
-                            ? AppColors.accentPrimary.withValues(alpha: 0.2)
-                            : AppColors.bgSurface,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _tier,
-                        style: TextStyle(
-                          color: _tier == 'Pro'
-                              ? AppColors.accentPrimary
-                              : AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        // Upgrade link for Free tier.
+                        if (!_proFeaturesUnlocked) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _navigateToActivatePro,
+                            child: const Text(
+                              'Upgrade',
+                              style: TextStyle(
+                                color: AppColors.accentPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           // Switch Profile button.
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () async {
-                // Multi-user profiles are a Pro feature: anonymous / free
-                // users are routed to the Activate Pro upsell screen.
                 await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => _proFeaturesUnlocked
@@ -765,7 +835,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : const ActivateProScreen(),
                   ),
                 );
-                // Reload profile data when returning.
                 _loadSettings();
               },
               icon: const Icon(Icons.swap_horiz, size: 18),
@@ -892,9 +961,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
 
-  void _navigateToAuth() async {
+  void _navigateToAuth({bool initialSignUp = false}) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      MaterialPageRoute(
+        builder: (_) => AuthScreen(initialSignUp: initialSignUp),
+      ),
     );
     // Reload settings when returning — the user may have signed in.
     _loadSettings();

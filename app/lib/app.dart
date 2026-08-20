@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'core/data/supabase_client.dart';
+import 'core/data/sync_coordinator.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
 import 'features/shell/main_shell.dart';
@@ -36,6 +39,10 @@ class _FlixiumAppState extends State<FlixiumApp> {
       // If Supabase fails to initialize (e.g. no network), the app can
       // still run in guest mode.
     }
+
+    // If a returning user has a persisted session, sync their cloud data
+    // (favourites, watch progress) so it is available immediately.
+    unawaited(SyncCoordinator.maybeFullSync());
 
     if (mounted) {
       setState(() {

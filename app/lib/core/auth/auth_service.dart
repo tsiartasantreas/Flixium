@@ -165,9 +165,22 @@ class AuthService {
   // ---------------------------------------------------------------------------
 
   /// Signs in with [email] and [password].
+  ///
+  /// If the Supabase client is not available (e.g. after a sign-out that left
+  /// the client in a bad state), attempts to re-initialize it first.
   Future<AuthResult> signIn(String email, String password) async {
-    if (_auth == null) {
-      return const AuthResult(error: 'Supabase is not initialized.');
+    // If the Supabase client or auth is null, try re-initializing.
+    // This handles the case where sign-out left the client in a bad state.
+    if (_supabase == null || _auth == null) {
+      try {
+        SupabaseService.reset();
+        await SupabaseService.initialize();
+      } catch (e) {
+        return AuthResult(error: 'Failed to connect. Please check your internet.');
+      }
+      if (_auth == null) {
+        return const AuthResult(error: 'Supabase is not initialized.');
+      }
     }
     try {
       final response = await _auth!.signInWithPassword(
@@ -175,6 +188,13 @@ class AuthService {
         password: password,
       );
       if (response.user != null) {
+        // Ensure a cloud profile row exists (same as signUp).
+        await _ensureCloudProfile(
+          userId: response.user!.id,
+          email: response.user!.email ?? email,
+          displayName: response.user!.userMetadata?['display_name'] as String? ?? email.split('@').first,
+        );
+
         // Persist the signed-in state so restarts keep the user logged in
         // (the Supabase session itself is persisted by the SDK).
         await _cacheEmail(email);

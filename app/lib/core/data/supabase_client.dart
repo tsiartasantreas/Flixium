@@ -41,6 +41,15 @@ class SupabaseService {
   /// Whether Supabase has been initialized.
   static bool get isInitialized => _initialized;
 
+  /// Resets the initialized flag so that [initialize] can be called again.
+  ///
+  /// Use this when the Supabase client is in a bad state (e.g. after sign-out
+  /// followed by a failed sign-in that corrupts the auth state). The next
+  /// call to [initialize] will create a fresh client.
+  static void reset() {
+    _initialized = false;
+  }
+
   /// Exposed for testing -- allows resetting the initialized flag.
   @visibleForTesting
   static void resetForTesting() {

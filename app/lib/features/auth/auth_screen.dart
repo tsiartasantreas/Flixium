@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/auth/auth_service.dart';
 import '../../core/data/supabase_client.dart';
+import '../../core/data/sync_coordinator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../shell/main_shell.dart';
@@ -12,10 +15,13 @@ import '../shell/main_shell.dart';
 /// Toggles between two modes (sign-in and sign-up) with a single form.
 /// A "Continue as Guest" option lets users skip authentication entirely.
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, this.authService});
+  const AuthScreen({super.key, this.authService, this.initialSignUp = false});
 
   /// Injectable for testing.
   final AuthService? authService;
+
+  /// When true, the screen starts in sign-up mode instead of sign-in.
+  final bool initialSignUp;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -33,6 +39,12 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _error;
 
   AuthService get _auth => widget.authService ?? AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _isSignUp = widget.initialSignUp;
+  }
 
   @override
   void dispose() {
@@ -111,6 +123,12 @@ class _AuthScreenState extends State<AuthScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_user_email', email);
       if (!mounted) return;
+
+      // Sync favourites and watch progress from the cloud so the user's
+      // data is available immediately after sign-in (especially important
+      // when signing in on a new device or after sign-out).
+      unawaited(SyncCoordinator.maybeFullSync());
+
       // Pop back to the caller (Settings) which reloads user state.
       // If the auth screen was launched standalone (not pushed from
       // Settings), fall back to replacing with MainShell.
