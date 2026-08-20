@@ -8,9 +8,9 @@ import 'profile_manager.dart';
 
 /// Result of a sign-in or sign-up operation.
 ///
-/// Exactly one of [user] or [error] will be non-null.
+/// Exactly one of [user], [error], or [needsEmailConfirmation] will be set.
 class AuthResult {
-  const AuthResult({this.user, this.error});
+  const AuthResult({this.user, this.error, this.needsEmailConfirmation = false});
 
   /// The authenticated user on success.
   final User? user;
@@ -18,8 +18,12 @@ class AuthResult {
   /// A human-readable error message on failure.
   final String? error;
 
-  /// Whether the operation succeeded (user is authenticated).
-  bool get isSuccess => user != null;
+  /// Whether the user was created but needs to confirm their email before
+  /// they can sign in.
+  final bool needsEmailConfirmation;
+
+  /// Whether the operation succeeded (user is authenticated with a session).
+  bool get isSuccess => user != null && !needsEmailConfirmation;
 }
 
 /// Thin wrapper around Supabase GoTrue authentication.
@@ -79,8 +83,10 @@ class AuthService {
 
   /// Creates a new account with [email], [password], and [name].
   ///
-  /// Email confirmation is disabled — the user is auto-confirmed and
-  /// signed in immediately after signup.
+  /// If the Supabase project has email confirmation enabled, the user will
+  /// be created but no session will be returned. In that case the result
+  /// will have [AuthResult.needsEmailConfirmation] set to `true` and the
+  /// caller should prompt the user to check their email.
   Future<AuthResult> signUp(String email, String password, {required String name}) async {
     if (_auth == null) {
       return const AuthResult(error: 'Supabase is not initialized.');
@@ -92,10 +98,13 @@ class AuthService {
         data: {'display_name': name},
       );
       if (response.user != null) {
-        // Belt-and-braces: ensure a row exists in the cloud `profiles`
-        // table. The `on_auth_user_created` DB trigger normally inserts
-        // it, but if that trigger is not applied to the cloud DB the new
-        // user would have no profile row (breaking tier/account lookups).
+        // If the session is null, the project requires email confirmation.
+        // The user was created but cannot sign in until they click the link.
+        if (response.session == null) {
+          return AuthResult(user: response.user, needsEmailConfirmation: true);
+        }
+
+        // Auto-confirmed: session exists. Ensure a cloud profile row.
         await _ensureCloudProfile(
           userId: response.user!.id,
           email: response.user!.email ?? email,

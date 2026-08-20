@@ -14,6 +14,7 @@ import checkout from "./checkout.js";
 import webhook from "./webhook.js";
 import verifyDevice from "./verify_device.js";
 import resetPassword from "./reset_password.js";
+import admin from "./admin.js";
 
 function methodNotAllowed() {
   return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -42,8 +43,11 @@ function landingPage() {
     justify-content: center;
     padding: 2rem;
   }
-  h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-  p { color: #999; margin-bottom: 2rem; font-size: 1.1rem; }
+  .hero { text-align: center; max-width: 600px; }
+  h1 { font-size: 2.8rem; margin-bottom: 0.5rem; }
+  .accent { color: #E50914; }
+  p.tagline { color: #999; margin-bottom: 2.5rem; font-size: 1.15rem; }
+  .btn-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
   a.btn {
     display: inline-block;
     background: #E50914;
@@ -56,19 +60,31 @@ function landingPage() {
     transition: background 0.2s;
   }
   a.btn:hover { background: #b20710; }
-  .links { margin-top: 1.5rem; }
-  .links a { color: #999; text-decoration: underline; margin: 0 0.75rem; font-size: 0.9rem; }
-  .links a:hover { color: #fff; }
+  a.btn.secondary {
+    background: transparent;
+    border: 2px solid #E50914;
+    color: #E50914;
+  }
+  a.btn.secondary:hover { background: #E50914; color: #fff; }
+  .links { margin-top: 1.5rem; border-top: 1px solid #2a2a2a; padding-top: 1.5rem; }
+  .links a { color: #999; text-decoration: none; margin: 0 0.75rem; font-size: 0.9rem; }
+  .links a:hover { color: #fff; text-decoration: underline; }
 </style>
 </head>
 <body>
-  <h1>iFlixify IPTV</h1>
-  <p>Stream smarter. Download the latest release.</p>
-  <a class="btn" href="/dl/latest">Download APK</a>
-  <div class="links">
-    <a href="/dl/latest/arm64">ARM64 build</a>
-    <a href="/dl/latest/stable">Stable only</a>
-    <a href="/api/health">API Health</a>
+  <div class="hero">
+    <h1>i<span class="accent">Flixify</span> IPTV</h1>
+    <p class="tagline">Stream smarter. Download the latest release for Android.</p>
+    <div class="btn-group">
+      <a class="btn" href="/dl/latest">Download for Android</a>
+      <a class="btn secondary" href="/dl/latest/arm64">Download ARM64</a>
+    </div>
+    <div class="links">
+      <a href="https://iflixify.wasmer.app">Website</a>
+      <a href="https://iflixify.wasmer.app/support">Support</a>
+      <a href="https://iflixify.wasmer.app/terms">Terms</a>
+      <a href="https://iflixify.wasmer.app/privacy">Privacy</a>
+    </div>
   </div>
 </body>
 </html>`;
@@ -115,6 +131,12 @@ export default {
     // Password-reset page (GET only)
     if (pathname === "/reset-password") {
       return resetPassword.fetch(request, env);
+    }
+
+    // Admin panel and admin API routes
+    if (pathname === "/admin" || pathname.startsWith("/api/admin/")) {
+      const adminRes = await admin.fetch(request, env);
+      if (adminRes) return adminRes;
     }
 
     // Health check

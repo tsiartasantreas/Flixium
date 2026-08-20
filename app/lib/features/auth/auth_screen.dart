@@ -118,7 +118,27 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (!mounted) return;
 
-    if (result.isSuccess) {
+    if (result.needsEmailConfirmation) {
+      // Supabase created the user but requires email confirmation.
+      // Show a message and stay on the auth screen — do NOT navigate away.
+      setState(() {
+        _error = null;
+        _isLoading = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please check your email to confirm your account before signing in.',
+          ),
+          duration: Duration(seconds: 6),
+        ),
+      );
+      // Switch to sign-in mode so the user can sign in after confirming.
+      setState(() {
+        _isSignUp = false;
+      });
+    } else if (result.isSuccess) {
       // Persist the auth flag so the app skips the auth screen on next launch.
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_user_email', email);
@@ -274,12 +294,12 @@ class _AuthScreenState extends State<AuthScreen> {
                               // IMPORTANT: The redirectTo URL must also be added
                               // in the Supabase Dashboard under:
                               //   Authentication > URL Configuration > Redirect URLs
-                              //   Add: https://iflixify-edge.wasmer.app/reset-password
+                              //   Add: https://iflixify.wasmer.app/reset-password
                               await SupabaseService.client.auth
                                   .resetPasswordForEmail(
                                 email,
                                 redirectTo:
-                                    'https://iflixify-edge.wasmer.app/reset-password',
+                                    'https://iflixify.wasmer.app/reset-password',
                               );
                               setDialogState(() {
                                 sent = true;

@@ -893,8 +893,17 @@ class HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           itemCount: totalItems,
           itemBuilder: (context, index) {
-            // First slot: Favorites row (if present).
-            if (hasFavorites && index == 0) {
+            // First slot: Continue Watching row (if present).
+            if (hasContinueWatching && index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: ContinueWatchingRow(items: _continueWatchingItems),
+              );
+            }
+
+            // Second slot: Favorites row (if present).
+            final favOffset = hasContinueWatching ? 1 : 0;
+            if (hasFavorites && index == favOffset) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: ContentRow(
@@ -922,18 +931,9 @@ class HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            // Second slot: Continue Watching (if present).
-            final cwOffset = hasFavorites ? 1 : 0;
-            if (hasContinueWatching && index == cwOffset) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: ContinueWatchingRow(items: _continueWatchingItems),
-              );
-            }
-
             // Remaining slots: standard content rows.
-            final rowsOffset = (hasFavorites ? 1 : 0) +
-                (hasContinueWatching ? 1 : 0);
+            final rowsOffset = (hasContinueWatching ? 1 : 0) +
+                (hasFavorites ? 1 : 0);
             final rowIndex = index - rowsOffset;
             return Padding(
               padding: const EdgeInsets.only(bottom: 24),

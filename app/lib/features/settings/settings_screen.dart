@@ -18,7 +18,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/pin_dialog.dart';
 import '../auth/auth_screen.dart';
 import '../offline/offline_screen.dart';
-import '../profiles/profile_switcher_screen.dart';
 import 'activate_pro_screen.dart';
 
 /// Netflix-style settings screen.
@@ -479,7 +478,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildInfoTile(
             icon: Icons.info_outline,
             title: 'iFlixify IPTV',
-            subtitle: 'iFlixify IPTV v6.0.1-alpha',
+            subtitle: 'iFlixify IPTV v6.1.0-alpha',
           ),
           _buildNavigationTile(
             icon: Icons.system_update_outlined,
@@ -525,7 +524,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'iFlixify IPTV',
-              applicationVersion: '6.0.1-alpha',
+              applicationVersion: '6.1.0-alpha',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,
@@ -551,7 +550,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ] else ...[
               _buildInfoTile(
                 icon: Icons.check_circle_outline,
-                title: 'iFlixify Pro — Active',
+                title: 'iFlixify Pro — Active ✓',
                 subtitle: 'All Pro features are unlocked',
               ),
             ],
@@ -757,12 +756,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _profileName,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    GestureDetector(
+                      onTap: _showEditNameDialog,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _profileName,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.edit,
+                            size: 14,
+                            color: AppColors.textSecondary.withValues(alpha: 0.6),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -821,32 +834,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          // Switch Profile button.
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => _proFeaturesUnlocked
-                        ? const ProfileSwitcherScreen()
-                        : const ActivateProScreen(),
-                  ),
-                );
-                _loadSettings();
-              },
-              icon: const Icon(Icons.swap_horiz, size: 18),
-              label: const Text('Switch Profile'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                side: const BorderSide(color: AppColors.bgSurface),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -1036,6 +1023,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Edit display name
+  // ---------------------------------------------------------------------------
+
+  void _showEditNameDialog() {
+    final controller = TextEditingController(text: _profileName);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: const Text(
+          'Edit Display Name',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: const InputDecoration(
+              hintText: 'Enter your display name',
+              hintStyle: TextStyle(color: AppColors.textSecondary),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.bgSurface),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.accentPrimary),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Name cannot be empty';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final newName = controller.text.trim();
+              Navigator.of(context).pop();
+              await _updateDisplayName(newName);
+            },
+            child: const Text(
+              'Save',
+              style: TextStyle(color: AppColors.accentPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateDisplayName(String newName) async {
+    try {
+      if (SupabaseService.isInitialized) {
+        final user = SupabaseService.client.auth.currentUser;
+        if (user != null) {
+          await SupabaseService.client
+              .from('profiles')
+              .update({'display_name': newName}).eq('id', user.id);
+        }
+      }
+
+      if (mounted) {
+        setState(() => _profileName = newName);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Display name updated'),
+            backgroundColor: AppColors.bgSurface,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update name: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
