@@ -59,19 +59,35 @@ class _ProfileSwitcherScreenState extends State<ProfileSwitcherScreen> {
   }
 
   Future<void> _addProfile() async {
-    final entitlement = EntitlementService();
-    final isPro = await entitlement.getTier() == 'pro';
+    // The FIRST profile is always allowed — without one a free user could
+    // never use profiles at all. Additional profiles are Pro-gated.
+    if (_profiles.isNotEmpty) {
+      final entitlement = EntitlementService();
+      final isPro = await entitlement.getTier() == 'pro';
 
-    if (!isPro) {
-      if (mounted) {
-        _showProUpsellDialog();
+      if (!isPro) {
+        if (mounted) {
+          _showProUpsellDialog();
+        }
+        return;
       }
-      return;
     }
 
     final name = await _showCreateProfileDialog();
     if (name != null && name.isNotEmpty) {
-      await _profileManager.createProfile(name);
+      try {
+        await _profileManager.createProfile(name);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: AppColors.bgSurface,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
       await _loadProfiles();
     }
   }
@@ -312,6 +328,18 @@ class _ProfileSwitcherScreenState extends State<ProfileSwitcherScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Empty-state hint.
+                    if (_profiles.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 24),
+                        child: Text(
+                          'No profiles yet — create one to get started.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
                     // Profile grid.
                     Expanded(
                       child: Center(

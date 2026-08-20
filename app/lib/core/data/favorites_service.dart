@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as drift;
 
 import 'database.dart';
+import 'supabase_client.dart';
 
 /// Service for managing user favourites (bookmarks) in the local database.
 ///
@@ -45,6 +48,7 @@ class FavoritesService {
             addedAt: DateTime.now(),
           ),
         );
+    _pushToCloud();
   }
 
   /// Removes an item from favourites by its [contentId].
@@ -52,6 +56,7 @@ class FavoritesService {
     await (_db.delete(_db.favorites)
           ..where((t) => t.contentId.equals(contentId)))
         .go();
+    _pushToCloud();
   }
 
   /// Returns `true` if the item with [contentId] is in favourites.
@@ -66,6 +71,8 @@ class FavoritesService {
   /// Toggles favourite status: removes if present, adds if not.
   ///
   /// Returns `true` if the item is now favourited, `false` if removed.
+  /// The cloud push fires exactly once via [addToFavorites] or
+  /// [removeFromFavorites].
   Future<bool> toggleFavorite({
     required String contentId,
     required String contentType,
@@ -102,5 +109,117 @@ class FavoritesService {
           ..where((t) => t.contentType.equals(contentType))
           ..orderBy([(t) => drift.OrderingTerm.desc(t.addedAt)]))
         .get();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cloud sync (cross-device favourites)
+  // ---------------------------------------------------------------------------
+
+  /// Ensures Supabase is initialized and returns the current user id.
+  ///
+  /// Returns `null` (meaning "cannot sync") when initialization fails or no
+  /// user is signed in.
+  Future<String?> _cloudUserId() async {
+    if (!SupabaseService.isInitialized) {
+      try {
+        await SupabaseService.initialize();
+      } catch (e) {
+        // Offline / misconfigured — stay local-only.
+        // ignore: avoid_print
+        print('[FavoritesService] Supabase init failed: $e');
+        return null;
+      }
+    }
+    return SupabaseService.client.auth.currentUser?.id;
+  }
+
+  /// Pushes all local favourites to the Supabase `favorites_sync` table.
+  ///
+  /// Rows are upserted on the `(user_id, content_id)` conflict target, so
+  /// repeated calls are safe. No-op when Supabase is unavailable or nobody is
+  /// signed in. Network errors are logged and swallowed — local writes must
+  /// never fail because of the cloud.
+  Future<void> syncToCloud() async {
+    final userId = await _cloudUserId();
+    if (userId == null) return;
+
+    try {
+      final favorites = await getFavorites();
+      if (favorites.isEmpty) return;
+
+      final rows = favorites
+          .map(
+            (f) => {
+              'user_id': userId,
+              'content_id': f.contentId,
+              'added_at': f.addedAt.toIso8601String(),
+            },
+          )
+          .toList();
+
+      // Upsert in batches of 50 (same strategy as watch progress sync).
+      const batchSize = 50;
+      for (var i = 0; i < rows.length; i += batchSize) {
+        final batch = rows.sublist(
+          i,
+          (i + batchSize).clamp(0, rows.length),
+        );
+        await SupabaseService.client.from('favorites_sync').upsert(
+              batch,
+              onConflict: 'user_id,content_id',
+            );
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[FavoritesService] syncToCloud failed: $e');
+    }
+  }
+
+  /// Pulls cloud favourites into the local database (merge strategy).
+  ///
+  /// Cloud rows whose `content_id` also exists locally update the local
+  /// [Favorite.addedAt] when the cloud timestamp is newer (last-write-wins).
+  /// Rows that only exist in the cloud are skipped: `favorites_sync` carries
+  /// no title/poster metadata, so a local record is required to display the
+  /// favourite. Local favourites missing from the cloud are never deleted.
+  Future<void> syncFromCloud() async {
+    final userId = await _cloudUserId();
+    if (userId == null) return;
+
+    try {
+      final response = await SupabaseService.client
+          .from('favorites_sync')
+          .select()
+          .eq('user_id', userId);
+
+      for (final row in response) {
+        final contentId = row['content_id'] as String;
+        final cloudAddedAt = DateTime.parse(row['added_at'] as String);
+
+        // Merge only where a local record exists.
+        final local = await (_db.select(_db.favorites)
+              ..where((t) => t.contentId.equals(contentId)))
+            .getSingleOrNull();
+        if (local == null) continue;
+
+        // Only overwrite if the cloud entry is newer.
+        if (cloudAddedAt.isAfter(local.addedAt)) {
+          await (_db.update(_db.favorites)
+                ..where((t) => t.contentId.equals(contentId)))
+              .write(FavoritesCompanion(addedAt: drift.Value(cloudAddedAt)));
+        }
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[FavoritesService] syncFromCloud failed: $e');
+    }
+  }
+
+  /// Fire-and-forget cloud push used after local mutations.
+  ///
+  /// [syncToCloud] logs and swallows all of its own errors, so this never
+  /// throws and never delays the caller.
+  void _pushToCloud() {
+    unawaited(syncToCloud());
   }
 }

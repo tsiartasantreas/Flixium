@@ -59,6 +59,14 @@ class EntitlementService {
   /// Whether the current user is an admin (from `profiles.is_admin`).
   bool get isAdmin => _isAdmin;
 
+  /// Whether the current user may use Pro features (Pro tier or admin).
+  ///
+  /// Convenience helper for gating Continue Watching / Up Next, cross-device
+  /// sync, multi-user profiles, and other Pro-only features. Anonymous and
+  /// free users get `false`.
+  Future<bool> get canUseProFeatures async =>
+      (await getTier()) == 'pro' || isAdmin;
+
   /// Re-fetches the tier (and admin status) from Supabase.
   ///
   /// Call this on app start and after auth state changes.

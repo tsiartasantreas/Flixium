@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
 import '../../core/data/playlist_manager.dart';
+import '../../core/data/watch_progress_service.dart';
 import '../../core/data/xtream_api_client.dart';
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
@@ -46,6 +47,7 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   final _db = AppDatabase();
   final _downloadService = OfflineDownloadService.instance;
+  late final _watchService = WatchProgressService(database: _db);
   List<_EpisodeItem> _episodes = [];
   bool _isLoadingEpisodes = false;
   EpgProgramme? _currentProgramme;
@@ -385,6 +387,7 @@ class _DetailScreenState extends State<DetailScreen> {
     String title, {
     bool isLive = false,
     String? contentId,
+    String? watchContentId,
   }) async {
     // ignore: avoid_print
     print('[DetailScreen] Playing: title="$title", url=$url, isLive=$isLive, contentType=${widget.contentType}');
@@ -395,6 +398,24 @@ class _DetailScreenState extends State<DetailScreen> {
       final localPath = await _downloadService.getLocalPath(contentId);
       if (localPath != null && await File(localPath).exists()) {
         playbackUrl = localPath;
+      }
+    }
+
+    // Look up saved watch progress so playback can resume where the user
+    // left off (only for non-live content with a valid watch key).
+    Duration? startPosition;
+    if (!isLive && watchContentId != null && watchContentId.isNotEmpty) {
+      try {
+        final progress = await _watchService.getProgress(watchContentId);
+        if (progress != null &&
+            progress.positionMs > 30000 &&
+            progress.durationMs > 0 &&
+            progress.positionMs < progress.durationMs * 0.95) {
+          startPosition = Duration(milliseconds: progress.positionMs);
+        }
+      } catch (e) {
+        // ignore: avoid_print
+        print('[DetailScreen] Failed to load watch progress: $e');
       }
     }
 
@@ -467,6 +488,8 @@ class _DetailScreenState extends State<DetailScreen> {
             contentType: widget.contentType,
             onNextChannel: onNext,
             onPreviousChannel: onPrevious,
+            contentId: watchContentId,
+            startPosition: startPosition,
           )
         : PlayerScreen(
             controller: controller,
@@ -476,6 +499,8 @@ class _DetailScreenState extends State<DetailScreen> {
             contentType: widget.contentType,
             onNextChannel: onNext,
             onPreviousChannel: onPrevious,
+            contentId: watchContentId,
+            startPosition: startPosition,
           );
 
     Navigator.of(context)
@@ -607,6 +632,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                       isLive: _isLive,
                                       contentId:
                                           '${widget.contentType}_${widget.id}',
+                                      watchContentId:
+                                          '${widget.contentType}:${widget.id}',
                                     );
                                     return KeyEventResult.handled;
                                   }
@@ -619,6 +646,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                     isLive: _isLive,
                                     contentId:
                                         '${widget.contentType}_${widget.id}',
+                                    watchContentId:
+                                        '${widget.contentType}:${widget.id}',
                                   ),
                                   icon: const Icon(Icons.play_arrow, size: 24),
                                   label: Text(
@@ -663,6 +692,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                 isLive: _isLive,
                                 contentId:
                                     '${widget.contentType}_${widget.id}',
+                                watchContentId:
+                                    '${widget.contentType}:${widget.id}',
                               ),
                             ),
                           ],
@@ -1127,6 +1158,7 @@ class _DetailScreenState extends State<DetailScreen> {
               episode.url,
               episode.title,
               contentId: episodeContentId,
+              watchContentId: 'episode:${episode.id}',
             );
             return KeyEventResult.handled;
           }
@@ -1200,6 +1232,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       episode.url,
                       episode.title,
                       contentId: episodeContentId,
+                      watchContentId: 'episode:${episode.id}',
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1208,6 +1241,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       episode.url,
                       episode.title,
                       contentId: episodeContentId,
+                      watchContentId: 'episode:${episode.id}',
                     ),
                     child: const Icon(
                       Icons.play_circle_outline,

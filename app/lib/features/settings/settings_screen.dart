@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +11,7 @@ import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
 import '../../core/data/parental_control_service.dart';
 import '../../core/data/supabase_client.dart';
+import '../../core/data/sync_coordinator.dart';
 import '../../core/entitlement/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -16,6 +19,7 @@ import '../../core/widgets/pin_dialog.dart';
 import '../auth/auth_screen.dart';
 import '../offline/offline_screen.dart';
 import '../profiles/profile_switcher_screen.dart';
+import 'activate_pro_screen.dart';
 
 /// Netflix-style settings screen.
 ///
@@ -57,6 +61,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _profileEmail = '';
   String _tier = 'Free';
 
+  /// Whether Pro features (multi-user profiles, cross-device sync, Continue
+  /// Watching, unlimited playlists) are unlocked for the current user.
+  /// True for the Pro tier and admins; false for anonymous / free users.
+  bool _proFeaturesUnlocked = false;
+
   static const _qualityOptions = ['Auto', '1080p', '720p', '480p', '360p'];
 
   @override
@@ -89,18 +98,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     // Load Supabase user info (if signed in).
-    if (SupabaseService.isInitialized) {
-      final user = SupabaseService.client.auth.currentUser;
-      if (user != null) {
-        final displayName = user.userMetadata?['display_name'] as String?;
-        setState(() {
-          _profileEmail = user.email ?? '';
-          if (displayName != null && displayName.isNotEmpty) {
-            _profileName = displayName;
-          }
-        });
-      }
-    }
+    await _loadSignedInUserInfo();
+
+    // Sync cloud data (favourites, watch progress) when a session already
+    // exists, so returning users sync on app open (initState calls this).
+    // No-op when Supabase is unavailable or the user is signed out.
+    unawaited(SyncCoordinator.maybeFullSync());
 
     // Load active profile (fallback for name if no Supabase user).
     final activeProfile = await _profileManager.getActiveProfile();
@@ -111,11 +114,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
     }
 
-    // Load tier.
+    // Load tier. Explicitly refresh from Supabase first so a stale cached
+    // tier never gates features incorrectly (e.g. after the subscription
+    // was purchased, restored, or removed on another device).
+    await _entitlementService.refreshTier();
     final tier = await _entitlementService.getTier();
     if (!mounted) return;
     setState(() {
-      _tier = tier == 'pro' ? 'Pro' : 'Free';
+      _proFeaturesUnlocked = tier == 'pro' || _entitlementService.isAdmin;
+      _tier = _proFeaturesUnlocked ? 'Pro' : 'Free';
     });
 
     // Load player preference and parental control state.
@@ -129,6 +136,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
       _parentalPinSet = pinSet;
       _hideAdultContent = !adultVisible;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Signed-in user info
+  // ---------------------------------------------------------------------------
+
+  /// Loads the signed-in user's email and display name.
+  ///
+  /// The display name is preferred from the Supabase `profiles` table
+  /// (the account's source of truth); the auth user metadata is used as a
+  /// fallback when the profiles row is unreachable. No-op when signed out.
+  Future<void> _loadSignedInUserInfo() async {
+    if (!SupabaseService.isInitialized) return;
+    final user = SupabaseService.client.auth.currentUser;
+    if (user == null) return;
+
+    String? displayName = user.userMetadata?['display_name'] as String?;
+    try {
+      final profile = await SupabaseService.client
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .maybeSingle();
+      final tableName = profile?['display_name'] as String?;
+      if (tableName != null && tableName.isNotEmpty) {
+        displayName = tableName;
+      }
+    } catch (_) {
+      // Network / RLS errors — fall back to the auth user metadata.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _profileEmail = user.email ?? '';
+      if (displayName != null && displayName.isNotEmpty) {
+        _profileName = displayName;
+      }
     });
   }
 
@@ -149,18 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       if (SupabaseService.isInitialized) {
-        final user = SupabaseService.client.auth.currentUser;
-        if (user != null) {
-          final displayName = user.userMetadata?['display_name'] as String?;
-          if (mounted) {
-            setState(() {
-              _profileEmail = user.email ?? '';
-              if (displayName != null && displayName.isNotEmpty) {
-                _profileName = displayName;
-              }
-            });
-          }
-        }
+        await _loadSignedInUserInfo();
       }
 
       // Reload playlist count and download count via _loadSettings.
@@ -576,6 +610,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // -- Account section ----------------------------------------------
           _buildSectionHeader('Account'),
+          if (!_proFeaturesUnlocked)
+            _buildNavigationTile(
+              icon: Icons.workspace_premium,
+              title: 'Upgrade to Pro',
+              subtitle:
+                  'Unlimited playlists, profiles & sync — \$8.99 lifetime',
+              onTap: _navigateToActivatePro,
+            ),
           if (_profileEmail.isNotEmpty) ...[
             _buildNavigationTile(
               icon: Icons.person_outline,
@@ -714,9 +756,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () async {
+                // Multi-user profiles are a Pro feature: anonymous / free
+                // users are routed to the Activate Pro upsell screen.
                 await Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const ProfileSwitcherScreen(),
+                    builder: (_) => _proFeaturesUnlocked
+                        ? const ProfileSwitcherScreen()
+                        : const ActivateProScreen(),
                   ),
                 );
                 // Reload profile data when returning.
@@ -852,6 +898,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     // Reload settings when returning — the user may have signed in.
     _loadSettings();
+    // Kick off a cloud sync now that the user may have signed in (no-op when
+    // still signed out).
+    unawaited(SyncCoordinator.maybeFullSync());
+  }
+
+  /// Opens the Activate Pro upsell screen.
+  void _navigateToActivatePro() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ActivateProScreen()),
+    );
+    // Reload settings when returning — the tier may have changed (restore).
+    if (mounted) {
+      _loadSettings();
+    }
   }
 
   void _showSignOutDialog() {
@@ -892,6 +952,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _profileEmail = '';
                   _profileName = 'User';
                   _tier = 'Free';
+                  _proFeaturesUnlocked = false;
                 });
                 _loadSettings();
               }

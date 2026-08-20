@@ -11,6 +11,7 @@ import '../../core/data/m3u_url_parser.dart';
 import '../../core/data/playlist_manager.dart';
 import '../../core/data/xtream_importer.dart';
 import '../../core/theme/app_colors.dart';
+import '../settings/activate_pro_screen.dart';
 
 /// The user-selected import method.
 enum ImportType {
@@ -45,6 +46,10 @@ class ImportScreenState extends State<ImportScreen> {
   List<Playlist> _playlists = [];
   bool _isLoading = false;
   String? _errorMessage;
+
+  /// Set when the import failed because the free playlist limit was hit;
+  /// shows an "Upgrade to Pro" call-to-action below the error.
+  bool _freeLimitReached = false;
 
   /// Which import method the user has selected (defaults to M3U).
   ImportType _importType = ImportType.m3u;
@@ -86,7 +91,10 @@ class ImportScreenState extends State<ImportScreen> {
   /// home screen can display it.
   Future<void> _addPlaylist() async {
     // Clear previous error.
-    setState(() => _errorMessage = null);
+    setState(() {
+      _errorMessage = null;
+      _freeLimitReached = false;
+    });
 
     // --- Validate inputs based on selected import type ------------------------
     if (_importType == ImportType.m3u) {
@@ -146,7 +154,11 @@ class ImportScreenState extends State<ImportScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Import failed: $e';
+          // StateError from PlaylistManager = free playlist limit reached.
+          // Show its friendly message instead of "Bad state: ...".
+          _freeLimitReached = e is StateError;
+          _errorMessage =
+              e is StateError ? e.message : 'Import failed: $e';
           _isLoading = false;
         });
       }
@@ -388,6 +400,22 @@ class ImportScreenState extends State<ImportScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // Pro upsell
+  // ---------------------------------------------------------------------------
+
+  /// Opens the Activate Pro screen when the free playlist limit blocks
+  /// an import.
+  Future<void> _openActivatePro() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ActivateProScreen()),
+    );
+    // Re-check entitlement — the tier may have changed after a restore.
+    if (mounted) {
+      _loadPlaylists();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Edit playlist
   // ---------------------------------------------------------------------------
 
@@ -488,6 +516,25 @@ class ImportScreenState extends State<ImportScreen> {
                   _errorMessage!,
                   style: const TextStyle(color: Colors.redAccent, fontSize: 14),
                 ),
+                if (_freeLimitReached)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _openActivatePro,
+                        icon: const Icon(
+                          Icons.workspace_premium,
+                          size: 18,
+                          color: AppColors.accentPrimary,
+                        ),
+                        label: const Text(
+                          'Upgrade to Pro',
+                          style: TextStyle(color: AppColors.accentPrimary),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
 
               const SizedBox(height: 24),

@@ -37,7 +37,9 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final _db = AppDatabase();
   final _favoritesService = FavoritesService();
-  final _watchProgressService = WatchProgressService();
+  // Share the screen's database instance so watch-progress lookups don't
+  // open a new SQLite connection on every call.
+  late final _watchProgressService = WatchProgressService(database: _db);
   final _entitlementService = EntitlementService();
   final _importProgress = ImportProgressService.instance;
   List<ContentRow> _rows = [];

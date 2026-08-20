@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../../core/data/database.dart';
+import '../../core/data/watch_progress_service.dart';
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
 import 'widgets/player_overlay_widgets.dart';
@@ -29,6 +31,8 @@ class TvPlayerScreen extends StatefulWidget {
     this.contentType,
     this.onNextChannel,
     this.onPreviousChannel,
+    this.contentId,
+    this.startPosition,
   });
 
   final PlayerController controller;
@@ -51,6 +55,14 @@ class TvPlayerScreen extends StatefulWidget {
   /// Called when the user triggers "previous channel" via D-pad or button.
   final VoidCallback? onPreviousChannel;
 
+  /// Polymorphic watch-progress key (e.g. `"vod:42"`, `"episode:12"`).
+  ///
+  /// When null (or when [isLive] is true) no watch progress is recorded.
+  final String? contentId;
+
+  /// Saved position to resume from, once the media duration is known.
+  final Duration? startPosition;
+
   @override
   State<TvPlayerScreen> createState() => _TvPlayerScreenState();
 }
@@ -60,10 +72,44 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
   Timer? _hideTimer;
   final FocusNode _focusNode = FocusNode();
 
+  // -- Watch progress ---------------------------------------------------------
+  late final WatchProgressService _watchService;
+  Timer? _progressTimer;
+  bool _wasPlaying = false;
+  bool _resumePending = false;
+  bool _completed = false;
+  EpisodeUpNext? _upNext;
+
+  /// True when watch progress should be recorded for this session.
+  bool get _recordsProgress =>
+      widget.contentId != null && widget.contentId!.isNotEmpty && !widget.isLive;
+
   @override
   void initState() {
     super.initState();
     _startHideTimer();
+
+    if (_recordsProgress) {
+      _watchService = WatchProgressService(database: AppDatabase());
+      // Save progress every 10 seconds while the player is open.
+      _progressTimer = Timer.periodic(
+        const Duration(seconds: 10),
+        (_) => _saveWatchProgress(),
+      );
+      widget.controller.addListener(_onPlayerChanged);
+      if (widget.startPosition != null &&
+          widget.startPosition! > Duration.zero) {
+        _resumePending = true;
+      }
+      // Preload the next episode (for series episodes) for the Up Next overlay.
+      final id = widget.contentId;
+      if (id != null && id.startsWith('episode:')) {
+        _watchService.getUpNext(id).then((upNext) {
+          if (mounted) setState(() => _upNext = upNext);
+        });
+      }
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -72,8 +118,59 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    if (_recordsProgress) {
+      _progressTimer?.cancel();
+      widget.controller.removeListener(_onPlayerChanged);
+      // Save final position when the user leaves the player.
+      _saveWatchProgress();
+    }
     _focusNode.dispose();
     super.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Watch progress
+  // ---------------------------------------------------------------------------
+
+  /// Persists the current playback position for Continue Watching.
+  void _saveWatchProgress() {
+    final id = widget.contentId;
+    if (id == null || id.isEmpty) return;
+    final ctrl = widget.controller;
+    final durationMs = ctrl.duration.inMilliseconds;
+    if (durationMs <= 0) return;
+    _watchService.saveProgress(
+      id,
+      ctrl.position.inMilliseconds,
+      durationMs,
+    );
+  }
+
+  /// Reacts to player state changes: resume seek, pause save, completion.
+  void _onPlayerChanged() {
+    final ctrl = widget.controller;
+
+    // Seek to the saved resume position once the duration is known.
+    if (_resumePending && ctrl.duration > Duration.zero) {
+      _resumePending = false;
+      ctrl.seek(widget.startPosition!);
+    }
+
+    // Treat >= 95% watched as completed: drop from Continue Watching.
+    if (!_completed &&
+        ctrl.duration > Duration.zero &&
+        ctrl.position.inMilliseconds >=
+            ctrl.duration.inMilliseconds * 0.95) {
+      _completed = true;
+      _progressTimer?.cancel();
+      _watchService.clearProgress(widget.contentId!);
+    }
+
+    // Save an immediate snapshot when playback pauses.
+    if (_wasPlaying && !ctrl.isPlaying) {
+      _saveWatchProgress();
+    }
+    _wasPlaying = ctrl.isPlaying;
   }
 
   // ---------------------------------------------------------------------------
@@ -177,6 +274,9 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
               // -- Buffering indicator ---------------------------------------
               _buildBufferingOverlay(ctrl),
 
+              // -- Up Next overlay (series episodes) --------------------------
+              _buildUpNextOverlay(ctrl),
+
               // -- Overlay controls ------------------------------------------
               IgnorePointer(
                 ignoring: !_controlsVisible,
@@ -184,6 +284,74 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Up Next overlay
+  // ---------------------------------------------------------------------------
+
+  /// Shows a brief "Up Next: <title>" card during the last 20 seconds of a
+  /// series episode. Hidden when no next episode is known.
+  Widget _buildUpNextOverlay(PlayerController ctrl) {
+    return Positioned(
+      left: 48,
+      right: 48,
+      bottom: 140,
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: ctrl,
+          builder: (context, _) {
+            final upNext = _upNext;
+            if (upNext == null || ctrl.duration <= Duration.zero) {
+              return const SizedBox.shrink();
+            }
+            final fraction = ctrl.seekFraction;
+            final remaining = ctrl.duration - ctrl.position;
+            final visible = remaining <= const Duration(seconds: 20) &&
+                fraction >= 0.9 &&
+                fraction < 0.99;
+            if (!visible) return const SizedBox.shrink();
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.accentPrimary, width: 2),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Up Next',
+                      style: TextStyle(
+                        color: AppColors.accentPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      upNext.label,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
