@@ -1,0 +1,32 @@
+name: Deploy Edge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'edge/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Wasmer
+        run: curl https://get.wasmer.io -sSfL | sh
+
+      - name: Add Wasmer to PATH
+        run: echo "$HOME/.wasmer/bin" >> $GITHUB_PATH
+
+      - name: Login to Wasmer
+        run: wasmer login --non-interactive
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+
+      - name: Deploy edge app
+        working-directory: edge
+        run: wasmer deploy --non-interactive
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
