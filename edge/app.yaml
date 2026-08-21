@@ -1,24 +1,5 @@
+kind: wasmer.io/App.v0
 name: iflixify
-app_id: da_2OPIqt7U7vBW
+app_id: da_RpXImtBUNv5X
 owner: tsiartasantreas
 package: .
-module: iflixify
-env:
-  GITHUB_REPO: ${GITHUB_REPO}
-  SUPABASE_URL: ${SUPABASE_URL}
-  SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-  SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-capabilities:
-  instaboot:
-    mode: null
-    requests:
-    - path: /
-    - path: /dl/latest
-    - path: /dl/latest/arm64
-    - path: /reset-password
-    - path: /admin
-    - path: /_bootstrap
-  cdn_cache:
-    enabled: true
-debug: false
-kind: wasmer.io/App.v0

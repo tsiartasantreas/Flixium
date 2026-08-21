@@ -1,9 +1,9 @@
 {
   "name": "iflixify-edge",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "iFlixify IPTV edge handlers (Wasmer Edge)",
+  "description": "iFlixify IPTV Edge App - Landing page, Admin Panel, Password Reset",
   "scripts": {
     "dev": "node --watch src/dev_local.js",
     "test": "node --test test/**/*.test.js"

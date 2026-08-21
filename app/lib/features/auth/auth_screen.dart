@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth/auth_service.dart';
 import '../../core/data/supabase_client.dart';
@@ -37,6 +38,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isSignUp = false;
   bool _isLoading = false;
   String? _error;
+  bool _showResendConfirmation = false;
 
   AuthService get _auth => widget.authService ?? AuthService();
 
@@ -161,9 +163,11 @@ class _AuthScreenState extends State<AuthScreen> {
       final rawError = result.error ?? 'Authentication failed. Please try again.';
       // Provide a clearer message for common Supabase auth errors.
       final friendlyError = _friendlyAuthError(rawError);
+      final isEmailNotConfirmed = rawError.toLowerCase().contains('not confirmed');
       setState(() {
         _error = friendlyError;
         _isLoading = false;
+        _showResendConfirmation = isEmailNotConfirmed;
       });
     }
   }
@@ -306,10 +310,12 @@ class _AuthScreenState extends State<AuthScreen> {
                                 dialogLoading = false;
                               });
                             } catch (e) {
+                              final msg = e is AuthException
+                                  ? e.message
+                                  : 'Could not send reset email. Please try again.';
                               setDialogState(() {
                                 dialogLoading = false;
-                                dialogError =
-                                    'Could not send reset email. Please try again.';
+                                dialogError = msg;
                               });
                             }
                           },
@@ -336,6 +342,55 @@ class _AuthScreenState extends State<AuthScreen> {
     );
 
     emailController.dispose();
+  }
+
+  Future<void> _resendConfirmationEmail() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() {
+        _error = 'Please enter your email address first.';
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    if (!SupabaseService.isInitialized) {
+      try {
+        await SupabaseService.initialize();
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Failed to connect. Please check your internet.';
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    try {
+      await SupabaseService.client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _showResendConfirmation = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Confirmation email sent! Check your inbox.'),
+          duration: Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not send confirmation email. Please try again.';
+        _isLoading = false;
+      });
+    }
   }
 
   void _navigateToHome() {
@@ -415,13 +470,35 @@ class _AuthScreenState extends State<AuthScreen> {
                 color: Colors.redAccent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(
-                _error!,
-                style: const TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
+              child: Column(
+                children: [
+                  Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_showResendConfirmation) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 36,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _resendConfirmationEmail,
+                        icon: const Icon(Icons.email_outlined, size: 16),
+                        label: const Text(
+                          'Resend Confirmation Email',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentPrimary,
+                          foregroundColor: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -564,6 +641,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 : () => setState(() {
                       _isSignUp = !_isSignUp;
                       _error = null;
+                      _showResendConfirmation = false;
                     }),
             child: Text(
               _isSignUp

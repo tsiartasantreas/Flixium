@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFlixify IPTV - Stream Smarter</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #141414;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .header {
+      background: linear-gradient(180deg, #000 0%, transparent 100%);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+    }
+    .logo { font-size: 28px; font-weight: 800; color: #E50914; letter-spacing: 2px; }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a { color: #fff; text-decoration: none; font-size: 14px; transition: color 0.2s; }
+    .nav-links a:hover { color: #E50914; }
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 120px 20px 60px;
+    }
+    .hero h1 { font-size: 56px; font-weight: 800; margin-bottom: 16px; line-height: 1.1; }
+    .hero h1 span { color: #E50914; }
+    .hero p { font-size: 20px; color: #999; max-width: 600px; margin-bottom: 40px; line-height: 1.5; }
+    .cta-buttons { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      padding: 14px 32px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary { background: #E50914; color: #fff; }
+    .btn-primary:hover { background: #C40812; transform: scale(1.02); }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+    .features { padding: 80px 40px; max-width: 1200px; margin: 0 auto; }
+    .features h2 { font-size: 36px; font-weight: 700; margin-bottom: 48px; text-align: center; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; }
+    .feature-card {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 32px;
+      border: 1px solid #333;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .feature-card:hover { transform: translateY(-4px); border-color: #E50914; }
+    .feature-icon { font-size: 40px; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+    .feature-card p { color: #999; font-size: 14px; line-height: 1.5; }
+    .footer { background: #000; padding: 40px; text-align: center; border-top: 1px solid #333; }
+    .footer p { color: #666; font-size: 14px; }
+    .footer a { color: #E50914; text-decoration: none; }
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 36px; }
+      .hero p { font-size: 16px; }
+      .header { padding: 16px 20px; }
+      .features { padding: 40px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">iFlixify</div>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="/admin.html">Admin</a>
+      <a href="/profile.html">Profile</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Stream <span>Smarter</span><br>With iFlixify IPTV</h1>
+    <p>The ultimate IPTV player for Android. Netflix-style interface, multi-playlist support, offline downloads, and more.</p>
+    <div class="cta-buttons">
+      <a href="https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest/download/iFlixify.apk" class="btn btn-primary">⬇ Download for Android</a>
+      <a href="https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest" class="btn btn-secondary">View All Releases</a>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <h2>Why Choose iFlixify?</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📺</div>
+        <h3>Live TV & EPG</h3>
+        <p>Watch live channels with electronic program guide. Never miss your favorite shows.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎬</div>
+        <h3>Movies & Series</h3>
+        <p>Browse thousands of movies and series with detailed info, ratings, and trailers.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📥</div>
+        <h3>Offline Downloads</h3>
+        <p>Download content to watch offline. Perfect for travel or areas with poor connectivity.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎨</div>
+        <h3>Netflix-Style UI</h3>
+        <p>Beautiful, intuitive interface inspired by Netflix. Works on phone, TV, and Fire TV.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Cross-Device Sync</h3>
+        <p>Pro users can sync favorites, watch progress, and settings across 5 devices.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Secure & Private</h3>
+        <p>Encrypted playlist storage. Your credentials are always protected.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>© 2026 iFlixify IPTV. All rights reserved.</p>
+    <p style="margin-top: 8px;">
+      <a href="/profile.html">My Profile</a> · 
+      <a href="/admin.html">Admin Panel</a>
+    </p>
+  </footer>
+</body>
+</html>

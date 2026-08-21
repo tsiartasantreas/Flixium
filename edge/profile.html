@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFlixify - My Profile</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #141414; color: #fff; min-height: 100vh; }
+    .header { background: #1a1a1a; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; }
+    .logo { font-size: 24px; font-weight: 800; color: #E50914; }
+    .container { max-width: 800px; margin: 0 auto; padding: 24px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: #999; text-decoration: none; margin-bottom: 24px; font-size: 14px; }
+    .back-link:hover { color: #fff; }
+    .profile-card { background: #1a1a1a; border-radius: 12px; padding: 32px; border: 1px solid #333; margin-bottom: 24px; }
+    .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
+    .avatar { width: 80px; height: 80px; border-radius: 50%; background: #E50914; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 700; }
+    .profile-info h2 { font-size: 24px; font-weight: 700; }
+    .profile-info p { color: #999; font-size: 14px; margin-top: 4px; }
+    .tier-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-top: 8px; }
+    .tier-pro { background: #E50914; color: #fff; }
+    .tier-free { background: #333; color: #999; }
+    .section { margin-bottom: 24px; }
+    .section h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #E50914; }
+    .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #222; }
+    .info-label { color: #999; font-size: 14px; }
+    .info-value { font-size: 14px; font-weight: 500; }
+    .btn { padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-primary { background: #E50914; color: #fff; }
+    .btn-primary:hover { background: #C40812; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-group { display: flex; gap: 12px; margin-top: 16px; }
+    .pro-banner { background: linear-gradient(135deg, #E50914 0%, #C40812 100%); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .pro-banner h3 { font-size: 20px; margin-bottom: 8px; }
+    .pro-banner p { font-size: 14px; opacity: 0.9; margin-bottom: 16px; }
+    .features-list { list-style: none; margin-bottom: 16px; }
+    .features-list li { padding: 4px 0; font-size: 14px; }
+    .features-list li::before { content: "✓ "; color: #fff; font-weight: bold; }
+    .login-form { max-width: 400px; margin: 40px auto; text-align: center; }
+    .login-form h2 { margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #999; }
+    .form-group input { width: 100%; padding: 12px 16px; background: #222; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 14px; }
+    .form-group input:focus { outline: none; border-color: #E50914; }
+    .error { color: #dc3545; font-size: 14px; margin-top: 8px; }
+    .success { color: #28a745; font-size: 14px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">iFlixify</div>
+    <div>
+      <a href="/" style="color: #999; text-decoration: none; font-size: 14px;">Home</a>
+      <span style="color: #333; margin: 0 8px;">|</span>
+      <a href="/admin.html" style="color: #999; text-decoration: none; font-size: 14px;">Admin</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div id="loginSection" class="login-form">
+      <h2>Sign In to iFlixify</h2>
+      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="your@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="loginPassword" placeholder="Your password"></div>
+      <button onclick="login()" class="btn btn-primary" style="width: 100%;">Sign In</button>
+      <div id="loginError" class="error" style="display: none;"></div>
+      <p style="margin-top: 16px; color: #999; font-size: 14px;">Don't have an account? <a href="#" onclick="showRegister()" style="color: #E50914;">Register</a></p>
+      <p style="margin-top: 8px;"><a href="#" onclick="forgotPassword()" style="color: #999; font-size: 13px;">Forgot Password?</a></p>
+    </div>
+
+    <div id="registerSection" class="login-form" style="display: none;">
+      <h2>Create Account</h2>
+      <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="Min 8 characters"></div>
+      <div class="form-group"><label>Confirm Password</label><input type="password" id="regConfirm" placeholder="Confirm password"></div>
+      <button onclick="register()" class="btn btn-primary" style="width: 100%;">Create Account</button>
+      <div id="regError" class="error" style="display: none;"></div>
+      <div id="regSuccess" class="success" style="display: none;"></div>
+      <p style="margin-top: 16px; color: #999; font-size: 14px;">Already have an account? <a href="#" onclick="showLogin()" style="color: #E50914;">Sign In</a></p>
+    </div>
+
+    <div id="profileSection" style="display: none;">
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="avatar" id="userAvatar">?</div>
+          <div class="profile-info">
+            <h2 id="userName">Loading...</h2>
+            <p id="userEmail">Loading...</p>
+            <div class="tier-badge tier-free" id="tierBadge">Free</div>
+          </div>
+        </div>
+        <div class="section">
+          <h3>Account Details</h3>
+          <div class="info-row"><span class="info-label">Email</span><span class="info-value" id="detailEmail">-</span></div>
+          <div class="info-row"><span class="info-label">Display Name</span><span class="info-value" id="detailName">-</span></div>
+          <div class="info-row"><span class="info-label">Subscription</span><span class="info-value" id="detailTier">Free</span></div>
+          <div class="info-row"><span class="info-label">Member Since</span><span class="info-value" id="detailJoined">-</span></div>
+        </div>
+        <div class="btn-group">
+          <button onclick="editProfile()" class="btn btn-secondary">Edit Profile</button>
+          <button onclick="logout()" class="btn btn-secondary">Sign Out</button>
+        </div>
+      </div>
+      <div class="pro-banner" id="proBanner">
+        <h3>🚀 Upgrade to Pro</h3>
+        <p>Unlock all features with a one-time payment of $8.99</p>
+        <ul class="features-list">
+          <li>Unlimited playlists</li><li>Multi-user profiles</li><li>Continue Watching & Up Next</li><li>Cross-device sync (5 devices)</li><li>Priority support</li>
+        </ul>
+        <button onclick="upgradeToPro()" class="btn btn-primary">Upgrade Now - $8.99</button>
+      </div>
+      <div class="profile-card" id="proStatus" style="display: none;">
+        <h3 style="color: #E50914; margin-bottom: 16px;">✨ Pro Member</h3>
+        <p style="color: #999; font-size: 14px;">You have access to all Pro features. Thank you for your support!</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: #1a1a1a; border-radius: 12px; padding: 32px; max-width: 400px; width: 90%; border: 1px solid #333;">
+      <h3 style="margin-bottom: 16px;">Edit Profile</h3>
+      <div class="form-group"><label>Display Name</label><input type="text" id="editName" placeholder="Your name"></div>
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button onclick="closeEditModal()" class="btn btn-secondary">Cancel</button>
+        <button onclick="saveProfile()" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const supabaseUrl = "https://zosckkklctvrsjqjmyiv.supabase.co";
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc2Nra2tsY3R2cnNqcWpteWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyODA2NDAsImV4cCI6MjEwMTg1NjY0MH0.bVAxexYv9e7Jo8PLRwYVyzLi6L9PFvxE3M8ZIheMmmA";
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    let currentUser = null;
+    let userProfile = null;
+
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) { currentUser = session.user; await loadProfile(); showProfile(); } else { showLogin(); }
+    }
+
+    function showLogin() { document.getElementById('loginSection').style.display = 'block'; document.getElementById('registerSection').style.display = 'none'; document.getElementById('profileSection').style.display = 'none'; }
+    function showRegister() { document.getElementById('loginSection').style.display = 'none'; document.getElementById('registerSection').style.display = 'block'; document.getElementById('profileSection').style.display = 'none'; }
+    function showProfile() { document.getElementById('loginSection').style.display = 'none'; document.getElementById('registerSection').style.display = 'none'; document.getElementById('profileSection').style.display = 'block'; }
+
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorDiv = document.getElementById('loginError');
+      if (!email || !password) { errorDiv.textContent = 'Please enter email and password'; errorDiv.style.display = 'block'; return; }
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        currentUser = data.user;
+        await loadProfile();
+        showProfile();
+        errorDiv.style.display = 'none';
+      } catch (error) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+    }
+
+    async function register() {
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const confirm = document.getElementById('regConfirm').value;
+      const errorDiv = document.getElementById('regError');
+      const successDiv = document.getElementById('regSuccess');
+      if (!email || !password || !confirm) { errorDiv.textContent = 'Please fill all fields'; errorDiv.style.display = 'block'; return; }
+      if (password !== confirm) { errorDiv.textContent = 'Passwords do not match'; errorDiv.style.display = 'block'; return; }
+      if (password.length < 8) { errorDiv.textContent = 'Password must be at least 8 characters'; errorDiv.style.display = 'block'; return; }
+      try {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        successDiv.textContent = 'Account created! Please check your email to confirm, then sign in.';
+        successDiv.style.display = 'block';
+        errorDiv.style.display = 'none';
+      } catch (error) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; successDiv.style.display = 'none'; }
+    }
+
+    async function forgotPassword() {
+      const email = document.getElementById('loginEmail').value;
+      if (!email) { alert('Please enter your email first'); return; }
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: 'https://iflixify.wasmer.app/reset-password.html' });
+        if (error) throw error;
+        alert('Password reset email sent! Check your inbox.');
+      } catch (error) { alert('Error: ' + error.message); }
+    }
+
+    async function loadProfile() {
+      if (!currentUser) return;
+      try {
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+        if (error) throw error;
+        userProfile = data;
+        updateProfileUI();
+      } catch (error) { console.error('Error loading profile:', error); }
+    }
+
+    function updateProfileUI() {
+      if (!currentUser || !userProfile) return;
+      const name = userProfile.display_name || currentUser.email.split('@')[0];
+      const email = currentUser.email;
+      const tier = userProfile.tier || 'free';
+      const isAdmin = userProfile.is_admin || false;
+      const joined = new Date(userProfile.created_at).toLocaleDateString();
+      document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+      document.getElementById('userName').textContent = name;
+      document.getElementById('userEmail').textContent = email;
+      const tierBadge = document.getElementById('tierBadge');
+      if (isAdmin) { tierBadge.textContent = 'Admin'; tierBadge.style.background = '#FFD700'; tierBadge.style.color = '#000'; }
+      else if (tier === 'pro') { tierBadge.textContent = 'Pro'; tierBadge.className = 'tier-badge tier-pro'; }
+      else { tierBadge.textContent = 'Free'; tierBadge.className = 'tier-badge tier-free'; }
+      document.getElementById('detailEmail').textContent = email;
+      document.getElementById('detailName').textContent = name;
+      document.getElementById('detailTier').textContent = isAdmin ? 'Admin' : (tier === 'pro' ? 'Pro' : 'Free');
+      document.getElementById('detailJoined').textContent = joined;
+      if (tier === 'pro' || isAdmin) { document.getElementById('proBanner').style.display = 'none'; document.getElementById('proStatus').style.display = 'block'; }
+      else { document.getElementById('proBanner').style.display = 'block'; document.getElementById('proStatus').style.display = 'none'; }
+    }
+
+    function editProfile() { document.getElementById('editName').value = userProfile?.display_name || ''; document.getElementById('editModal').style.display = 'flex'; }
+    function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    async function saveProfile() {
+      const name = document.getElementById('editName').value;
+      try {
+        const { error } = await supabase.from('profiles').update({ display_name: name }).eq('id', currentUser.id);
+        if (error) throw error;
+        userProfile.display_name = name;
+        updateProfileUI();
+        closeEditModal();
+      } catch (error) { alert('Error: ' + error.message); }
+    }
+
+    function upgradeToPro() { window.open('https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest', '_blank'); }
+    async function logout() { await supabase.auth.signOut(); currentUser = null; userProfile = null; showLogin(); }
+    checkAuth();
+  </script>
+</body>
+</html>

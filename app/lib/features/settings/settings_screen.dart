@@ -43,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _useExternalPlayer = false;
 
   // Navigation settings.
-  bool _showRadioTab = true;
+  bool _showRadioTab = false;
 
   // Parental controls.
   bool _parentalPinSet = false;
@@ -129,7 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
-      _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
+      _showRadioTab = prefs.getBool('show_radio_tab') ?? false;
       _parentalPinSet = pinSet;
       _hideAdultContent = !adultVisible;
     });
@@ -139,26 +139,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Signed-in user info
   // ---------------------------------------------------------------------------
 
-  /// Loads the signed-in user's email and display name.
+  /// Loads the signed-in user's email, display name, tier, and admin status.
   ///
   /// The display name is preferred from the Supabase `profiles` table
   /// (the account's source of truth); the auth user metadata is used as a
-  /// fallback when the profiles row is unreachable. No-op when signed out.
+  /// fallback when the profiles row is unreachable. Also reads `tier` and
+  /// `is_admin` from the profiles table when available. No-op when signed out.
   Future<void> _loadSignedInUserInfo() async {
     if (!SupabaseService.isInitialized) return;
     final user = SupabaseService.client.auth.currentUser;
     if (user == null) return;
 
     String? displayName = user.userMetadata?['display_name'] as String?;
+    String? profileTier;
+    bool? profileIsAdmin;
     try {
       final profile = await SupabaseService.client
           .from('profiles')
-          .select('display_name')
+          .select('display_name, tier, is_admin')
           .eq('id', user.id)
           .maybeSingle();
-      final tableName = profile?['display_name'] as String?;
-      if (tableName != null && tableName.isNotEmpty) {
-        displayName = tableName;
+      if (profile != null) {
+        final tableName = profile['display_name'] as String?;
+        if (tableName != null && tableName.isNotEmpty) {
+          displayName = tableName;
+        }
+        profileTier = profile['tier'] as String?;
+        profileIsAdmin = profile['is_admin'] as bool?;
       }
     } catch (_) {
       // Network / RLS errors — fall back to the auth user metadata.
@@ -169,6 +176,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _profileEmail = user.email ?? '';
       if (displayName != null && displayName.isNotEmpty) {
         _profileName = displayName;
+      }
+      // Apply tier from profiles table if available.
+      if (profileTier != null && profileTier.isNotEmpty) {
+        _proFeaturesUnlocked =
+            profileTier == 'pro' || (profileIsAdmin ?? false);
+        _tier = _proFeaturesUnlocked ? 'Pro' : 'Free';
       }
     });
   }
@@ -478,7 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildInfoTile(
             icon: Icons.info_outline,
             title: 'iFlixify IPTV',
-            subtitle: 'iFlixify IPTV v6.1.0-alpha',
+            subtitle: 'iFlixify IPTV v5.3.0-alpha',
           ),
           _buildNavigationTile(
             icon: Icons.system_update_outlined,
@@ -524,7 +537,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'iFlixify IPTV',
-              applicationVersion: '6.1.0-alpha',
+              applicationVersion: '5.3.0-alpha',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,
