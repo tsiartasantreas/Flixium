@@ -8,6 +8,11 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/netflix_theme.dart';
 import 'features/shell/main_shell.dart';
 
+/// Global route observer used by [MainShell] to detect when it becomes
+/// visible again after a pushed route (e.g. Settings) is popped.
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
+
 /// Root widget of the iFlixify IPTV app.
 ///
 /// Supabase is NEVER initialized at startup — its native Android plugin
@@ -72,6 +77,7 @@ class _FlixiumAppState extends State<FlixiumApp> {
       title: 'iFlixify IPTV',
       debugShowCheckedModeBanner: false,
       theme: NetflixTheme.dark,
+      navigatorObservers: [routeObserver],
       home: const MainShell(),
     );
   }

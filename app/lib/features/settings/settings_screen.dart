@@ -45,6 +45,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Navigation settings.
   bool _showRadioTab = false;
 
+  // Display mode.
+  bool _tvModeEnabled = false;
+
   // Parental controls.
   bool _parentalPinSet = false;
   bool _hideAdultContent = true; // Default: hidden when PIN is set.
@@ -130,6 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _useExternalPlayer = prefs.getBool('use_external_player') ?? false;
       _showRadioTab = prefs.getBool('show_radio_tab') ?? false;
+      _tvModeEnabled = prefs.getBool('tv_mode_enabled') ?? false;
       _parentalPinSet = pinSet;
       _hideAdultContent = !adultVisible;
     });
@@ -486,12 +490,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 16),
 
+          // -- Display Mode section ----------------------------------------
+          _buildSectionHeader('Display Mode'),
+          _buildSwitchTile(
+            icon: _tvModeEnabled ? Icons.tv : Icons.phone_android,
+            title: _tvModeEnabled ? 'TV Mode' : 'Portable Mode',
+            subtitle:
+                'Optimize interface for TV (D-pad navigation) or phone/tablet (touch)',
+            value: _tvModeEnabled,
+            onChanged: (value) async {
+              setState(() => _tvModeEnabled = value);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('tv_mode_enabled', value);
+            },
+          ),
+
+          const SizedBox(height: 16),
+
           // -- About section ------------------------------------------------
           _buildSectionHeader('About'),
           _buildInfoTile(
             icon: Icons.info_outline,
             title: 'iFlixify IPTV',
-            subtitle: 'iFlixify IPTV v5.3.0-alpha',
+            subtitle: 'iFlixify IPTV v6.2.0-beta',
           ),
           _buildNavigationTile(
             icon: Icons.system_update_outlined,
@@ -537,7 +558,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'iFlixify IPTV',
-              applicationVersion: '5.3.0-alpha',
+              applicationVersion: '6.2.0-beta',
               applicationIcon: const Icon(
                 Icons.live_tv,
                 color: AppColors.accentPrimary,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../app.dart' show routeObserver;
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
 import '../favorites/favorites_screen.dart';
@@ -26,12 +27,19 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with RouteAware {
   int _mobileIndex = 0;
   int _tvIndex = 0;
   bool _showRadioTab = true;
+  bool _tvModeEnabled = false;
 
+  /// Whether the UI should use the TV layout.
+  ///
+  /// True when the user has explicitly enabled TV mode in settings, OR when
+  /// the platform is Linux, OR when the Android screen shortest side exceeds
+  /// 600 px (large tablet / set-top box).
   bool get _isTv =>
+      _tvModeEnabled ||
       Platform.isLinux ||
       (Platform.isAndroid &&
           MediaQueryData.fromView(
@@ -43,14 +51,38 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    _loadShowRadioTab();
+    _loadPreferences();
   }
 
-  Future<void> _loadShowRadioTab() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  /// Called when a pushed route above this one is popped — i.e. the user
+  /// returns to the shell from Settings or any other screen.
+  @override
+  void didPopNext() {
+    _loadPreferences();
+  }
+
+  /// Loads user preferences that affect the shell layout.
+  ///
+  /// Called on init and when returning from settings so changes to display
+  /// mode or radio tab visibility take effect immediately.
+  Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
         _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
+        _tvModeEnabled = prefs.getBool('tv_mode_enabled') ?? false;
       });
     }
   }
