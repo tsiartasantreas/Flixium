@@ -31,6 +31,14 @@ class EntitlementService {
   /// Whether the profile row indicates admin.
   bool _isAdmin = false;
 
+  /// Base number of devices every user may activate, before any purchased
+  /// device license extension packs.
+  static const int baseDeviceLimit = 5;
+
+  /// Cached device limit (base + purchased extensions). `null` until the
+  /// first refresh.
+  int? _cachedDeviceLimit;
+
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
@@ -67,7 +75,26 @@ class EntitlementService {
   Future<bool> get canUseProFeatures async =>
       (await getTier()) == 'pro' || isAdmin;
 
-  /// Re-fetches the tier (and admin status) from Supabase.
+  /// The maximum number of devices the current user may activate.
+  ///
+  /// [baseDeviceLimit] (5) plus the sum of `additional_devices` from the
+  /// user's purchased `device_license_extensions` packs ($3.99 per +5).
+  /// Returns [baseDeviceLimit] when not signed in or on network / RLS
+  /// errors. Cached and refreshed with the same pattern as the tier (see
+  /// [refreshTier]).
+  Future<int> get deviceLimit async {
+    if (_cachedDeviceLimit != null) return _cachedDeviceLimit!;
+    final user = _authService?.currentUser ??
+        (SupabaseService.isInitialized
+            ? SupabaseService.client.auth.currentUser
+            : null);
+    if (user == null) return baseDeviceLimit;
+    await _refreshDeviceLimit(user.id);
+    return _cachedDeviceLimit ?? baseDeviceLimit;
+  }
+
+  /// Re-fetches the tier (and admin status) and the device limit from
+  /// Supabase.
   ///
   /// Call this on app start and after auth state changes.
   Future<void> refreshTier() async {
@@ -78,6 +105,7 @@ class EntitlementService {
     if (user == null) {
       _tier = 'free';
       _isAdmin = false;
+      _cachedDeviceLimit = baseDeviceLimit;
       return;
     }
 
@@ -97,6 +125,33 @@ class EntitlementService {
       }
     } catch (_) {
       // On network / RLS errors, keep the cached tier.
+    }
+
+    await _refreshDeviceLimit(user.id);
+  }
+
+  /// Re-fetches the device limit for [userId] (base + purchased device
+  /// license extension packs).
+  ///
+  /// On error the cached value is kept, defaulting to the base limit.
+  Future<void> _refreshDeviceLimit(String userId) async {
+    try {
+      final response = await _supabase
+          .from('device_license_extensions')
+          .select('additional_devices')
+          .eq('user_id', userId);
+
+      var total = baseDeviceLimit;
+      for (final row in response) {
+        final additional = row['additional_devices'] as int?;
+        if (additional != null && additional > 0) {
+          total += additional;
+        }
+      }
+      _cachedDeviceLimit = total;
+    } catch (_) {
+      // On network / RLS errors, keep the cached limit (base if none yet).
+      _cachedDeviceLimit ??= baseDeviceLimit;
     }
   }
 }

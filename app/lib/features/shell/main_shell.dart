@@ -30,8 +30,18 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with RouteAware {
   int _mobileIndex = 0;
   int _tvIndex = 0;
-  bool _showRadioTab = true;
+
+  /// Defaults MUST match the Settings screen defaults (see settings_screen
+  /// `_loadPreferences`). Using `true` here made the Radio tab flash on
+  /// first boot even though the preference defaults to hidden.
+  bool _showRadioTab = false;
   bool _tvModeEnabled = false;
+
+  /// False until preferences have been read at least once. The shell must
+  /// not build its tab layout with defaults while the async read is in
+  /// flight — otherwise the first frame renders tabs that may not match
+  /// the persisted preferences.
+  bool _prefsLoaded = false;
 
   /// Whether the UI should use the TV layout.
   ///
@@ -79,12 +89,20 @@ class _MainShellState extends State<MainShell> with RouteAware {
   /// mode or radio tab visibility take effect immediately.
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _showRadioTab = prefs.getBool('show_radio_tab') ?? true;
-        _tvModeEnabled = prefs.getBool('tv_mode_enabled') ?? false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _showRadioTab = prefs.getBool('show_radio_tab') ?? false;
+      _tvModeEnabled = prefs.getBool('tv_mode_enabled') ?? false;
+      _prefsLoaded = true;
+
+      // Keep the selected tab valid when the tab count changes. Hiding the
+      // Radio tab shifts Downloads from index 5 to 4 — clamp the index so
+      // the IndexedStack never points past the last child.
+      final mobileTabCount = _showRadioTab ? 6 : 5;
+      if (_mobileIndex >= mobileTabCount) {
+        _mobileIndex = mobileTabCount - 1;
+      }
+    });
   }
 
   void _onTabChanged(int index) {
@@ -168,6 +186,17 @@ class _MainShellState extends State<MainShell> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    // Don't render any tab layout until preferences are loaded, so the
+    // first frame already reflects the persisted settings (e.g. Radio tab
+    // hidden). Shows a brief loader during the async SharedPreferences read.
+    if (!_prefsLoaded) {
+      return const Scaffold(
+        backgroundColor: AppColors.bgBase,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.accentPrimary),
+        ),
+      );
+    }
     if (_isTv) {
       return _buildTvLayout();
     }

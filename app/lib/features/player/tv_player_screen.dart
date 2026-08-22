@@ -76,7 +76,14 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
   late final WatchProgressService _watchService;
   Timer? _progressTimer;
   bool _wasPlaying = false;
+
+  /// True until the saved [TvPlayerScreen.startPosition] has actually been
+  /// applied to the player. While pending, progress is NOT saved — the
+  /// position would be ~0 and would clobber the very progress we are
+  /// resuming from.
   bool _resumePending = false;
+  int _resumeAttempts = 0;
+  DateTime? _lastResumeAttempt;
   bool _completed = false;
   EpisodeUpNext? _upNext;
 
@@ -100,6 +107,11 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
       if (widget.startPosition != null &&
           widget.startPosition! > Duration.zero) {
         _resumePending = true;
+        // The duration may already be known (e.g. a fast-loading local
+        // file that finished opening before this screen subscribed) —
+        // attempt the resume right away instead of waiting for the next
+        // player notification.
+        _tryResume();
       }
       // Preload the next episode (for series episodes) for the Up Next overlay.
       final id = widget.contentId;
@@ -134,6 +146,11 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
 
   /// Persists the current playback position for Continue Watching.
   void _saveWatchProgress() {
+    // Never persist while the resume seek is still pending — the position
+    // is still ~0 and saving would destroy the saved progress we are
+    // trying to resume from (making the next launch restart from the
+    // beginning).
+    if (_resumePending) return;
     final id = widget.contentId;
     if (id == null || id.isEmpty) return;
     final ctrl = widget.controller;
@@ -146,15 +163,57 @@ class _TvPlayerScreenState extends State<TvPlayerScreen> {
     );
   }
 
+  /// Attempts to seek to [TvPlayerScreen.startPosition] once the media
+  /// duration is known.
+  ///
+  /// Seeks issued while the stream is still opening/buffering can be
+  /// silently dropped by the playback engine, so the seek is retried
+  /// (rate-limited) until playback actually reaches the target position.
+  /// Only then is `_resumePending` cleared and progress saving re-enabled.
+  void _tryResume() {
+    if (!_resumePending) return;
+    final target = widget.startPosition;
+    if (target == null || target <= Duration.zero) {
+      _resumePending = false;
+      return;
+    }
+    final ctrl = widget.controller;
+
+    // Wait until the duration is known before seeking.
+    if (ctrl.duration <= Duration.zero) return;
+
+    // The seek took effect once playback reaches (near) the target.
+    if (ctrl.position + const Duration(seconds: 5) >= target) {
+      _resumePending = false;
+      return;
+    }
+
+    // Give up after too many attempts (e.g. an unseekable stream) and
+    // simply play from the start.
+    if (_resumeAttempts >= 15) {
+      _resumePending = false;
+      return;
+    }
+
+    // Rate-limit retries so we don't hammer the player on every position
+    // tick while the stream is still buffering.
+    final now = DateTime.now();
+    if (_lastResumeAttempt != null &&
+        now.difference(_lastResumeAttempt!) <
+            const Duration(milliseconds: 800)) {
+      return;
+    }
+    _resumeAttempts++;
+    _lastResumeAttempt = now;
+    ctrl.seek(target);
+  }
+
   /// Reacts to player state changes: resume seek, pause save, completion.
   void _onPlayerChanged() {
     final ctrl = widget.controller;
 
-    // Seek to the saved resume position once the duration is known.
-    if (_resumePending && ctrl.duration > Duration.zero) {
-      _resumePending = false;
-      ctrl.seek(widget.startPosition!);
-    }
+    // Retry / verify the resume seek on every player notification.
+    _tryResume();
 
     // Treat >= 95% watched as completed: drop from Continue Watching.
     if (!_completed &&

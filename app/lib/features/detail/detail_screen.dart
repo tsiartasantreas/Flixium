@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
@@ -488,44 +489,68 @@ class _DetailScreenState extends State<DetailScreen> {
 
   /// Opens [playbackUrl] in an external video player (e.g. VLC, MX Player).
   ///
-  /// Android rarely resolves a raw http(s) stream URL to a video player
-  /// app directly, and `canLaunchUrl` is unreliable for non-browser apps
-  /// (Android 11+ package visibility makes it return false even when the
-  /// player is installed). So we just try launching and catch failures:
+  /// The previous `vlc://` / `intent://` url_launcher approach never worked
+  /// because Android 11+ package visibility stops the system from resolving
+  /// custom schemes and intent URIs from other apps. Instead we send real
+  /// VIEW intents via `android_intent_plus`:
   ///
-  /// 1. `vlc://` deep link — opens VLC directly when installed.
-  /// 2. `intent://` URI wrapping the stream with MIME type `video/*` —
-  ///    shows the Android system chooser listing every installed video
-  ///    player.
-  /// 3. Only if both fail, tell the user to install a player.
+  /// 1. A VIEW intent restricted to the VLC package — opens VLC directly.
+  /// 2. A generic VIEW intent with MIME type `video/*` — Android shows the
+  ///    system chooser listing every installed video player.
+  /// 3. Non-Android platforms (or if both intents fail on Android): fall
+  ///    back to `url_launcher`.
+  /// 4. Only if everything fails, tell the user to install a player.
   Future<void> _launchExternalPlayer(String playbackUrl) async {
-    // 1. Try VLC's vlc:// deep link.
-    try {
-      final launched = await launchUrl(
-        Uri.parse('vlc://$playbackUrl'),
-        mode: LaunchMode.externalApplication,
+    if (Platform.isAndroid) {
+      // Local download paths have no scheme — wrap them in a file:// URI so
+      // players can resolve them (http(s) streams pass through unchanged).
+      final data = playbackUrl.contains('://')
+          ? playbackUrl
+          : Uri.file(playbackUrl).toString();
+
+      // 1. Try VLC directly via an explicit-package VIEW intent.
+      final vlcIntent = AndroidIntent(
+        action: 'android.intent.action.VIEW',
+        data: data,
+        type: 'video/*',
+        package: 'org.videolan.vlc',
       );
-      if (launched) return;
-    } catch (_) {
-      // VLC not installed (or launch refused) — fall through to the
-      // system chooser below.
+      try {
+        await vlcIntent.launch();
+        return;
+      } catch (_) {
+        // VLC not installed (or launch refused) — fall through to the
+        // system chooser below.
+      }
+
+      // 2. System chooser: any installed app that can play video.
+      final chooser = AndroidIntent(
+        action: 'android.intent.action.VIEW',
+        data: data,
+        type: 'video/*',
+      );
+      try {
+        await chooser.launch();
+        return;
+      } catch (e) {
+        // ignore: avoid_print
+        print('[DetailScreen] Failed to launch external player intent: $e');
+      }
+    } else {
+      // 3. Non-Android: let url_launcher hand the URL to the OS.
+      try {
+        final launched = await launchUrl(
+          Uri.parse(playbackUrl),
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) return;
+      } catch (e) {
+        // ignore: avoid_print
+        print('[DetailScreen] Failed to launch external player URL: $e');
+      }
     }
 
-    // 2. Wrap the stream in an intent:// URI with a video/* MIME type so
-    //    Android offers every installed video player via the chooser.
-    try {
-      final streamPart = playbackUrl.replaceFirst(RegExp(r'^https?://'), '');
-      final launched = await launchUrl(
-        Uri.parse('intent://$streamPart#Intent;scheme=http;type=video/*;end'),
-        mode: LaunchMode.externalApplication,
-      );
-      if (launched) return;
-    } catch (e) {
-      // ignore: avoid_print
-      print('[DetailScreen] Failed to launch external player intent: $e');
-    }
-
-    // 3. Nothing could handle the stream.
+    // 4. Nothing could handle the stream.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

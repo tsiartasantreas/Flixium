@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../app.dart' show routeObserver;
 import '../../core/data/database.dart';
 import '../../core/data/import_progress_service.dart';
 import '../../core/data/parental_control_service.dart';
@@ -37,7 +38,7 @@ class BrowseScreen extends StatefulWidget {
 }
 
 @visibleForTesting
-class BrowseScreenState extends State<BrowseScreen> {
+class BrowseScreenState extends State<BrowseScreen> with RouteAware {
   final _db = AppDatabase();
   final _importProgress = ImportProgressService.instance;
   List<_BrowseItem> _allItems = [];
@@ -64,9 +65,28 @@ class BrowseScreenState extends State<BrowseScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to the global route observer so this screen refreshes its
+    // data when a route pushed above the shell (e.g. Settings, Detail,
+    // Player) is popped and the shell becomes visible again.
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _importProgress.progressNotifier.removeListener(_onImportProgressChanged);
     super.dispose();
+  }
+
+  /// Called when a pushed route above this one is popped — i.e. the user
+  /// returns to the shell. Reloads items so preference changes made in
+  /// Settings (e.g. parental controls) and playback side effects are
+  /// reflected without a restart.
+  @override
+  void didPopNext() {
+    _loadItems();
   }
 
   /// Called whenever the background import progress changes.
@@ -380,8 +400,9 @@ class BrowseScreenState extends State<BrowseScreen> {
   // ---------------------------------------------------------------------------
 
   void _navigateToDetail(_BrowseItem item) {
-    Navigator.of(context)
-        .push(
+    // No `.then` reload here — returning from the detail route triggers
+    // [didPopNext] via the global route observer, which reloads items.
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => DetailScreen(
           id: item.id,
@@ -392,8 +413,7 @@ class BrowseScreenState extends State<BrowseScreen> {
           contentType: item.contentType,
         ),
       ),
-    )
-        .then((_) => _loadItems());
+    );
   }
 
   // ---------------------------------------------------------------------------

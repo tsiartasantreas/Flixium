@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/data/database.dart';
 import '../../core/data/offline_download_service.dart';
+import '../../core/data/watch_progress_service.dart';
 import '../../core/player/player_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../player/player_screen.dart';
@@ -26,6 +27,7 @@ class OfflineScreen extends StatefulWidget {
 
 class _OfflineScreenState extends State<OfflineScreen> {
   final _downloadService = OfflineDownloadService.instance;
+  final _watchService = WatchProgressService();
   List<DownloadedItem> _items = [];
   Map<String, DownloadProgress> _activeDownloads = {};
   bool _isLoading = true;
@@ -94,7 +96,40 @@ class _OfflineScreenState extends State<OfflineScreen> {
     }
   }
 
-  void _playItem(DownloadedItem item) {
+  Future<void> _playItem(DownloadedItem item) async {
+    // Map the download key (e.g. "vod_42", "series_ep_12") to the
+    // polymorphic watch-progress key ("vod:42", "episode:12") so offline
+    // playback also records progress and resumes where the user left off.
+    String? watchContentId;
+    if (item.contentId.startsWith('series_ep_')) {
+      watchContentId =
+          'episode:${item.contentId.substring('series_ep_'.length)}';
+    } else {
+      final parts = item.contentId.split('_');
+      if (parts.length == 2) {
+        watchContentId = '${parts[0]}:${parts[1]}';
+      }
+    }
+
+    // Look up saved watch progress so playback resumes from the same
+    // position as online playback (same rule as DetailScreen: resume when
+    // > 30 s in and < 95% watched).
+    Duration? startPosition;
+    if (watchContentId != null) {
+      try {
+        final progress = await _watchService.getProgress(watchContentId);
+        if (progress != null &&
+            progress.positionMs > 30000 &&
+            progress.durationMs > 0 &&
+            progress.positionMs < progress.durationMs * 0.95) {
+          startPosition = Duration(milliseconds: progress.positionMs);
+        }
+      } catch (e) {
+        debugPrint('[OfflineScreen] Failed to load watch progress: $e');
+      }
+    }
+
+    if (!mounted) return;
     final controller = PlayerController();
     controller.open(item.filePath);
 
@@ -102,10 +137,14 @@ class _OfflineScreenState extends State<OfflineScreen> {
         ? TvPlayerScreen(
             controller: controller,
             title: item.title,
+            contentId: watchContentId,
+            startPosition: startPosition,
           )
         : PlayerScreen(
             controller: controller,
             title: item.title,
+            contentId: watchContentId,
+            startPosition: startPosition,
           );
 
     Navigator.of(context)

@@ -45,6 +45,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<ContentRow> _rows = [];
   List<ContinueWatchingItem> _continueWatchingItems = [];
   List<Favorite> _favorites = [];
+  List<ContentItem> _recommendedItems = [];
   bool _isEmpty = true;
   bool _isLoading = true;
   bool _parentalLocked = false;
@@ -198,6 +199,15 @@ class HomeScreenState extends State<HomeScreen> {
         if (item != null) continueWatchingItems.add(item);
       }
     }
+
+    // Build the "Recommended For You" row from watch history + favourites.
+    // Uses the parentally filtered lists so recommendations respect the
+    // same restrictions as the other rows.
+    final recommendedItems = await _buildRecommendedItems(
+      vodItems: filteredVod,
+      seriesItems: filteredSeries,
+      channels: filteredChannels,
+    );
 
     if (mounted) {
       final rows = <ContentRow>[];
@@ -391,11 +401,237 @@ class HomeScreenState extends State<HomeScreen> {
       setState(() {
         _rows = rows;
         _continueWatchingItems = continueWatchingItems;
+        _recommendedItems = recommendedItems;
         _parentalLocked = parentalLocked;
         _isEmpty = rows.isEmpty;
         _isLoading = false;
       });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recommended For You
+  // ---------------------------------------------------------------------------
+
+  /// Builds the mixed "Recommended For You" row.
+  ///
+  /// Extracts genre / group-title signals from the user's watch history and
+  /// favourites, then matches them against the (parentally filtered) VOD and
+  /// series lists. Live channels carry no genre metadata, so the most
+  /// recently added channels are appended at the end of the row instead.
+  /// When no history exists at all, the row falls back to the newest movies
+  /// and series.
+  ///
+  /// Composition: up to 10 matched movies + 6 matched series + up to 4
+  /// latest live channels, deduplicated against continue-watching items and
+  /// favourites (those already have their own rows).
+  Future<List<ContentItem>> _buildRecommendedItems({
+    required List<VodItem> vodItems,
+    required List<TvSery> seriesItems,
+    required List<Channel> channels,
+  }) async {
+    final genreSignals = <String>{};
+    final groupSignals = <String>{};
+
+    // Content IDs to exclude: everything already in Continue Watching (plus
+    // the parent series of in-progress episodes) and all favourites.
+    final excluded = <String>{};
+
+    // --- 1. Signals from watch history ------------------------------------
+    try {
+      final history =
+          await _watchProgressService.getContinueWatching(limit: 20);
+      for (final entry in history) {
+        final origin = await _collectRecommendationSignals(
+            entry.contentId, genreSignals, groupSignals);
+        if (origin != null) excluded.add(origin);
+      }
+    } catch (_) {}
+
+    // --- 2. Signals from favourites ----------------------------------------
+    try {
+      final favorites = await _favoritesService.getFavorites();
+      for (final fav in favorites) {
+        excluded.add(fav.contentId);
+        await _collectRecommendationSignals(
+            fav.contentId, genreSignals, groupSignals);
+      }
+    } catch (_) {}
+
+    // --- 3. Match VOD / series against the signals -------------------------
+    // The incoming lists are already newest-first, so both the matched and
+    // fallback orderings surface fresh content.
+    final hasHistory = genreSignals.isNotEmpty || groupSignals.isNotEmpty;
+    final matchedVod = hasHistory
+        ? vodItems
+            .where((vod) => _matchesSignal(vod.genre, genreSignals) ||
+                _matchesSignal(vod.groupTitle, groupSignals))
+            .toList()
+        : vodItems; // No history — fall back to newest movies.
+    final matchedSeries = hasHistory
+        ? seriesItems
+            .where((s) => _matchesSignal(s.genre, genreSignals))
+            .toList()
+        : seriesItems; // No history — fall back to newest series.
+
+    // --- 4. Compose the row -------------------------------------------------
+    final items = <ContentItem>[];
+
+    // Movies first (up to 10).
+    var movieCount = 0;
+    for (final vod in matchedVod) {
+      if (movieCount >= 10) break;
+      final contentId = 'vod:${vod.id}';
+      if (excluded.contains(contentId)) continue;
+      excluded.add(contentId);
+      movieCount++;
+      items.add(ContentItem(
+        title: vod.title,
+        imageUrl: vod.poster,
+        contentId: contentId,
+        contentType: 'vod',
+        url: vod.url,
+        onTap: () => _navigateToDetail(
+          id: vod.id,
+          title: vod.title,
+          imageUrl: vod.poster,
+          url: vod.url,
+          groupTitle: vod.groupTitle,
+          contentType: 'vod',
+        ),
+      ));
+    }
+
+    // Then series (up to 6).
+    var seriesCount = 0;
+    for (final s in matchedSeries) {
+      if (seriesCount >= 6) break;
+      final contentId = 'series:${s.id}';
+      if (excluded.contains(contentId)) continue;
+      excluded.add(contentId);
+      seriesCount++;
+      items.add(ContentItem(
+        title: s.title,
+        imageUrl: s.poster,
+        contentId: contentId,
+        contentType: 'series',
+        onTap: () => _navigateToDetail(
+          id: s.id,
+          title: s.title,
+          imageUrl: s.poster,
+          url: '',
+          contentType: 'series',
+        ),
+      ));
+    }
+
+    // Latest live channels at the end (up to 4). Channels have no genre
+    // metadata, so this is discovery rather than genre matching. Note the
+    // exclusion set keys channels as `live:<id>` (favourite/progress format).
+    var channelCount = 0;
+    for (final ch in channels) {
+      if (channelCount >= 4) break;
+      if (excluded.contains('live:${ch.id}')) continue;
+      excluded.add('live:${ch.id}');
+      channelCount++;
+      items.add(ContentItem(
+        title: ch.name,
+        imageUrl: ch.logo,
+        contentId: 'channel:${ch.id}',
+        contentType: 'live',
+        url: ch.url,
+        onTap: () => _navigateToDetail(
+          id: ch.id,
+          title: ch.name,
+          imageUrl: ch.logo,
+          url: ch.url,
+          groupTitle: ch.groupTitle,
+          contentType: 'live',
+        ),
+      ));
+    }
+
+    return items;
+  }
+
+  /// Resolves a polymorphic [contentId] (`vod:<id>`, `series:<id>`,
+  /// `episode:<id>`, `live:<id>`) and adds its genre / group-title to the
+  /// signal sets.
+  ///
+  /// Returns the canonical row-level contentId that should be excluded from
+  /// recommendations (e.g. the parent series for an in-progress episode), or
+  /// `null` when the id cannot be parsed.
+  Future<String?> _collectRecommendationSignals(
+    String contentId,
+    Set<String> genreSignals,
+    Set<String> groupSignals,
+  ) async {
+    final parts = contentId.split(':');
+    if (parts.length != 2) return null;
+    final id = int.tryParse(parts[1]);
+    if (id == null) return null;
+
+    switch (parts[0]) {
+      case 'vod':
+        final vod = await (_db.select(_db.vodItems)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        if (vod != null) {
+          _addSignalTokens(vod.genre, genreSignals);
+          _addSignalTokens(vod.groupTitle, groupSignals);
+        }
+        return 'vod:$id';
+      case 'series':
+        final series = await (_db.select(_db.tvSeries)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        if (series != null) {
+          _addSignalTokens(series.genre, genreSignals);
+        }
+        return 'series:$id';
+      case 'episode':
+        final episode = await (_db.select(_db.episodes)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        if (episode == null) return null;
+        final series = await (_db.select(_db.tvSeries)
+              ..where((t) => t.id.equals(episode.seriesId)))
+            .getSingleOrNull();
+        if (series != null) {
+          _addSignalTokens(series.genre, genreSignals);
+        }
+        return 'series:${episode.seriesId}';
+      case 'live':
+        final channel = await (_db.select(_db.channels)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        if (channel != null) {
+          _addSignalTokens(channel.groupTitle, groupSignals);
+        }
+        return 'live:$id';
+      default:
+        return null;
+    }
+  }
+
+  /// Splits a comma-separated [value] (e.g. `"Action, Comedy"`) into
+  /// lower-cased tokens added to [sink].
+  void _addSignalTokens(String? value, Set<String> sink) {
+    if (value == null || value.isEmpty) return;
+    for (final token in value.split(',')) {
+      final normalized = token.trim().toLowerCase();
+      if (normalized.isNotEmpty) sink.add(normalized);
+    }
+  }
+
+  /// Whether any comma-separated token of [value] matches a signal.
+  bool _matchesSignal(String? value, Set<String> signals) {
+    if (value == null || value.isEmpty || signals.isEmpty) return false;
+    for (final token in value.split(',')) {
+      final normalized = token.trim().toLowerCase();
+      if (normalized.isNotEmpty && signals.contains(normalized)) return true;
+    }
+    return false;
   }
 
   // ---------------------------------------------------------------------------
@@ -900,12 +1136,14 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildContentRows() {
     // Total items: 1 optional Favorites row + 1 optional Continue Watching
-    // row + content rows.
+    // row + 1 optional Recommended For You row + content rows.
     final hasFavorites = _favorites.isNotEmpty;
     final hasContinueWatching = _continueWatchingItems.isNotEmpty;
+    final hasRecommended = _recommendedItems.isNotEmpty;
     final totalItems = _rows.length +
         (hasFavorites ? 1 : 0) +
-        (hasContinueWatching ? 1 : 0);
+        (hasContinueWatching ? 1 : 0) +
+        (hasRecommended ? 1 : 0);
 
     return RefreshIndicator(
       color: AppColors.accentPrimary,
@@ -924,9 +1162,23 @@ class HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            // Second slot: Favorites row (if present).
-            final favOffset = hasContinueWatching ? 1 : 0;
-            if (hasFavorites && index == favOffset) {
+            // Second slot: Recommended For You row (if present).
+            final recommendedOffset = hasContinueWatching ? 1 : 0;
+            if (hasRecommended && index == recommendedOffset) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: ContentRow(
+                  label: 'Recommended For You',
+                  isTv: _isTv,
+                  items: _recommendedItems,
+                ),
+              );
+            }
+
+            // Third slot: Favorites row (if present).
+            final favoritesOffset =
+                recommendedOffset + (hasRecommended ? 1 : 0);
+            if (hasFavorites && index == favoritesOffset) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: ContentRow(
@@ -955,8 +1207,7 @@ class HomeScreenState extends State<HomeScreen> {
             }
 
             // Remaining slots: standard content rows.
-            final rowsOffset = (hasContinueWatching ? 1 : 0) +
-                (hasFavorites ? 1 : 0);
+            final rowsOffset = favoritesOffset + (hasFavorites ? 1 : 0);
             final rowIndex = index - rowsOffset;
             return Padding(
               padding: const EdgeInsets.only(bottom: 24),

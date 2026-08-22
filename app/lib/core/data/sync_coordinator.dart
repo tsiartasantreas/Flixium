@@ -2,11 +2,12 @@ import 'dart:async';
 
 import '../entitlement/entitlement_service.dart';
 import 'favorites_service.dart';
+import 'playlist_sync_service.dart';
 import 'supabase_client.dart';
 import 'watch_progress_service.dart';
 
 /// Coordinates two-way cloud sync across local persistence services
-/// (favourites, watch progress).
+/// (favourites, watch progress, playlists).
 ///
 /// Use [maybeFullSync] after sign-in and on app open for returning users; it
 /// is a safe no-op when Supabase is unavailable or nobody is signed in.
@@ -41,11 +42,12 @@ class SyncCoordinator {
     await instance.fullSync();
   }
 
-  /// Pushes local favourites and watch progress to the cloud, then merges
-  /// cloud rows back into the local database.
+  /// Pushes local favourites, watch progress, and playlists to the cloud,
+  /// then merges cloud rows back into the local database.
   ///
-  /// Favourites sync for any signed-in user; watch-progress sync is Pro-only
-  /// and gated internally by [WatchProgressService]. All errors are logged
+  /// Favourites sync for any signed-in user; watch-progress and playlist
+  /// sync are Pro-only and gated internally by [WatchProgressService] and
+  /// [PlaylistSyncService] respectively. All errors are logged
   /// and swallowed — sync must never disrupt the UI flow that triggered it.
   Future<void> fullSync() async {
     if (_syncing) return; // A sync is already in flight.
@@ -61,6 +63,9 @@ class SyncCoordinator {
 
       await _watchProgressService.syncToCloud();
       await _watchProgressService.syncFromCloud();
+
+      await PlaylistSyncService.instance.syncToCloud();
+      await PlaylistSyncService.instance.syncFromCloud();
     } catch (e) {
       // ignore: avoid_print
       print('[SyncCoordinator] fullSync failed: $e');
