@@ -94,9 +94,10 @@
     <h1>Stream <span>Smarter</span><br>With iFlixify IPTV</h1>
     <p>The ultimate IPTV player for Android. Netflix-style interface, multi-playlist support, offline downloads, and more.</p>
     <div class="cta-buttons">
-      <a href="https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest/download/iFlixify.apk" class="btn btn-primary">⬇ Download for Android</a>
-      <a href="https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest" class="btn btn-secondary">View All Releases</a>
+      <a href="https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest" class="btn btn-primary" id="downloadBtn">⬇ Download for Android</a>
+      <a href="https://github.com/tsiartasantreas/iFlixify-IPTV/releases" class="btn btn-secondary">View All Releases</a>
     </div>
+    <div class="version-tag" id="versionTag"></div>
   </section>
 
   <section class="features" id="features">
@@ -142,5 +143,28 @@
       <a href="/admin.html">Admin Panel</a>
     </p>
   </footer>
+  <script>
+    // Point the download button at the latest release's .apk asset.
+    // Asset filenames are versioned (iFlixify-v6.3.0-beta.apk), so
+    // releases/latest/download/iFlixify.apk would 404 — resolve via API.
+    (function () {
+      var btn = document.getElementById('downloadBtn');
+      var tag = document.getElementById('versionTag');
+      fetch('https://api.github.com/repos/tsiartasantreas/iFlixify-IPTV/releases/latest')
+        .then(function (r) { return r.json(); })
+        .then(function (release) {
+          var apk = (release.assets || []).filter(function (a) {
+            return a.name && a.name.endsWith('.apk');
+          })[0];
+          if (apk && apk.browser_download_url) {
+            btn.href = apk.browser_download_url;
+          }
+          if (tag && release.tag_name) {
+            tag.textContent = 'Latest version: ' + release.tag_name;
+          }
+        })
+        .catch(function () { /* keep fallback href to releases page */ });
+    })();
+  </script>
 </body>
 </html>
