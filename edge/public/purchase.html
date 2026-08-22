@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iFlixify - Upgrade to Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #141414; color: #fff; min-height: 100vh; }
+    .header { background: #1a1a1a; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; }
+    .logo { font-size: 24px; font-weight: 800; color: #E50914; }
+    .header-link { color: #999; text-decoration: none; font-size: 14px; }
+    .header-link:hover { color: #fff; }
+    .container { max-width: 800px; margin: 0 auto; padding: 24px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: #999; text-decoration: none; margin-bottom: 24px; font-size: 14px; }
+    .back-link:hover { color: #fff; }
+    .card { background: #1a1a1a; border-radius: 12px; padding: 32px; border: 1px solid #333; margin-bottom: 24px; }
+    .card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .card h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #E50914; }
+    .muted { color: #999; font-size: 14px; }
+    .center { text-align: center; }
+    .benefits-list { list-style: none; margin: 16px 0; }
+    .benefits-list li { padding: 6px 0; font-size: 15px; }
+    .benefits-list li::before { content: "\2713  "; color: #E50914; font-weight: bold; }
+    .price-tag { font-size: 36px; font-weight: 800; color: #E50914; }
+    .price-note { font-size: 13px; color: #999; margin-top: 4px; }
+    .btn { padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-primary { background: #E50914; color: #fff; }
+    .btn-primary:hover { background: #C40812; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-small { padding: 6px 14px; font-size: 12px; border-radius: 4px; }
+    .btn-danger { background: transparent; color: #E50914; border: 1px solid #E50914; }
+    .btn-danger:hover { background: #E50914; color: #fff; }
+    .btn-dev { background: #333; color: #888; font-size: 12px; padding: 8px 14px; border: 1px dashed #555; }
+    .btn-dev:hover { color: #bbb; }
+    .btn-group { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+    .success-box { background: #14251a; border: 1px solid #2e7d4f; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px; }
+    .success-box h3 { color: #4caf7d; border-bottom: none; margin-bottom: 8px; }
+    .success-box p { color: #cde8d6; font-size: 14px; }
+    .already-pro { background: linear-gradient(135deg, #E50914 0%, #C40812 100%); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .already-pro h3 { font-size: 20px; margin-bottom: 8px; color: #fff; border-bottom: none; }
+    .already-pro p { font-size: 14px; opacity: 0.9; }
+    .device-count-badge { float: right; font-size: 14px; font-weight: 700; color: #E50914; border: 1px solid #E50914; border-radius: 12px; padding: 2px 12px; }
+    table.devices-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    .devices-table th { text-align: left; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; border-bottom: 2px solid #333; }
+    .devices-table td { padding: 12px; border-bottom: 1px solid #222; vertical-align: middle; }
+    .devices-table tr.revoked-row td { opacity: 0.45; }
+    .fp-cell { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: #999; word-break: break-all; max-width: 180px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-active { background: #1d3a26; color: #4caf7d; }
+    .badge-revoked { background: #3a1d1d; color: #e57373; }
+    .tooltip { position: relative; display: inline-block; margin-left: 6px; width: 16px; height: 16px; line-height: 16px; text-align: center; border: 1px solid #555; border-radius: 50%; color: #999; font-size: 10px; cursor: help; vertical-align: middle; }
+    .tooltip .tooltiptext { visibility: hidden; width: 240px; background: #333; color: #fff; text-align: center; border-radius: 6px; padding: 8px 10px; position: absolute; z-index: 20; bottom: 130%; left: 50%; margin-left: -120px; font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: normal; line-height: 1.4; opacity: 0; transition: opacity 0.2s; }
+    .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 32px; max-width: 440px; width: 90%; text-align: center; }
+    .modal h3 { font-size: 20px; margin-bottom: 12px; }
+    .modal p { color: #ccc; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .modal a { color: #E50914; }
+    .error-note { background: #2b1a1a; border: 1px solid #7d2e2e; color: #e0a0a0; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-top: 12px; }
+    .empty-note { color: #666; font-size: 14px; padding: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">iFlixify</div>
+    <a href="/profile.html" class="header-link">My Profile</a>
+  </div>
+
+  <div class="container">
+    <a href="/profile.html" class="back-link">&larr; Back to Profile</a>
+
+    <!-- 1. Auth gate: shown when there is no Supabase session -->
+    <div id="authGate" class="card center" style="display: none;">
+      <h2>Sign in to purchase Pro</h2>
+      <p class="muted" style="margin: 12px 0 24px;">You need an iFlixify account to upgrade to Pro and manage your devices.</p>
+      <a href="/profile.html" class="btn btn-primary">Sign In</a>
+    </div>
+
+    <!-- 2. Purchase flow: shown when logged in -->
+    <div id="purchaseContent" style="display: none;">
+
+      <!-- Success box: shown after (simulated) successful payment -->
+      <div id="successBox" class="success-box" style="display: none;">
+        <h3>Welcome to Pro! &#127881;</h3>
+        <p id="invoiceNote">An invoice has been sent to your email.</p>
+      </div>
+
+      <!-- Already pro banner: shown when profiles.tier is already 'pro' -->
+      <div id="alreadyProBanner" class="already-pro" style="display: none;">
+        <h3>You are an iFlixify Pro member</h3>
+        <p>Thanks for your support! Manage your registered devices below.</p>
+      </div>
+
+      <!-- Pro benefits card -->
+      <div class="card" id="benefitsCard">
+        <h2>iFlixify Pro</h2>
+        <p class="muted">One payment. Yours forever.</p>
+        <ul class="benefits-list">
+          <li>Unlimited playlists</li>
+          <li>Multi-profiles</li>
+          <li>Continue Watching</li>
+          <li>Cross-device sync (up to 5 devices)</li>
+          <li>Priority support</li>
+        </ul>
+        <div class="price-tag">$8.99</div>
+        <div class="price-note">one-time payment &mdash; lifetime license</div>
+      </div>
+
+      <!-- 3. Payment section (Revolut placeholder) -->
+      <div class="card" id="paymentSection">
+        <h3>Payment</h3>
+        <p class="muted" style="margin-bottom: 16px;">Secure one-time payment of <strong style="color:#fff;">$8.99</strong> via Revolut.</p>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="startRevolutCheckout()">Pay with Revolut</button>
+          <!-- Dev-only: hidden by default, revealed with ?dev=1 in the URL -->
+          <button id="devSimBtn" class="btn btn-dev" style="display: none;" onclick="simulateSuccessfulPayment()">Simulate successful payment (dev)</button>
+        </div>
+      </div>
+
+      <!-- 4. Device management: visible when tier is pro -->
+      <div class="card" id="devicesSection" style="display: none;">
+        <h3>Device Management <span id="deviceCountBadge" class="device-count-badge">0 / 5</span></h3>
+        <p class="muted">Your Pro license allows up to 5 active devices. Revoked devices no longer count toward the limit.</p>
+
+        <table class="devices-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Platform</th>
+              <th>MAC / Fingerprint<span class="tooltip">?<span class="tooltiptext">Browsers cannot read a device's real MAC address (privacy restriction). iFlixify instead uses a SHA-256 fingerprint hashed from your browser's user agent and screen characteristics as a stable device identifier.</span></span></th>
+              <th>Last Seen</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="devicesTableBody">
+            <tr><td colspan="6" class="empty-note">Loading devices&hellip;</td></tr>
+          </tbody>
+        </table>
+
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="registerThisBrowser()">Register this browser as a device</button>
+        </div>
+        <div id="devicesError" class="error-note" style="display: none;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Revolut placeholder modal -->
+  <div id="revolutModal" class="modal-overlay" style="display: none;">
+    <div class="modal">
+      <h3>Revolut Checkout</h3>
+      <p>Revolut checkout is being set up.<br>Contact <a href="mailto:support@iflixify.app">support@iflixify.app</a> to upgrade manually.</p>
+      <button class="btn btn-primary" onclick="closeRevolutModal()">Close</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const supabaseUrl = "https://zosckkklctvrsjqjmyiv.supabase.co";
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc2Nra2tsY3R2cnNqcWpteWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyODA2NDAsImV4cCI6MjEwMTg1NjY0MH0.bVAxexYv9e7Jo8PLRwYVyzLi6L9PFvxE3M8ZIheMmmA";
+    // Single Supabase client for the whole page
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+    // ------------------------------------------------------------------
+    // Revolut Merchant API configuration (placeholder)
+    // When the real Revolut Merchant checkout is ready, set this to the
+    // payment URL returned by the Revolut Merchant API (see
+    // docs/REVOLUT_SETUP.md). Leave as '' to keep the placeholder modal.
+    // ------------------------------------------------------------------
+    const REVOLUT_CHECKOUT_URL = '';
+
+    const DEVICE_LIMIT = 5;
+    let currentUser = null;
+    let userProfile = null;
+    let devices = [];
+
+    // ------------------------- Auth gate ------------------------------
+
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        document.getElementById('authGate').style.display = 'block';
+        return;
+      }
+      currentUser = session.user;
+      await loadProfile();
+      showPurchaseFlow();
+    }
+
+    async function loadProfile() {
+      try {
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        userProfile = data || { tier: 'free' };
+      } catch (error) {
+        userProfile = { tier: 'free' };
+        console.error('Failed to load profile:', error.message);
+      }
+    }
+
+    function isPro() {
+      return userProfile && userProfile.tier === 'pro';
+    }
+
+    function showPurchaseFlow() {
+      document.getElementById('purchaseContent').style.display = 'block';
+      if (isPro()) {
+        document.getElementById('paymentSection').style.display = 'none';
+        document.getElementById('alreadyProBanner').style.display = 'block';
+        showDevicesSection();
+      }
+    }
+
+    function showDevicesSection() {
+      document.getElementById('devicesSection').style.display = 'block';
+      loadDevices();
+    }
+
+    // ------------------- Revolut checkout (placeholder) ---------------
+
+    async function startRevolutCheckout() {
+      // When the Revolut Merchant API is configured, redirect to the
+      // payment URL. Until then, show the placeholder modal.
+      if (REVOLUT_CHECKOUT_URL) {
+        window.location.href = REVOLUT_CHECKOUT_URL;
+        return;
+      }
+      openRevolutModal();
+    }
+
+    function openRevolutModal() {
+      document.getElementById('revolutModal').style.display = 'flex';
+    }
+
+    function closeRevolutModal() {
+      document.getElementById('revolutModal').style.display = 'none';
+    }
+
+    // ---------------- Simulated payment (dev only) --------------------
+
+    async function simulateSuccessfulPayment() {
+      try {
+        const { error } = await supabase.from('profiles').update({ tier: 'pro' }).eq('id', currentUser.id);
+        if (error) throw error;
+        userProfile.tier = 'pro';
+        document.getElementById('paymentSection').style.display = 'none';
+        document.getElementById('successBox').style.display = 'block';
+        showDevicesSection();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // ---------------------- Device management -------------------------
+
+    async function loadDevices() {
+      const tbody = document.getElementById('devicesTableBody');
+      const errBox = document.getElementById('devicesError');
+      errBox.style.display = 'none';
+      try {
+        const { data, error } = await supabase.from('devices').select('*').eq('license_id', currentUser.id);
+        if (error) throw error;
+        devices = data || [];
+        renderDevices();
+      } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-note">No devices could be loaded.</td></tr>';
+        errBox.textContent = 'Could not load devices: ' + error.message +
+          ' (Note: the devices table currently has an RLS policy "devices_no_client_access" that blocks direct client access; ' +
+          'device registration should go through the Wasmer edge register-device function.)';
+        errBox.style.display = 'block';
+        updateDeviceCountBadge(0);
+      }
+    }
+
+    function activeDeviceCount() {
+      return devices.filter(function (d) { return !d.revoked; }).length;
+    }
+
+    function updateDeviceCountBadge(activeCount) {
+      document.getElementById('deviceCountBadge').textContent = activeCount + ' / ' + DEVICE_LIMIT;
+    }
+
+    function renderDevices() {
+      const tbody = document.getElementById('devicesTableBody');
+      updateDeviceCountBadge(activeDeviceCount());
+      if (!devices.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-note">No devices registered yet. Click "Register this browser as a device" below.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = devices.map(function (d) {
+        const revoked = !!d.revoked;
+        const lastSeen = d.last_seen ? new Date(d.last_seen).toLocaleString() : '&mdash;';
+        const statusBadge = revoked
+          ? '<span class="badge badge-revoked">Revoked</span>'
+          : '<span class="badge badge-active">Active</span>';
+        const revokeBtn = revoked
+          ? ''
+          : '<button class="btn btn-danger btn-small" onclick="revokeDevice(\'' + d.id + '\')">Revoke</button>';
+        return '<tr class="' + (revoked ? 'revoked-row' : '') + '">' +
+          '<td>' + escapeHtml(d.name || 'Unnamed device') + '</td>' +
+          '<td>' + escapeHtml(d.platform || 'Unknown') + '</td>' +
+          '<td class="fp-cell" title="Browser fingerprint (real MAC address is not available in browsers)">' + escapeHtml(shortenFingerprint(d.fingerprint)) + '</td>' +
+          '<td>' + lastSeen + '</td>' +
+          '<td>' + statusBadge + '</td>' +
+          '<td>' + revokeBtn + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    async function revokeDevice(deviceId) {
+      if (!confirm('Revoke this device? It will lose access to your Pro license.')) return;
+      try {
+        const { error } = await supabase.from('devices').update({ revoked: true }).eq('id', deviceId);
+        if (error) throw error;
+        await loadDevices();
+      } catch (error) {
+        alert('Error revoking device: ' + error.message);
+      }
+    }
+
+    async function registerThisBrowser() {
+      if (activeDeviceCount() >= DEVICE_LIMIT) {
+        alert('Device limit reached (' + DEVICE_LIMIT + ' / ' + DEVICE_LIMIT + '). Revoke a device first.');
+        return;
+      }
+      try {
+        const fingerprint = await generateFingerprint();
+        const already = devices.some(function (d) { return d.fingerprint === fingerprint && !d.revoked; });
+        if (already) {
+          alert('This browser is already registered as an active device.');
+          return;
+        }
+        const { error } = await supabase.from('devices').insert({
+          license_id: currentUser.id,
+          email: currentUser.email || '',
+          fingerprint: fingerprint,
+          name: detectBrowserName() + ' on ' + detectPlatform(),
+          platform: detectPlatform()
+        });
+        if (error) throw error;
+        await loadDevices();
+      } catch (error) {
+        alert('Error registering device: ' + error.message);
+      }
+    }
+
+    // Pseudo-fingerprint: SHA-256 hash of navigator.userAgent + screen size.
+    // NOTE: a real MAC address is NOT available to browsers (privacy sandbox),
+    // so this stable hash is used as the device identifier instead.
+    async function generateFingerprint() {
+      const raw = navigator.userAgent + '|' + screen.width + 'x' + screen.height +
+        '|' + (screen.colorDepth || 0) + '|' + (navigator.language || '');
+      if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+        try {
+          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+          return Array.from(new Uint8Array(buf)).map(function (b) {
+            return b.toString(16).padStart(2, '0');
+          }).join('');
+        } catch (e) { /* fall through to non-crypto hash */ }
+      }
+      // Fallback hash (djb2-style) for non-secure contexts where
+      // crypto.subtle is unavailable (e.g. plain http).
+      let h = 5381;
+      for (let i = 0; i < raw.length; i++) {
+        h = ((h << 5) + h + raw.charCodeAt(i)) >>> 0;
+      }
+      return 'fp-' + h.toString(16);
+    }
+
+    function detectBrowserName() {
+      const ua = navigator.userAgent;
+      if (/Edg\//.test(ua)) return 'Microsoft Edge';
+      if (/OPR\//.test(ua)) return 'Opera';
+      if (/Chrome\//.test(ua)) return 'Google Chrome';
+      if (/Firefox\//.test(ua)) return 'Firefox';
+      if (/Safari\//.test(ua)) return 'Safari';
+      return 'Web Browser';
+    }
+
+    function detectPlatform() {
+      const ua = navigator.userAgent;
+      if (/Windows/.test(ua)) return 'Windows';
+      if (/Android/.test(ua)) return 'Android';
+      if (/iPhone|iPad|iPod/.test(ua)) return 'iOS';
+      if (/Mac OS X/.test(ua)) return 'macOS';
+      if (/Linux/.test(ua)) return 'Linux';
+      return 'Unknown';
+    }
+
+    // ------------------------- Utilities ------------------------------
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function shortenFingerprint(fp) {
+      const s = String(fp || '');
+      return s.length > 20 ? s.slice(0, 12) + '\u2026' + s.slice(-6) : s;
+    }
+
+    // Reveal the hidden dev "simulate payment" button via ?dev=1
+    if (new URLSearchParams(window.location.search).get('dev') === '1') {
+      document.getElementById('devSimBtn').style.display = 'inline-block';
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>

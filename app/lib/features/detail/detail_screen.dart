@@ -427,33 +427,7 @@ class _DetailScreenState extends State<DetailScreen> {
     final useExternalPlayer = prefs.getBool('use_external_player') ?? false;
 
     if (useExternalPlayer) {
-      // Launch with Android's app chooser for video players.
-      // Use intent: URI with video/* MIME type to show all capable players.
-      final uri = Uri.parse(playbackUrl);
-      try {
-        // Try launching with external application mode first.
-        // This shows Android's app chooser if multiple players exist.
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalNonBrowserApplication,
-        );
-        if (!launched && mounted) {
-          // Fallback: try with platform default mode
-          await launchUrl(uri, mode: LaunchMode.platformDefault);
-        }
-      } catch (e) {
-        // ignore: avoid_print
-        print('[DetailScreen] Failed to launch external player: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No external video player found. Install VLC or MX Player.'),
-              backgroundColor: AppColors.bgSurface,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
+      await _launchExternalPlayer(playbackUrl);
       return;
     }
 
@@ -506,6 +480,62 @@ class _DetailScreenState extends State<DetailScreen> {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => playerScreen))
         .then((_) => controller.dispose());
+  }
+
+  // ---------------------------------------------------------------------------
+  // External player launch
+  // ---------------------------------------------------------------------------
+
+  /// Opens [playbackUrl] in an external video player (e.g. VLC, MX Player).
+  ///
+  /// Android rarely resolves a raw http(s) stream URL to a video player
+  /// app directly, and `canLaunchUrl` is unreliable for non-browser apps
+  /// (Android 11+ package visibility makes it return false even when the
+  /// player is installed). So we just try launching and catch failures:
+  ///
+  /// 1. `vlc://` deep link — opens VLC directly when installed.
+  /// 2. `intent://` URI wrapping the stream with MIME type `video/*` —
+  ///    shows the Android system chooser listing every installed video
+  ///    player.
+  /// 3. Only if both fail, tell the user to install a player.
+  Future<void> _launchExternalPlayer(String playbackUrl) async {
+    // 1. Try VLC's vlc:// deep link.
+    try {
+      final launched = await launchUrl(
+        Uri.parse('vlc://$playbackUrl'),
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched) return;
+    } catch (_) {
+      // VLC not installed (or launch refused) — fall through to the
+      // system chooser below.
+    }
+
+    // 2. Wrap the stream in an intent:// URI with a video/* MIME type so
+    //    Android offers every installed video player via the chooser.
+    try {
+      final streamPart = playbackUrl.replaceFirst(RegExp(r'^https?://'), '');
+      final launched = await launchUrl(
+        Uri.parse('intent://$streamPart#Intent;scheme=http;type=video/*;end'),
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched) return;
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to launch external player intent: $e');
+    }
+
+    // 3. Nothing could handle the stream.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('No external video player found. Install VLC or MX Player.'),
+          backgroundColor: AppColors.bgSurface,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -64,11 +64,17 @@ class ParentalControlService {
     await prefs.remove(_pinHashKey);
   }
 
-  /// Returns `true` if adult content should be hidden (i.e. a PIN is set
-  /// and the user has not temporarily unlocked the session).
+  /// Returns `true` if adult content should be hidden (i.e. the visibility
+  /// preference is off and the user has not temporarily unlocked the
+  /// session).
+  ///
+  /// This drives the browse/home filtering and never requires a PIN by
+  /// itself — hiding or showing content is a plain preference (see
+  /// [setAdultContentVisible]). The PIN is only used by the explicit
+  /// "unlock" flow (see [unlockTemporarily]).
   Future<bool> isAdultContentLocked() async {
     if (_temporarilyUnlocked) return false;
-    return isPinSet();
+    return !await isAdultContentVisible();
   }
 
   /// Whether the user has temporarily unlocked adult content for this
@@ -98,45 +104,25 @@ class ParentalControlService {
 
   /// Returns `true` if adult content should be visible.
   ///
-  /// - If no PIN is set, adult content is always visible (returns `true`).
-  /// - If a PIN is set, returns the stored preference (default: `false` / hidden).
+  /// Reflects the stored preference directly, regardless of whether a PIN
+  /// is set. Defaults to `true` (visible) when no PIN is set and the
+  /// preference has never been changed; defaults to `false` (hidden) when
+  /// a PIN is set and the preference has never been changed.
   Future<bool> isAdultContentVisible() async {
-    final pinSet = await isPinSet();
-    if (!pinSet) return true; // No PIN => always visible.
     final prefs = await SharedPreferences.getInstance();
-    // Default: hide adult content when PIN is set.
-    final hidden = prefs.getBool(_hideAdultContentKey) ?? true;
+    final pinSet = await isPinSet();
+    final hidden = prefs.getBool(_hideAdultContentKey) ?? pinSet;
     return !hidden;
   }
 
   /// Sets whether adult content should be visible.
   ///
-  /// When [visible] is `true` and a PIN is set, the caller must verify the PIN
-  /// *before* calling this method. Returns `true` if the preference was saved.
-  /// Returns `false` if PIN verification is required but was not provided
-  /// (i.e. the caller should prompt for the PIN first).
-  Future<bool> setAdultContentVisible(bool visible) async {
-    final pinSet = await isPinSet();
-
-    // If hiding adult content, no PIN verification needed.
-    if (!visible) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_hideAdultContentKey, true);
-      return true;
-    }
-
-    // If showing adult content and PIN is set, the caller must have already
-    // verified the PIN. We check the session unlock flag as a guard.
-    if (pinSet && !_temporarilyUnlocked) {
-      // Caller should have verified PIN before calling this. Return false
-      // to signal that PIN verification is still required.
-      return false;
-    }
-
-    // No PIN set, or PIN already verified => save the preference.
+  /// This is a plain preference: it is saved unconditionally and never
+  /// requires a PIN. The PIN is only used for the explicit "unlock" flow
+  /// (see [unlockTemporarily]).
+  Future<void> setAdultContentVisible(bool visible) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_hideAdultContentKey, false);
-    return true;
+    await prefs.setBool(_hideAdultContentKey, !visible);
   }
 
   // ---------------------------------------------------------------------------

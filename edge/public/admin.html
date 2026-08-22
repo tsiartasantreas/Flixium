@@ -68,6 +68,13 @@
       <div id="loginError" class="error" style="display: none; margin-top: 16px;"></div>
     </div>
 
+    <div id="accessDenied" style="display: none; max-width: 420px; margin: 80px auto; text-align: center;">
+      <h2 style="margin-bottom: 16px;">Access Denied</h2>
+      <p style="color: #dc3545; font-size: 16px; margin-bottom: 24px;">Access denied. Admin privileges required.</p>
+      <button onclick="logout()" class="btn btn-primary">Sign Out</button>
+      <p style="margin-top: 16px;"><a href="/profile.html" style="color: #999; font-size: 14px;">Go to your profile</a></p>
+    </div>
+
     <div id="adminPanel" style="display: none;">
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-value" id="totalUsers">-</div><div class="stat-label">Total Users</div></div>
@@ -109,30 +116,45 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2.112.3"></script>
   <script>
+    // NOTE: the CDN bundle declares a global `supabase` (var), so we must NOT
+    // redeclare that name here. Our client instance is named `sb`.
     const supabaseUrl = "https://zosckkklctvrsjqjmyiv.supabase.co";
     const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc2Nra2tsY3R2cnNqcWpteWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyODA2NDAsImV4cCI6MjEwMTg1NjY0MH0.bVAxexYv9e7Jo8PLRwYVyzLi6L9PFvxE3M8ZIheMmmA";
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
     let currentUser = null;
     let users = [];
 
+    // Only admins may see this panel. A missing profile row, a row without
+    // is_admin, or any query error all resolve to "not an admin".
+    async function verifyAdmin() {
+      if (!currentUser) return false;
+      try {
+        const { data, error } = await sb.from('profiles').select('is_admin').eq('id', currentUser.id).single();
+        if (error) return false;
+        return !!(data && data.is_admin);
+      } catch (e) { return false; }
+    }
+
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) { currentUser = session.user; showAdmin(); loadUsers(); }
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        if (await verifyAdmin()) { showAdmin(); loadUsers(); } else { showDenied(); }
+      }
     }
 
     async function login() {
-      const email = document.getElementById('loginEmail').value;
+      const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
       const errorDiv = document.getElementById('loginError');
       if (!email || !password) { errorDiv.textContent = 'Please enter email and password'; errorDiv.style.display = 'block'; return; }
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
         currentUser = data.user;
-        showAdmin();
-        loadUsers();
+        if (await verifyAdmin()) { showAdmin(); loadUsers(); } else { showDenied(); }
         errorDiv.style.display = 'none';
       } catch (error) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
     }
@@ -140,19 +162,29 @@
     function showAdmin() {
       document.getElementById('adminEmail').textContent = currentUser.email;
       document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('accessDenied').style.display = 'none';
       document.getElementById('adminPanel').style.display = 'block';
     }
 
-    async function logout() {
-      await supabase.auth.signOut();
-      currentUser = null;
-      document.getElementById('loginForm').style.display = 'block';
+    function showDenied() {
+      document.getElementById('adminEmail').textContent = '';
+      document.getElementById('loginForm').style.display = 'none';
       document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('accessDenied').style.display = 'block';
+    }
+
+    async function logout() {
+      await sb.auth.signOut();
+      currentUser = null;
+      users = [];
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
     }
 
     async function loadUsers() {
       try {
-        const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         users = data || [];
         updateStats();
@@ -208,7 +240,7 @@
       const tier = document.getElementById('editTier').value;
       const isAdmin = document.getElementById('editAdmin').checked;
       try {
-        const { error } = await supabase.from('profiles').update({ display_name: name, tier: tier, is_admin: isAdmin }).eq('id', userId);
+        const { error } = await sb.from('profiles').update({ display_name: name, tier: tier, is_admin: isAdmin }).eq('id', userId);
         if (error) throw error;
         closeModal();
         loadUsers();
@@ -218,7 +250,7 @@
     async function deleteUser(userId, email) {
       if (!confirm('Delete user ' + email + '? This cannot be undone.')) return;
       try {
-        const { error } = await supabase.from('profiles').delete().eq('id', userId);
+        const { error } = await sb.from('profiles').delete().eq('id', userId);
         if (error) throw error;
         loadUsers();
       } catch (error) { alert('Error: ' + error.message); }

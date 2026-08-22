@@ -1275,8 +1275,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _onAdultContentToggle(bool showAdult) async {
-    // Toggle works without PIN verification — the PIN is only required for
-    // specific actions (e.g. viewing adult content), not for the toggle itself.
+    // Unconditional preference update — no PIN is ever required here.
+    // The PIN is only used by the explicit "unlock" button on the
+    // home/browse screens, and only when a PIN is actually set.
     await ParentalControlService.instance.setAdultContentVisible(showAdult);
     if (mounted) {
       setState(() => _hideAdultContent = !showAdult);

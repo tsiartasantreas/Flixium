@@ -48,6 +48,13 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isEmpty = true;
   bool _isLoading = true;
   bool _parentalLocked = false;
+
+  /// Whether the entitlement tier has been fetched at least once.
+  ///
+  /// [EntitlementService.isPro] is a synchronous getter over a cached tier
+  /// that starts as `'free'`; without an explicit refresh the Continue
+  /// Watching row would never load even for Pro users.
+  bool _tierRefreshed = false;
   bool get _isTv =>
       Platform.isLinux ||
       (Platform.isAndroid &&
@@ -176,8 +183,13 @@ class HomeScreenState extends State<HomeScreen> {
         'vodItems=${filteredVod.length}, series=${filteredSeries.length}, '
         'radio=${radioStations.length}');
 
-    // Load Continue Watching items (Pro only).
+    // Load Continue Watching items (Pro only). Refresh the cached tier once
+    // so `isPro` reflects the actual account instead of the default 'free'.
     final continueWatchingItems = <ContinueWatchingItem>[];
+    if (!_tierRefreshed) {
+      await _entitlementService.refreshTier();
+      _tierRefreshed = true;
+    }
     if (_entitlementService.isPro) {
       final progressEntries =
           await _watchProgressService.getContinueWatching(limit: 10);
@@ -444,16 +456,21 @@ class HomeScreenState extends State<HomeScreen> {
   // Parental controls
   // ---------------------------------------------------------------------------
 
-  /// Shows the PIN verification dialog and reloads content if the PIN is
-  /// correct, so that adult content becomes visible for this session.
+  /// Unlocks adult content for this session so it becomes visible.
+  ///
+  /// A PIN is only requested when one is actually configured; hiding or
+  /// showing adult content is a PIN-free preference that lives in Settings.
   Future<void> _unlockAdultContent() async {
-    final unlocked = await showPinVerifyDialog(context);
-    if (unlocked && mounted) {
-      // Unlock adult content for the rest of this app session.
-      ParentalControlService.instance.unlockTemporarily();
-      setState(() => _parentalLocked = false);
-      await _loadContent();
+    if (await ParentalControlService.instance.isPinSet()) {
+      if (!mounted) return;
+      final unlocked = await showPinVerifyDialog(context);
+      if (!unlocked || !mounted) return;
     }
+    // Unlock adult content for the rest of this app session.
+    ParentalControlService.instance.unlockTemporarily();
+    if (!mounted) return;
+    setState(() => _parentalLocked = false);
+    await _loadContent();
   }
 
   // ---------------------------------------------------------------------------
@@ -673,11 +690,17 @@ class HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.person_outline, color: AppColors.textPrimary),
             onPressed: () {
-              Navigator.of(context).push(
+              Navigator.of(context)
+                  .push(
                 MaterialPageRoute(
                   builder: (_) => const SettingsScreen(),
                 ),
-              );
+              )
+                  .then((_) {
+                // Reload when returning — preferences like adult content
+                // visibility may have changed.
+                _loadContent();
+              });
             },
             tooltip: 'Settings',
           ),

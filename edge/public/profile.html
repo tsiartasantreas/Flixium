@@ -129,16 +129,19 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2.112.3"></script>
   <script>
+    // NOTE: the CDN bundle declares a global `supabase` (var), so redeclaring
+    // that name with const/let here throws a SyntaxError that kills the whole
+    // script. Our client instance is therefore named `sb`.
     const supabaseUrl = "https://zosckkklctvrsjqjmyiv.supabase.co";
     const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc2Nra2tsY3R2cnNqcWpteWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyODA2NDAsImV4cCI6MjEwMTg1NjY0MH0.bVAxexYv9e7Jo8PLRwYVyzLi6L9PFvxE3M8ZIheMmmA";
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
     let currentUser = null;
     let userProfile = null;
 
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       if (session) { currentUser = session.user; await loadProfile(); showProfile(); } else { showLogin(); }
     }
 
@@ -146,23 +149,28 @@
     function showRegister() { document.getElementById('loginSection').style.display = 'none'; document.getElementById('registerSection').style.display = 'block'; document.getElementById('profileSection').style.display = 'none'; }
     function showProfile() { document.getElementById('loginSection').style.display = 'none'; document.getElementById('registerSection').style.display = 'none'; document.getElementById('profileSection').style.display = 'block'; }
 
+    function authErrorMessage(message) {
+      if (/email not confirmed/i.test(message)) return 'Email not confirmed. Check your email to confirm your account, then sign in.';
+      return message;
+    }
+
     async function login() {
-      const email = document.getElementById('loginEmail').value;
+      const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
       const errorDiv = document.getElementById('loginError');
-      if (!email || !password) { errorDiv.textContent = 'Please enter email and password'; errorDiv.style.display = 'block'; return; }
+      if (!email || !password) { errorDiv.textContent = 'Please enter email and password'; errorDiv.className = 'error'; errorDiv.style.display = 'block'; return; }
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
         currentUser = data.user;
         await loadProfile();
         showProfile();
         errorDiv.style.display = 'none';
-      } catch (error) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+      } catch (error) { errorDiv.textContent = authErrorMessage(error.message); errorDiv.className = 'error'; errorDiv.style.display = 'block'; }
     }
 
     async function register() {
-      const email = document.getElementById('regEmail').value;
+      const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
       const confirm = document.getElementById('regConfirm').value;
       const errorDiv = document.getElementById('regError');
@@ -171,30 +179,49 @@
       if (password !== confirm) { errorDiv.textContent = 'Passwords do not match'; errorDiv.style.display = 'block'; return; }
       if (password.length < 8) { errorDiv.textContent = 'Password must be at least 8 characters'; errorDiv.style.display = 'block'; return; }
       try {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await sb.auth.signUp({ email, password });
         if (error) throw error;
-        successDiv.textContent = 'Account created! Please check your email to confirm, then sign in.';
-        successDiv.style.display = 'block';
-        errorDiv.style.display = 'none';
-      } catch (error) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; successDiv.style.display = 'none'; }
+        if (data && data.session) {
+          // No email confirmation required: the user is signed in immediately.
+          currentUser = data.user;
+          await loadProfile();
+          showProfile();
+        } else {
+          // Email confirmation required.
+          successDiv.textContent = 'Account created! Check your email to confirm your account, then sign in.';
+          successDiv.style.display = 'block';
+          errorDiv.style.display = 'none';
+        }
+      } catch (error) { errorDiv.textContent = authErrorMessage(error.message); errorDiv.style.display = 'block'; successDiv.style.display = 'none'; }
     }
 
     async function forgotPassword() {
-      const email = document.getElementById('loginEmail').value;
-      if (!email) { alert('Please enter your email first'); return; }
+      const email = document.getElementById('loginEmail').value.trim();
+      const errorDiv = document.getElementById('loginError');
+      if (!email) { errorDiv.textContent = 'Please enter your email above first, then click Forgot Password'; errorDiv.className = 'error'; errorDiv.style.display = 'block'; return; }
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: 'https://iflixify.wasmer.app/reset-password.html' });
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password.html' });
         if (error) throw error;
-        alert('Password reset email sent! Check your inbox.');
-      } catch (error) { alert('Error: ' + error.message); }
+        errorDiv.textContent = 'Password reset email sent! Check your inbox.';
+        errorDiv.className = 'success';
+        errorDiv.style.display = 'block';
+      } catch (error) {
+        errorDiv.textContent = 'Error: ' + error.message;
+        errorDiv.className = 'error';
+        errorDiv.style.display = 'block';
+      }
     }
 
     async function loadProfile() {
       if (!currentUser) return;
       try {
-        const { data, error } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
-        if (error) throw error;
-        userProfile = data;
+        const { data, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+        if (error) {
+          if (error.code === 'PGRST116' || /no rows/i.test(error.message || '')) {
+            // Profile row not created yet: fall back to auth record so the UI still renders.
+            userProfile = { display_name: '', tier: 'free', is_admin: false, created_at: currentUser.created_at };
+          } else { throw error; }
+        } else { userProfile = data; }
         updateProfileUI();
       } catch (error) { console.error('Error loading profile:', error); }
     }
@@ -227,7 +254,7 @@
     async function saveProfile() {
       const name = document.getElementById('editName').value;
       try {
-        const { error } = await supabase.from('profiles').update({ display_name: name }).eq('id', currentUser.id);
+        const { error } = await sb.from('profiles').update({ display_name: name }).eq('id', currentUser.id);
         if (error) throw error;
         userProfile.display_name = name;
         updateProfileUI();
@@ -235,8 +262,8 @@
       } catch (error) { alert('Error: ' + error.message); }
     }
 
-    function upgradeToPro() { window.open('https://github.com/tsiartasantreas/iFlixify-IPTV/releases/latest', '_blank'); }
-    async function logout() { await supabase.auth.signOut(); currentUser = null; userProfile = null; showLogin(); }
+    function upgradeToPro() { window.location.href = '/purchase.html'; }
+    async function logout() { await sb.auth.signOut(); currentUser = null; userProfile = null; showLogin(); }
     checkAuth();
   </script>
 </body>
