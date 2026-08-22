@@ -40,9 +40,11 @@ class _FlixiumAppState extends State<FlixiumApp> {
     // from Settings. The app runs fully in guest mode without it.
     try {
       await SupabaseService.initialize();
-    } catch (_) {
+    } catch (e) {
       // If Supabase fails to initialize (e.g. no network), the app can
-      // still run in guest mode.
+      // still run in guest mode. Log the error for debugging.
+      // ignore: avoid_print
+      print('[FlixiumApp] Supabase initialization failed (guest mode active): $e');
     }
 
     // If a returning user has a persisted session, sync their cloud data

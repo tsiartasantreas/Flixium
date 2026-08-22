@@ -17,12 +17,16 @@ class SupabaseService {
   static Future<void> initialize() async {
     if (_initialized) return;
     try {
+      // ignore: avoid_print
+      print('[SupabaseService] Initializing with URL: ${Env.supabaseUrl}');
       // ignore: deprecated_member_use
       await Supabase.initialize(
         url: Env.supabaseUrl,
         publishableKey: Env.supabaseAnonKey,
       );
       _initialized = true;
+      // ignore: avoid_print
+      print('[SupabaseService] Initialized successfully');
     } catch (e, st) {
       // ignore: avoid_print
       print('[SupabaseService] initialize failed: $e\n$st');

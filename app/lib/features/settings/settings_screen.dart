@@ -59,7 +59,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Profile.
   String _profileName = 'User';
   String _profileEmail = '';
-  String _tier = 'Free';
 
   /// Whether Pro features (multi-user profiles, cross-device sync, Continue
   /// Watching, unlimited playlists) are unlocked for the current user.
@@ -121,7 +120,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _proFeaturesUnlocked = tier == 'pro' || _entitlementService.isAdmin;
-      _tier = _proFeaturesUnlocked ? 'Pro' : 'Free';
     });
 
     // Load player preference and parental control state.
@@ -185,8 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (profileTier != null && profileTier.isNotEmpty) {
         _proFeaturesUnlocked =
             profileTier == 'pro' || (profileIsAdmin ?? false);
-        _tier = _proFeaturesUnlocked ? 'Pro' : 'Free';
-      }
+        }
     });
   }
 
@@ -376,11 +373,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // -- Auth / Profile section (prominent, top of screen) ------------
-          if (_profileEmail.isEmpty)
-            _buildHeroAuthBanner()
-          else
-            _buildProfileCard(),
+          // -- Account Status section (top of screen) -------------------------
+          _buildAccountStatusSection(),
 
           const SizedBox(height: 16),
 
@@ -630,129 +624,166 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
   // Hero auth banner (logged-out state)
   // ---------------------------------------------------------------------------
+  // Account Status section (top of settings)
+  // ---------------------------------------------------------------------------
 
-  Widget _buildHeroAuthBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppTheme.horizontalPadding),
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Large sign-in icon.
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: AppColors.accentPrimary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+  Widget _buildAccountStatusSection() {
+    // Not logged in — prompt to sign in.
+    if (_profileEmail.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: AppTheme.horizontalPadding),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.bgElevated,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            const Text(
+              'Sign in to sync your data across devices',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            child: const Icon(
-              Icons.login,
-              color: AppColors.accentPrimary,
-              size: 36,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Title.
-          const Text(
-            'Sign In to iFlixify IPTV',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Subtitle.
-          const Text(
-            'Sync playlists, favorites & watch progress across devices',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Buttons side by side.
-          Row(
-            children: [
-              // Sign In button (primary).
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: () => _navigateToAuth(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentPrimary,
-                      foregroundColor: AppColors.textPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: () => _navigateToAuth(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentPrimary,
+                        foregroundColor: AppColors.textPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                      child: const Text(
+                        'Sign In',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Create Account button (outlined).
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton(
-                    onPressed: () => _navigateToAuth(initialSignUp: true),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.bgSurface),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: () => _navigateToAuth(initialSignUp: true),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.bgSurface),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      child: const Text(
+                        'Create Account',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Logged in + Pro user.
+    if (_proFeaturesUnlocked) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: AppTheme.horizontalPadding),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.bgElevated,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.green.withValues(alpha: 0.4),
+            width: 1,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: GestureDetector(
+                    onTap: _showEditNameDialog,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _profileName,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.edit,
+                          size: 14,
+                          color: AppColors.textSecondary.withValues(alpha: 0.6),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _profileEmail,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '✨ Pro Member',
+              style: TextStyle(
+                color: Colors.greenAccent,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Thank you for being a Pro user!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-  // ---------------------------------------------------------------------------
-  // Profile card (signed-in state)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildProfileCard() {
-    // Generate initials from the display name.
-    final initials = _profileName.isNotEmpty
-        ? _profileName
-            .trim()
-            .split(RegExp(r'\s+'))
-            .take(2)
-            .map((w) => w[0].toUpperCase())
-            .join()
-        : 'U';
-
+    // Logged in + Free user.
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppTheme.horizontalPadding),
       padding: const EdgeInsets.all(20),
@@ -763,111 +794,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Circle avatar with initials.
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.accentPrimary.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      color: AppColors.accentPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+              Flexible(
+                child: GestureDetector(
+                  onTap: _showEditNameDialog,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _profileName,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.edit,
+                        size: 14,
+                        color: AppColors.textSecondary.withValues(alpha: 0.6),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-
-              // Name, email, and tier badge.
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: _showEditNameDialog,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _profileName,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.edit,
-                            size: 14,
-                            color: AppColors.textSecondary.withValues(alpha: 0.6),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _profileEmail,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _tier == 'Pro'
-                                ? Colors.green.withValues(alpha: 0.2)
-                                : AppColors.bgSurface,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            _tier,
-                            style: TextStyle(
-                              color: _tier == 'Pro'
-                                  ? Colors.greenAccent
-                                  : AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        // Upgrade link for Free tier.
-                        if (!_proFeaturesUnlocked) ...[
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: _navigateToActivatePro,
-                            child: const Text(
-                              'Upgrade',
-                              style: TextStyle(
-                                color: AppColors.accentPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _profileEmail,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "You're on the Free plan",
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: _navigateToActivatePro,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentPrimary,
+                foregroundColor: AppColors.textPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ],
+              child: const Text(
+                'Upgrade to Pro - \$8.99',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1043,7 +1040,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {
                   _profileEmail = '';
                   _profileName = 'User';
-                  _tier = 'Free';
                   _proFeaturesUnlocked = false;
                 });
                 _loadSettings();
@@ -1279,23 +1275,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _onAdultContentToggle(bool showAdult) async {
-    if (showAdult && _parentalPinSet) {
-      // Require PIN verification to show adult content.
-      final unlocked = await showPinVerifyDialog(context);
-      if (!unlocked) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Incorrect PIN'),
-              backgroundColor: AppColors.bgSurface,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
+    // Toggle works without PIN verification — the PIN is only required for
+    // specific actions (e.g. viewing adult content), not for the toggle itself.
     await ParentalControlService.instance.setAdultContentVisible(showAdult);
     if (mounted) {
       setState(() => _hideAdultContent = !showAdult);

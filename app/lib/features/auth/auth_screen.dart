@@ -131,7 +131,7 @@ class _AuthScreenState extends State<AuthScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Please check your email to confirm your account before signing in.',
+            'Account created! Please check your email to confirm.',
           ),
           duration: Duration(seconds: 6),
         ),
@@ -772,6 +772,10 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     if (lower.contains('invalid email') || lower.contains('unable to validate email')) {
       return 'Please enter a valid email address.';
+    }
+    if (lower.contains('email') &&
+        (lower.contains('disabled') || lower.contains('not enabled'))) {
+      return 'Email login is not available. Please contact support.';
     }
     if (lower.contains('network') || lower.contains('connection')) {
       return 'Network error. Please check your internet connection.';
