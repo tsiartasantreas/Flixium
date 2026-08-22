@@ -1,5 +1,12 @@
 kind: wasmer.io/App.v0
 name: iflixify
-app_id: da_RpXImtBUNv5X
 owner: tsiartasantreas
 package: .
+annotations:
+  anybuild.run/config:
+    name: out
+    static_dir: public
+  anybuild.run/provider: staticfile
+  anybuild.run/version: 0.27.2
+  wasmer.io/version: 7.2.1
+app_id: da_nX3IVtVU11Ak

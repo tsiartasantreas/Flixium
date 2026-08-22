@@ -1,5 +1,0 @@
-[package]
-name = "iflixify"
-version = "1.0.1"
-description = "iFlixify IPTV - Landing page, admin panel, password reset, user profile"
-license = "Proprietary"

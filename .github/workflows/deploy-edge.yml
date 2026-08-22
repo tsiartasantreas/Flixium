@@ -25,8 +25,8 @@ jobs:
         env:
           WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
 
-      - name: Deploy edge app
+      - name: Deploy edge app (remote build)
         working-directory: edge
-        run: wasmer deploy --non-interactive
+        run: wasmer deploy --build-remote --non-interactive --owner tsiartasantreas
         env:
           WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
