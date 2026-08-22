@@ -6,10 +6,7 @@ plugins {
 
 android {
     namespace = "com.iflixify.iflixify"
-    // Pin compileSdk to 34 explicitly: androidx.fragment (pulled in by
-    // android_intent_plus) requires AARs compiled against API 34, while
-    // flutter.compileSdkVersion resolves to 33 for this Flutter version.
-    compileSdk = 34
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -56,11 +56,6 @@ dependencies:
   # url_launcher — open URLs in the browser.
   url_launcher: ^6.3.1
 
-  # android_intent_plus — reliable Android intent launching for external
-  # video players (VLC / MX Player). url_launcher cannot hand raw stream
-  # URLs to other apps on Android 11+ due to package visibility rules.
-  android_intent_plus: ^4.0.0
-
   # media_kit — cross-platform video/audio playback.
   media_kit: ^1.1.11
   media_kit_video: ^1.2.5

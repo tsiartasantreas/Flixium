@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
@@ -492,65 +491,25 @@ class _DetailScreenState extends State<DetailScreen> {
   /// The previous `vlc://` / `intent://` url_launcher approach never worked
   /// because Android 11+ package visibility stops the system from resolving
   /// custom schemes and intent URIs from other apps. Instead we send real
-  /// VIEW intents via `android_intent_plus`:
+  /// Opens the stream in an external video player.
   ///
-  /// 1. A VIEW intent restricted to the VLC package — opens VLC directly.
-  /// 2. A generic VIEW intent with MIME type `video/*` — Android shows the
-  ///    system chooser listing every installed video player.
-  /// 3. Non-Android platforms (or if both intents fail on Android): fall
-  ///    back to `url_launcher`.
-  /// 4. Only if everything fails, tell the user to install a player.
+  /// Uses `url_launcher` with `externalApplication` mode which triggers
+  /// Android's built-in app chooser — VLC, MX Player, or any installed
+  /// video player will appear. No special packages needed.
   Future<void> _launchExternalPlayer(String playbackUrl) async {
-    if (Platform.isAndroid) {
-      // Local download paths have no scheme — wrap them in a file:// URI so
-      // players can resolve them (http(s) streams pass through unchanged).
-      final data = playbackUrl.contains('://')
-          ? playbackUrl
-          : Uri.file(playbackUrl).toString();
-
-      // 1. Try VLC directly via an explicit-package VIEW intent.
-      final vlcIntent = AndroidIntent(
-        action: 'android.intent.action.VIEW',
-        data: data,
-        type: 'video/*',
-        package: 'org.videolan.vlc',
+    try {
+      final uri = Uri.parse(playbackUrl);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
       );
-      try {
-        await vlcIntent.launch();
-        return;
-      } catch (_) {
-        // VLC not installed (or launch refused) — fall through to the
-        // system chooser below.
-      }
-
-      // 2. System chooser: any installed app that can play video.
-      final chooser = AndroidIntent(
-        action: 'android.intent.action.VIEW',
-        data: data,
-        type: 'video/*',
-      );
-      try {
-        await chooser.launch();
-        return;
-      } catch (e) {
-        // ignore: avoid_print
-        print('[DetailScreen] Failed to launch external player intent: $e');
-      }
-    } else {
-      // 3. Non-Android: let url_launcher hand the URL to the OS.
-      try {
-        final launched = await launchUrl(
-          Uri.parse(playbackUrl),
-          mode: LaunchMode.externalApplication,
-        );
-        if (launched) return;
-      } catch (e) {
-        // ignore: avoid_print
-        print('[DetailScreen] Failed to launch external player URL: $e');
-      }
+      if (launched) return;
+    } catch (e) {
+      // ignore: avoid_print
+      print('[DetailScreen] Failed to launch external player: $e');
     }
 
-    // 4. Nothing could handle the stream.
+    // Nothing could handle the stream.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
